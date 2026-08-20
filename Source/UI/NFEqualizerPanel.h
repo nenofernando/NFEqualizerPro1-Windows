@@ -6,6 +6,7 @@
 #include "NFLevelMeter.h"
 #include "NFSectionEnableButton.h"
 #include "NFDesignMetrics.h"
+#include "NFTheme.h"
 
 // Fixed-resolution content panel, laid out at DesignMetrics::width x height.
 // The editor scales this as a whole via AffineTransform so the entire UI
@@ -59,6 +60,10 @@ private:
     juce::Label oversamplingCaption;
     juce::ComboBox oversamplingBox;
 
+    juce::Label skinCaption;
+    juce::TextButton skinButton1 { "1" }, skinButton2 { "2" };
+    NFTheme currentTheme = NFTheme::classicGreen();
+
     std::vector<std::unique_ptr<juce::Label>> labels;
     std::vector<std::unique_ptr<SliderAttachment>> attachments;
     std::unique_ptr<ButtonAttachment> lowShelfAttachment;
@@ -82,6 +87,8 @@ private:
 
     void showSaveDialog();
     void showLoadDialog();
+
+    void applyTheme(const NFTheme& theme);
 
     void timerCallback() override;
 

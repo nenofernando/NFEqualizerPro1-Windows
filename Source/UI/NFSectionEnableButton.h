@@ -1,8 +1,11 @@
 #pragma once
 #include <JuceHeader.h>
 
-// The purple section LEDs (LOW/MID/HIGH/NF CHARACTER) doubling as real
+// The section LEDs (LOW/MID/HIGH/NF CHARACTER) doubling as real
 // enable/bypass toggles for their section, attached to an APVTS bool param.
+// Lit colour is skin-dependent (set via setAccentColours), since it sits
+// directly on the main face and needs to contrast against whichever colour
+// that face currently is.
 class NFSectionEnableButton : public juce::ToggleButton
 {
 public:
@@ -11,6 +14,14 @@ public:
         setClickingTogglesState(true);
         setMouseCursor(juce::MouseCursor::PointingHandCursor);
         setWantsKeyboardFocus(false);
+    }
+
+    void setAccentColours(juce::Colour top, juce::Colour bottom, juce::Colour ring)
+    {
+        litTop = top;
+        litBottom = bottom;
+        litRing = ring;
+        repaint();
     }
 
     void paintButton(juce::Graphics& g,
@@ -32,17 +43,14 @@ public:
         if (enabled)
         {
             juce::ColourGradient gradient(
-                juce::Colour::fromRGB(215, 70, 255),
-                inner.getCentreX(), inner.getY(),
-                juce::Colour::fromRGB(92, 0, 135),
-                inner.getCentreX(), inner.getBottom(),
+                litTop, inner.getCentreX(), inner.getY(),
+                litBottom, inner.getCentreX(), inner.getBottom(),
                 false);
 
             g.setGradientFill(gradient);
             g.fillEllipse(inner);
 
-            g.setColour(juce::Colour::fromRGB(180, 35, 235)
-                            .withAlpha(isMouseOverButton ? 0.45f : 0.28f));
+            g.setColour(litRing.withAlpha(isMouseOverButton ? 0.45f : 0.28f));
             g.drawEllipse(area.expanded(1.0f), isMouseOverButton ? 2.0f : 1.2f);
 
             g.setColour(juce::Colours::white.withAlpha(0.45f));
@@ -75,4 +83,9 @@ public:
             g.fillEllipse(inner);
         }
     }
+
+private:
+    juce::Colour litTop { 215, 70, 255 };
+    juce::Colour litBottom { 92, 0, 135 };
+    juce::Colour litRing { 180, 35, 235 };
 };

@@ -48,13 +48,14 @@ namespace
     }
 
     void drawKnobTicks(juce::Graphics& g, juce::Point<float> centre, float radius,
-                       float rotaryStartAngle, float rotaryEndAngle, bool lightTicks)
+                       float rotaryStartAngle, float rotaryEndAngle, bool lightTicks,
+                       juce::Colour onFaceColour)
     {
         constexpr int numTicks = 37;
         const float tickInner = radius + 8.0f;
         const float tickOuter = radius + 13.0f;
 
-        const auto tickColour = lightTicks ? juce::Colours::white : juce::Colours::black;
+        const auto tickColour = lightTicks ? juce::Colours::white : onFaceColour;
 
         for (int i = 0; i < numTicks; ++i)
         {
@@ -184,7 +185,7 @@ void NFLookAndFeel::drawRotarySlider(juce::Graphics& g,
     g.drawEllipse(centre.x - radius, centre.y - radius,
                   radius * 2.0f, radius * 2.0f, 2.0f);
 
-    drawKnobTicks(g, centre, radius, rotaryStartAngle, rotaryEndAngle, lightTicks);
+    drawKnobTicks(g, centre, radius, rotaryStartAngle, rotaryEndAngle, lightTicks, theme.onFaceText);
 
     // Position indicator — bevelled: dark drop shadow, bright top face
     const float angle =
@@ -282,7 +283,7 @@ void NFLookAndFeel::drawButtonBackground(juce::Graphics& g,
     g.drawLine(face.getX() + 2.0f, face.getBottom() - 0.8f, face.getRight() - 2.0f, face.getBottom() - 0.8f, 1.4f);
     g.restoreState();
 
-    g.setColour(outlined ? NFColours::purple.withAlpha(0.85f) : NFColours::black);
+    g.setColour(outlined ? theme.accentBorder.withAlpha(0.85f) : NFColours::black);
     g.drawRoundedRectangle(outer, corner, outlined ? 1.4f : 1.8f);
 }
 
@@ -293,7 +294,7 @@ void NFLookAndFeel::drawToggleButton(juce::Graphics& g,
 {
     const bool showLed = button.getProperties()["led"];
 
-    auto backgroundColour = showLed ? NFColours::black : NFColours::purpleDark;
+    auto backgroundColour = showLed ? NFColours::black : theme.accentFill;
     drawButtonBackground(g, button, backgroundColour, highlighted, down);
 
     auto textArea = button.getLocalBounds().reduced(4);
@@ -318,14 +319,16 @@ void NFLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& label)
     {
         const float alpha = label.isEnabled() ? 1.0f : 0.5f;
         const auto font = getLabelFont(label);
-
-        g.setColour(label.findColour(juce::Label::textColourId).withMultipliedAlpha(alpha));
-        g.setFont(font);
+        const auto textColour = label.findColour(juce::Label::textColourId).withMultipliedAlpha(alpha);
 
         auto textArea = getLabelBorderSize(label).subtractedFrom(label.getLocalBounds());
 
-        NFGraphics::drawBoldText(g, label.getText(), textArea, label.getJustificationType(),
-                                 juce::jmax(1, (int) ((float) textArea.getHeight() / font.getHeight())));
+        // The halo (see NFTheme) keeps small labels crisp when the skin's
+        // face colour doesn't give the text much luminance contrast to
+        // grab onto — a no-op on skins/labels that don't need it.
+        NFGraphics::drawThickText(g, label.getText(), textArea.toFloat(), font,
+                                  label.getJustificationType(), textColour, 0.4f,
+                                  theme.haloColour, theme.haloWidth);
 
         g.setColour(label.findColour(juce::Label::outlineColourId).withMultipliedAlpha(alpha));
     }

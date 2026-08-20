@@ -182,7 +182,10 @@ void NFEqualizerAudioProcessor::getStateInformation(
     juce::MemoryBlock& destData)
 {
     if (auto xml = apvts.copyState().createXml())
+    {
+        xml->setAttribute("nfSkin", skinIndex.load());
         copyXmlToBinary(*xml, destData);
+    }
 }
 
 void NFEqualizerAudioProcessor::setStateInformation(
@@ -191,8 +194,11 @@ void NFEqualizerAudioProcessor::setStateInformation(
     if (auto xml = getXmlFromBinary(data, sizeInBytes))
     {
         if (xml->hasTagName(apvts.state.getType()))
+        {
+            skinIndex = xml->getIntAttribute("nfSkin", 0);
             apvts.replaceState(
                 juce::ValueTree::fromXml(*xml));
+        }
     }
 }
 

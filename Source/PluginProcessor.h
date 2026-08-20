@@ -46,6 +46,10 @@ public:
     float getOutputLevelL() const { return dsp.getOutputLevelL(); }
     float getOutputLevelR() const { return dsp.getOutputLevelR(); }
 
+    // Pure UI preference, not an automatable parameter — persisted
+    // alongside the APVTS state so it survives project/preset reload.
+    std::atomic<int> skinIndex { 0 };
+
 private:
     NF::EqualizerDSP dsp;
 

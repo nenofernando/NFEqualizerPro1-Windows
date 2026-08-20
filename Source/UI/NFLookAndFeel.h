@@ -1,5 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
+#include "NFTheme.h"
 
 namespace NFColours
 {
@@ -36,9 +37,17 @@ namespace NFGraphics
     // as a single vector path — unlike stamping copies with a pixel offset,
     // this stays crisp under the panel's AffineTransform scale because it's
     // real vector geometry, not overlapping anti-aliased raster copies.
+    //
+    // An optional halo (a wider stroke in a darker colour, drawn first) adds
+    // contrast for light text on a medium-brightness face — without it,
+    // white-on-purple reads as soft/blurry even though the geometry itself
+    // is perfectly crisp; the eye just has less luminance edge to grab onto.
     inline void drawThickText(juce::Graphics& g, const juce::String& text,
                               juce::Rectangle<float> area, const juce::Font& font,
-                              juce::Justification justification, float strokeWidth = 1.0f)
+                              juce::Justification justification, juce::Colour textColour,
+                              float strokeWidth = 1.0f,
+                              juce::Colour haloColour = juce::Colours::transparentBlack,
+                              float haloWidth = 0.0f)
     {
         juce::GlyphArrangement glyphs;
         glyphs.addFittedText(font, text, area.getX(), area.getY(),
@@ -46,6 +55,16 @@ namespace NFGraphics
 
         juce::Path path;
         glyphs.createPath(path);
+
+        if (haloWidth > 0.0f)
+        {
+            g.setColour(haloColour);
+            g.strokePath(path, juce::PathStrokeType(haloWidth,
+                                                     juce::PathStrokeType::curved,
+                                                     juce::PathStrokeType::rounded));
+        }
+
+        g.setColour(textColour);
         g.fillPath(path);
         g.strokePath(path, juce::PathStrokeType(strokeWidth));
     }
@@ -83,4 +102,10 @@ public:
     juce::Font getComboBoxFont(juce::ComboBox& box) override;
 
     void positionComboBoxText(juce::ComboBox& box, juce::Label& label) override;
+
+    void setTheme(const NFTheme& newTheme) { theme = newTheme; }
+    const NFTheme& getTheme() const { return theme; }
+
+private:
+    NFTheme theme = NFTheme::classicGreen();
 };

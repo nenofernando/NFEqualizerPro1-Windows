@@ -116,7 +116,8 @@ namespace
     void drawKnobRange(juce::Graphics& g, const NFKnob& knob,
                        const juce::String& lowText, const juce::String& highText,
                        juce::Colour colour = NFColours::black, float fontSize = 8.5f,
-                       float labelOffset = 20.0f, int labelBoxW = 40)
+                       float labelOffset = 20.0f, int labelBoxW = 40,
+                       juce::Colour haloColour = juce::Colours::transparentBlack, float haloWidth = 0.0f)
     {
         auto b = knob.getBounds();
         const int dialHeight = juce::jmax(1, b.getHeight() - 18);
@@ -145,15 +146,16 @@ namespace
             juce::Rectangle<float> area(tx - w / 2.0f, ty - h / 2.0f, (float) w, (float) h);
             NFGraphics::drawThickText(g, text, area,
                                       juce::Font(juce::FontOptions(fontSize, juce::Font::bold)),
-                                      juce::Justification::centred, 0.5f);
+                                      juce::Justification::centred, colour, 0.5f,
+                                      haloColour, haloWidth);
         };
 
-        g.setColour(colour);
         placeAt(startAngle, lowText);
         placeAt(endAngle, highText);
     }
 
-    void drawLogo(juce::Graphics& g)
+    void drawLogo(juce::Graphics& g, juce::Colour textColour,
+                 juce::Colour haloColour, float haloWidth)
     {
         // True centre of the green face, not the raw (slightly off-centre)
         // DesignMetrics logo box, so the lockup sits dead-centre on the
@@ -166,14 +168,15 @@ namespace
         // No horizontal stretch — a stretched glyph is what read as
         // "out of formatting". Real weight comes from filling AND stroking
         // the glyph outlines (drawThickText), not from a bigger font alone.
-        g.setColour(NFColours::black);
         NFGraphics::drawThickText(g, "NF", nfArea,
                                   juce::Font(juce::FontOptions(40.0f, juce::Font::bold)),
-                                  juce::Justification::centred, 1.3f);
+                                  juce::Justification::centred, textColour, 1.3f,
+                                  haloColour, haloWidth);
 
         NFGraphics::drawThickText(g, "EQUALIZER PRO 1", subArea,
                                   juce::Font(juce::FontOptions(14.0f, juce::Font::bold)),
-                                  juce::Justification::centredTop, 0.65f);
+                                  juce::Justification::centredTop, textColour, 0.65f,
+                                  haloColour, haloWidth * 0.75f);
     }
 
     // Ticks + dB numbers always sit to the LEFT of the meter, stacked
@@ -203,7 +206,8 @@ namespace
                                         labelW, 12.0f);
 
             NFGraphics::drawThickText(g, label, area, font,
-                                     juce::Justification::centredRight, 0.4f);
+                                     juce::Justification::centredRight,
+                                     juce::Colours::white, 0.4f);
         }
     }
 }
@@ -352,7 +356,53 @@ NFEqualizerPanel::NFEqualizerPanel(NFEqualizerAudioProcessor& p)
     oversamplingAttachment = std::make_unique<ComboBoxAttachment>(
         processor.apvts, "oversampling", oversamplingBox);
 
+    // Skin picker: two small swatch buttons, each always shows its own
+    // skin's face colour (not the currently active one), so it reads as
+    // a colour picker rather than a mystery toggle.
+    skinCaption.setText("SKIN", juce::dontSendNotification);
+    skinCaption.setJustificationType(juce::Justification::centredLeft);
+    skinCaption.setColour(juce::Label::textColourId, NFColours::white);
+    skinCaption.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
+    skinCaption.setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
+    skinCaption.setFont(juce::Font(juce::FontOptions(9.0f, juce::Font::bold)));
+    skinCaption.setBounds((int) DM::skinCaptionX, (int) DM::skinCaptionY,
+                          (int) DM::skinCaptionW, (int) DM::skinCaptionH);
+    addAndMakeVisible(skinCaption);
+
+    auto styleSkinButton = [this](juce::TextButton& button, const NFTheme& previewTheme, int index)
+    {
+        button.setLookAndFeel(&nfLookAndFeel);
+        button.setColour(juce::TextButton::buttonColourId, previewTheme.faceBase);
+        button.setColour(juce::TextButton::buttonOnColourId, previewTheme.faceBase);
+        button.setColour(juce::TextButton::textColourOffId, juce::Colours::black);
+        button.setBounds((int) (index == 0 ? DM::skinButton1X : DM::skinButton2X), (int) DM::skinButtonY,
+                         (int) DM::skinButtonW, (int) DM::skinButtonH);
+        addAndMakeVisible(button);
+    };
+
+    styleSkinButton(skinButton1, NFTheme::classicGreen(), 0);
+    styleSkinButton(skinButton2, NFTheme::purpleNight(), 1);
+
+    skinButton1.onClick = [this] { processor.skinIndex = 0; applyTheme(NFTheme::classicGreen()); };
+    skinButton2.onClick = [this] { processor.skinIndex = 1; applyTheme(NFTheme::purpleNight()); };
+
+    applyTheme(NFTheme::byIndex(processor.skinIndex.load()));
+
     startTimerHz(30);
+}
+
+void NFEqualizerPanel::applyTheme(const NFTheme& theme)
+{
+    currentTheme = theme;
+    nfLookAndFeel.setTheme(theme);
+
+    for (auto* led : { &lowEnableButton, &midEnableButton, &highEnableButton, &characterEnableButton })
+        led->setAccentColours(theme.accentBorderBright, theme.accentFill, theme.accentBorder);
+
+    for (auto& label : labels)
+        label->setColour(juce::Label::textColourId, theme.onFaceText);
+
+    repaint();
 }
 
 NFEqualizerPanel::~NFEqualizerPanel()
@@ -360,7 +410,7 @@ NFEqualizerPanel::~NFEqualizerPanel()
     for (auto* toggle : { &lowShelf, &highShelf, &bypass })
         toggle->setLookAndFeel(nullptr);
 
-    for (auto* button : { &prevPreset, &nextPreset, &saveButton, &loadButton })
+    for (auto* button : { &prevPreset, &nextPreset, &saveButton, &loadButton, &skinButton1, &skinButton2 })
         button->setLookAndFeel(nullptr);
 
     setLookAndFeel(nullptr);
@@ -508,11 +558,12 @@ void NFEqualizerPanel::paint(juce::Graphics& g)
 
     juce::Rectangle<float> face(DM::faceX, DM::faceY, DM::faceW, DM::faceH);
 
-    // Green face with a subtle vertical gradient + faint sheen
+    // Face with a subtle vertical gradient + faint sheen; colours come
+    // from the active skin (see applyTheme / NFTheme).
     juce::ColourGradient faceGradient(
-        NFColours::fluorescentGreenBright.withAlpha(0.9f), face.getX(), face.getY(),
-        NFColours::limeDark, face.getX(), face.getBottom(), false);
-    faceGradient.addColour(0.4, NFColours::fluorescentGreen);
+        currentTheme.faceBright.withAlpha(0.9f), face.getX(), face.getY(),
+        currentTheme.faceDark, face.getX(), face.getBottom(), false);
+    faceGradient.addColour(0.4, currentTheme.faceBase);
     g.setGradientFill(faceGradient);
     g.fillRoundedRectangle(face, 16.0f);
 
@@ -529,9 +580,9 @@ void NFEqualizerPanel::paint(juce::Graphics& g)
     }
     g.restoreState();
 
-    g.setColour(NFColours::fluorescentGreenBright);
+    g.setColour(currentTheme.faceOutline);
     g.drawRoundedRectangle(face, 16.0f, 2.0f);
-    g.setColour(NFColours::limeDark.withAlpha(0.6f));
+    g.setColour(currentTheme.faceDark.withAlpha(0.6f));
     g.drawRoundedRectangle(face.reduced(3.0f), 14.0f, 1.0f);
 
     // Screws
@@ -542,10 +593,11 @@ void NFEqualizerPanel::paint(juce::Graphics& g)
     drawScrew(g, { DM::screwLeftX, DM::screwBottomY });
     drawScrew(g, { DM::screwRightX, DM::screwBottomY });
 
-    // Logo — bold black, direct on the green face, no plate behind it
-    drawLogo(g);
+    // Logo — bold, direct on the face, no plate behind it
+    drawLogo(g, currentTheme.onFaceText, currentTheme.haloColour, currentTheme.haloWidth);
 
-    // INPUT / OUTPUT — near-black panels with a green outline
+    // INPUT / OUTPUT — near-black panels, always outlined in green
+    // regardless of skin (they never take the main face colour).
     for (auto panelRect : { juce::Rectangle<float>(DM::inputX, DM::inputY, DM::inputW, DM::inputH),
                             juce::Rectangle<float>(DM::outputX, DM::outputY, DM::outputW, DM::outputH) })
     {
@@ -579,16 +631,26 @@ void NFEqualizerPanel::paint(juce::Graphics& g)
     // Knob range labels
     drawKnobRange(g, input, "-24", "+24", NFColours::white, 13.0f, 40.0f, 28);
     drawKnobRange(g, output, "-24", "+24", NFColours::white, 13.0f, 40.0f, 28);
-    drawKnobRange(g, lowFreq, "30 Hz", "500 Hz");
-    drawKnobRange(g, lowGain, "-15", "+15");
-    drawKnobRange(g, midFreq, "200 Hz", "8.00 kHz");
-    drawKnobRange(g, midGain, "-15", "+15");
-    drawKnobRange(g, midQ, "0.25", "4.00");
-    drawKnobRange(g, highFreq, "2.00 kHz", "20.0 kHz");
-    drawKnobRange(g, highGain, "-15", "+15");
-    drawKnobRange(g, drive, "0%", "100%");
-    drawKnobRange(g, character, "0%", "100%");
-    drawKnobRange(g, mix, "0%", "100%");
+    drawKnobRange(g, lowFreq, "30 Hz", "500 Hz", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, lowGain, "-15", "+15", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, midFreq, "200 Hz", "8.00 kHz", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, midGain, "-15", "+15", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, midQ, "0.25", "4.00", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, highFreq, "2.00 kHz", "20.0 kHz", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, highGain, "-15", "+15", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, drive, "0%", "100%", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, character, "0%", "100%", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
+    drawKnobRange(g, mix, "0%", "100%", currentTheme.onFaceText, 8.5f, 20.0f, 40,
+                 currentTheme.haloColour, currentTheme.haloWidth);
 
     // Meter scales + captions
     juce::Rectangle<float> inputMeterBounds((float) inputMeter.getX(), (float) inputMeter.getY(),
@@ -615,7 +677,7 @@ void NFEqualizerPanel::paint(juce::Graphics& g)
 
     g.setColour(NFColours::black);
     g.fillRoundedRectangle(strip, 10.0f);
-    g.setColour(NFColours::purple.withAlpha(0.6f));
+    g.setColour(currentTheme.accentBorder.withAlpha(0.6f));
     g.drawRoundedRectangle(strip.reduced(1.5f), 8.0f, 1.4f);
 
     // OVERSAMPLING pill — one shared box behind the caption + stepper so
@@ -624,6 +686,6 @@ void NFEqualizerPanel::paint(juce::Graphics& g)
                                             DM::oversamplingW, DM::oversamplingH);
     g.setColour(NFColours::black);
     g.fillRoundedRectangle(oversamplingPill, 6.0f);
-    g.setColour(NFColours::purple.withAlpha(0.85f));
+    g.setColour(currentTheme.accentBorder.withAlpha(0.85f));
     g.drawRoundedRectangle(oversamplingPill.reduced(0.75f), 6.0f, 1.4f);
 }

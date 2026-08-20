@@ -17,6 +17,14 @@ struct DesignMetrics
     static constexpr float logoNfX = 584.0f, logoNfY = 27.0f, logoNfW = 140.0f, logoNfH = 45.0f;
     static constexpr float logoSubX = 586.0f, logoSubY = 74.0f, logoSubW = 137.0f, logoSubH = 21.0f;
 
+    // Skin picker — tucked in the gap between the logo and the NF CHARACTER
+    // section, the only bit of open headroom that doesn't collide with
+    // anything else.
+    static constexpr float skinCaptionX = 828.0f, skinCaptionY = 27.0f, skinCaptionW = 78.0f, skinCaptionH = 12.0f;
+    static constexpr float skinButtonY = 40.0f, skinButtonW = 36.0f, skinButtonH = 22.0f, skinButtonGap = 4.0f;
+    static constexpr float skinButton1X = 828.0f;
+    static constexpr float skinButton2X = skinButton1X + skinButtonW + skinButtonGap;
+
     // INPUT panel
     static constexpr float inputX = 30.0f, inputY = 49.0f, inputW = 143.0f, inputH = 372.0f;
     static constexpr float inputHeaderX = 61.0f, inputHeaderY = 61.0f, inputHeaderW = 83.0f, inputHeaderH = 23.0f;
