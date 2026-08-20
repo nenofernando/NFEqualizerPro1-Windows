@@ -1,0 +1,42 @@
+name: Build Windows VST3 Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout plugin source
+        uses: actions/checkout@v4
+
+      - name: Checkout JUCE
+        uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.1
+          path: JUCE
+
+      - name: Configure CMake
+        run: cmake -B build -DJUCE_DIR="${{ github.workspace }}\JUCE" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3
+        run: cmake --build build --config Release --target NFEqualizer_VST3
+
+      - name: Make sure NSIS is available
+        run: choco install nsis -y --no-progress
+        shell: cmd
+
+      - name: Build installer (NSIS)
+        working-directory: installer
+        run: makensis windows-installer.nsi
+        shell: cmd
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NF-Equalizer-Pro-1-Windows-Installer
+          path: installer/*.exe
