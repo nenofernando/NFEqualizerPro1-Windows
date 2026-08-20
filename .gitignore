@@ -5,3 +5,6 @@ build-*/
 .vs/
 .vscode/
 .claude/
+*.dmg
+*.exe
+*.zip

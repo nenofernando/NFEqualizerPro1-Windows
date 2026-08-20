@@ -31,7 +31,7 @@ juce_add_plugin(NFEqualizer
     PLUGIN_MANUFACTURER_CODE NFAu
     PLUGIN_CODE NFE2
     FORMATS VST3 AU Standalone ${NF_AAX_FORMAT}
-    PRODUCT_NAME "NF Equalizer Pro 1"
+    PRODUCT_NAME "NF Pro Eq"
     AAX_CATEGORY "EQ"
 )
 

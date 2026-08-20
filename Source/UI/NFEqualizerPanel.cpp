@@ -163,7 +163,7 @@ namespace
         const float centreX = DM::faceX + DM::faceW / 2.0f;
 
         auto nfArea = juce::Rectangle<float>(centreX - 110.0f, 25.0f, 220.0f, 47.0f);
-        auto subArea = juce::Rectangle<float>(centreX - 150.0f, 71.0f, 300.0f, 18.0f);
+        auto subArea = juce::Rectangle<float>(centreX - 90.0f, 71.0f, 180.0f, 19.0f);
 
         // No horizontal stretch — a stretched glyph is what read as
         // "out of formatting". Real weight comes from filling AND stroking
@@ -173,8 +173,8 @@ namespace
                                   juce::Justification::centred, textColour, 1.3f,
                                   haloColour, haloWidth);
 
-        NFGraphics::drawThickText(g, "EQUALIZER PRO 1", subArea,
-                                  juce::Font(juce::FontOptions(14.0f, juce::Font::bold)),
+        NFGraphics::drawThickText(g, "PRO EQ", subArea,
+                                  juce::Font(juce::FontOptions(16.0f, juce::Font::bold)),
                                   juce::Justification::centredTop, textColour, 0.65f,
                                   haloColour, haloWidth * 0.75f);
     }
@@ -361,7 +361,8 @@ NFEqualizerPanel::NFEqualizerPanel(NFEqualizerAudioProcessor& p)
     // a colour picker rather than a mystery toggle.
     skinCaption.setText("SKIN", juce::dontSendNotification);
     skinCaption.setJustificationType(juce::Justification::centredLeft);
-    skinCaption.setColour(juce::Label::textColourId, NFColours::white);
+    // Text colour is set per-skin in applyTheme() — this sits directly on
+    // the main face, same as the knob labels, not on a black box.
     skinCaption.setColour(juce::Label::backgroundColourId, juce::Colours::transparentBlack);
     skinCaption.setColour(juce::Label::outlineColourId, juce::Colours::transparentBlack);
     skinCaption.setFont(juce::Font(juce::FontOptions(9.0f, juce::Font::bold)));
@@ -401,6 +402,8 @@ void NFEqualizerPanel::applyTheme(const NFTheme& theme)
 
     for (auto& label : labels)
         label->setColour(juce::Label::textColourId, theme.onFaceText);
+
+    skinCaption.setColour(juce::Label::textColourId, theme.onFaceText);
 
     repaint();
 }

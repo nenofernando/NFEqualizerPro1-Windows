@@ -54,8 +54,8 @@ struct NFTheme
         t.accentBorder = juce::Colour(0xff7ED321);
         t.accentBorderBright = juce::Colour(0xffAAFF00);
         t.onFaceText = juce::Colours::white;
-        t.haloColour = juce::Colour(0xff2E0A47);
-        t.haloWidth = 1.6f;
+        t.haloColour = juce::Colours::black;
+        t.haloWidth = 1.2f;
         return t;
     }
 
