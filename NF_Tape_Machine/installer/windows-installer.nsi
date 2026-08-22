@@ -22,10 +22,10 @@ VIAddVersionKey "ProductVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey "CompanyName" "${PRODUCT_PUBLISHER}"
 VIAddVersionKey "FileDescription" "${PRODUCT_NAME} Installer"
 VIAddVersionKey "FileVersion" "${PRODUCT_VERSION}"
-VIAddVersionKey "LegalCopyright" "© Neno Fernando"
+VIAddVersionKey "LegalCopyright" "${PRODUCT_PUBLISHER}"
 
 !define MUI_WELCOMEPAGE_TITLE "Welcome to the ${PRODUCT_NAME} ${PRODUCT_VERSION} Setup"
-!define MUI_WELCOMEPAGE_TEXT "This will install ${PRODUCT_NAME} version ${PRODUCT_VERSION} by ${PRODUCT_PUBLISHER}.$\r$\n$\r$\nFormat: VST3$\r$\nInstall location: $COMMONFILES64\VST3$\r$\n$\r$\nA PDF user manual is installed alongside the plug-in.$\r$\n$\r$\nClick Next to continue.$\r$\n$\r$\n© Neno Fernando"
+!define MUI_WELCOMEPAGE_TEXT "This will install ${PRODUCT_NAME} version ${PRODUCT_VERSION} by ${PRODUCT_PUBLISHER}.$\r$\n$\r$\nFormat: VST3$\r$\nInstall location: $COMMONFILES64\VST3$\r$\n$\r$\nA PDF user manual is installed alongside the plug-in.$\r$\n$\r$\nClick Next to continue."
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
