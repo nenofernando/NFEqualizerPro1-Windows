@@ -19,7 +19,7 @@ namespace
                     { "input", 0.0f }, { "hpf", 20.0f }, { "tapeType", 0.0f },
                     { "drive", 4.5f }, { "satEnabled", 1.0f },
                     { "bias", 5.0f }, { "biasCal", 1.0f },
-                    { "wowRate", 0.6f }, { "wowDepth", 8.0f }, { "wowFlutterEnabled", 0.0f },
+                    { "wowRate", 0.6f }, { "wowDepth", 8.0f }, { "wowFlutterEnabled", 1.0f },
                     { "noise", 3.0f }, { "noiseEnabled", 0.0f },
                     { "eqLf", 0.0f }, { "eqHf", 0.0f },
                     { "output", 0.0f }, { "lpf", 20000.0f },
@@ -174,7 +174,7 @@ NFTapeMachineAudioProcessor::createParameterLayout()
     parameters.push_back(std::make_unique<FloatParameter>("wowRate", "Wow/Flutter Rate",
         juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.3f), 0.6f));
     parameters.push_back(std::make_unique<FloatParameter>("wowDepth", "Wow/Flutter Depth", 0.0f, 100.0f, 8.0f));
-    parameters.push_back(std::make_unique<BoolParameter>("wowFlutterEnabled", "Wow/Flutter Enabled", false));
+    parameters.push_back(std::make_unique<BoolParameter>("wowFlutterEnabled", "Wow/Flutter Enabled", true));
 
     parameters.push_back(std::make_unique<FloatParameter>("noise", "Noise", 0.0f, 10.0f, 3.0f));
     parameters.push_back(std::make_unique<BoolParameter>("noiseEnabled", "Noise Enabled", false));
