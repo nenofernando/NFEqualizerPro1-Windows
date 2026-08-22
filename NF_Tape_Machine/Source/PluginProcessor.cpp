@@ -137,9 +137,13 @@ void NFTapeMachineAudioProcessor::parameterChanged(const juce::String& parameter
 
     if (parameterID == "input")
     {
-        const float targetOutputDb = juce::jlimit(-24.0f, 24.0f, gainLinkSumDb - newValue);
-        if (auto* outputParam = apvts.getParameter("output"))
-            outputParam->setValueNotifyingHost(outputParam->convertTo0to1(targetOutputDb));
+        // parameterChanged can fire on the audio thread (host automation),
+        // and setValueNotifyingHost() calls back into the host — which is
+        // only safe from the message thread. Defer to handleAsyncUpdate(),
+        // which re-reads live parameter values rather than trusting a
+        // value captured here, so it stays correct even if further
+        // parameter changes (e.g. an output rebase) land before it runs.
+        triggerAsyncUpdate();
     }
     else if (parameterID == "output")
     {
@@ -147,6 +151,17 @@ void NFTapeMachineAudioProcessor::parameterChanged(const juce::String& parameter
         // instead of being fought on the next INPUT move.
         gainLinkSumDb = apvts.getRawParameterValue("input")->load() + newValue;
     }
+}
+
+void NFTapeMachineAudioProcessor::handleAsyncUpdate()
+{
+    if (apvts.getRawParameterValue("gainLink")->load() <= 0.5f)
+        return;
+
+    const float inputDb = apvts.getRawParameterValue("input")->load();
+    const float targetOutputDb = juce::jlimit(-24.0f, 24.0f, gainLinkSumDb.load() - inputDb);
+    if (auto* outputParam = apvts.getParameter("output"))
+        outputParam->setValueNotifyingHost(outputParam->convertTo0to1(targetOutputDb));
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout

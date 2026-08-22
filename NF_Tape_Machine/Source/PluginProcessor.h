@@ -3,7 +3,8 @@
 #include "DSP/NFTapeEngine.h"
 
 class NFTapeMachineAudioProcessor : public juce::AudioProcessor,
-                                     private juce::AudioProcessorValueTreeState::Listener
+                                     private juce::AudioProcessorValueTreeState::Listener,
+                                     private juce::AsyncUpdater
 {
 public:
     NFTapeMachineAudioProcessor();
@@ -51,9 +52,16 @@ public:
 private:
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 
+    // Host automation can deliver parameter changes on the audio thread;
+    // setValueNotifyingHost() calls back into the host (e.g. VST3's
+    // performEdit) and must only ever happen on the message thread, so the
+    // Gain Link's cross-parameter write is deferred here instead of being
+    // made directly from parameterChanged().
+    void handleAsyncUpdate() override;
+
     NF::TapeEngine tapeEngine;
     int currentPresetIndex = 0;
-    float gainLinkSumDb = 0.0f;
+    std::atomic<float> gainLinkSumDb { 0.0f };
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFTapeMachineAudioProcessor)
 };
