@@ -912,7 +912,7 @@ void NFTapeMachineAudioProcessorEditor::resized()
 
     // OUTPUT METER
     placeCaptionIndex(28, 1033 + row2Shift, 863, 300, 16);
-    outputMeterBar.setBounds(1033 + row2Shift, 882, 300, 74);
+    outputMeterBar.setBounds(1033 + row2Shift, 884, 300, 79);
 
     // BYPASS
     placeCaptionIndex(29, 1366 + row2Shift, 863, 79, 16);
