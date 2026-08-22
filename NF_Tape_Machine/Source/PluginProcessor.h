@@ -2,11 +2,12 @@
 #include <JuceHeader.h>
 #include "DSP/NFTapeEngine.h"
 
-class NFTapeMachineAudioProcessor : public juce::AudioProcessor
+class NFTapeMachineAudioProcessor : public juce::AudioProcessor,
+                                     private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     NFTapeMachineAudioProcessor();
-    ~NFTapeMachineAudioProcessor() override = default;
+    ~NFTapeMachineAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -48,8 +49,11 @@ public:
     float getOutputLevelR() const { return tapeEngine.getOutputLevelR(); }
 
 private:
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
+
     NF::TapeEngine tapeEngine;
     int currentPresetIndex = 0;
+    float gainLinkSumDb = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFTapeMachineAudioProcessor)
 };

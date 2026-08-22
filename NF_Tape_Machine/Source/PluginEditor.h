@@ -106,6 +106,21 @@ private:
         bool satEnabled = true;
     };
 
+    // A plain click (no drag) on INPUT or OUTPUT while Gain Link is on
+    // snaps both knobs back to 0 dB, giving an instant "unity" reset point
+    // for the linked pair without disturbing normal drag-to-adjust.
+    struct KnobClickToZero : public juce::MouseListener
+    {
+        std::function<void()> onClickNoMove;
+        void mouseUp(const juce::MouseEvent& e) override
+        {
+            if (e.getDistanceFromDragStart() < 3 && onClickNoMove)
+                onClickNoMove();
+        }
+    };
+
+    KnobClickToZero gainLinkResetListener;
+
     NFTapeMachineAudioProcessor& audioProcessor;
     NFTapeLookAndFeel lookAndFeel;
 
@@ -133,11 +148,12 @@ private:
         dropoutAttachment, mixAttachment;
 
     // LED-pill toggles
-    juce::TextButton satButton, calButton, wowInButton, noiseInButton, dropoutInButton, bypassButton;
+    juce::TextButton satButton, calButton, wowInButton, noiseInButton, dropoutInButton,
+                     bypassButton, gainLinkButton;
 
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
         satAttachment, calAttachment, wowInAttachment, noiseInAttachment,
-        dropoutInAttachment, bypassAttachment;
+        dropoutInAttachment, bypassAttachment, gainLinkAttachment;
 
     // Segmented choice groups
     ChoiceGroup tapeTypeGroup { "tapeType" };

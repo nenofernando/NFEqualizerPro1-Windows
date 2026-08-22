@@ -253,14 +253,15 @@ void NFTapeMachineAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g
             const float x1 = centreX + dir * gap;
             const float x2 = centreX + dir * (gap + lineLen);
 
-            juce::ColourGradient lineGrad(NFTapeColours::amber.withAlpha(0.75f), x1, midY,
+            const auto lineColour = NFTapeColours::amber.brighter(0.35f);
+            juce::ColourGradient lineGrad(lineColour.withAlpha(0.75f), x1, midY,
                                           juce::Colours::transparentBlack, x2, midY, false);
             g.setGradientFill(lineGrad);
             g.drawLine(x1, midY, x2, midY, 1.2f);
 
             juce::Path diamond;
             diamond.addQuadrilateral(x1 - dir * 3.0f, midY, x1, midY - 3.0f, x1 + dir * 3.0f, midY, x1, midY + 3.0f);
-            g.setColour(NFTapeColours::amber.withAlpha(0.8f));
+            g.setColour(lineColour.withAlpha(0.8f));
             g.fillPath(diamond);
         }
     }
@@ -425,7 +426,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
         subtitleLabel.setFont(subtitleFont);
     }
     subtitleLabel.getProperties().set(NFTapeProps::customFont, true);
-    subtitleLabel.setColour(juce::Label::textColourId, NFTapeColours::amber);
+    subtitleLabel.setColour(juce::Label::textColourId, NFTapeColours::amber.brighter(0.35f));
     panel.addAndMakeVisible(subtitleLabel);
 
     prevPresetButton.setButtonText("<");
@@ -516,6 +517,24 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     dropoutAttachment = std::make_unique<SliderAttachment>(apvts, "dropout", dropoutKnob);
     mixAttachment = std::make_unique<SliderAttachment>(apvts, "mix", mixKnob);
 
+    // A plain click on INPUT or OUTPUT resets both to 0 dB, but only while
+    // they're linked — setting input first and output second guarantees
+    // the final values, since the link's own compensation (triggered by
+    // the input write) only ever gets overwritten by the output write that
+    // follows it.
+    gainLinkResetListener.onClickNoMove = [this]
+    {
+        if (audioProcessor.apvts.getRawParameterValue("gainLink")->load() <= 0.5f)
+            return;
+
+        if (auto* in = audioProcessor.apvts.getParameter("input"))
+            in->setValueNotifyingHost(in->convertTo0to1(0.0f));
+        if (auto* out = audioProcessor.apvts.getParameter("output"))
+            out->setValueNotifyingHost(out->convertTo0to1(0.0f));
+    };
+    inputKnob.addMouseListener(&gainLinkResetListener, false);
+    outputKnob.addMouseListener(&gainLinkResetListener, false);
+
     // ---- Section captions ----------------------------------------------
     addCaption("INPUT", true, 15.0f);
     addCaption("HPF", false, 10.0f);
@@ -544,6 +563,8 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     addCaption("BYPASS", true, 14.0f);
     addCaption(juce::String(juce::CharPointer_UTF8("WARMTH  \xc2\xb7  BODY  \xc2\xb7  CHARACTER  \xc2\xb7  ANALOG MAGIC")), false, 13.0f)
         .setColour(juce::Label::textColourId, NFTapeColours::textDim);
+    addCaption("v0.1", true, 13.0f, juce::Justification::centredRight)
+        .setColour(juce::Label::textColourId, NFTapeColours::textDim.withAlpha(0.75f));
 
     // ---- LED-pill toggles -----------------------------------------------
     setupLedPill(satButton, "SAT");
@@ -551,6 +572,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     setupLedPill(wowInButton, "IN");
     setupLedPill(noiseInButton, "IN");
     setupLedPill(dropoutInButton, "IN");
+    setupLedPill(gainLinkButton, "LINK");
 
     bypassButton.getProperties().set(NFTapeProps::powerSquare, true);
     bypassButton.setClickingTogglesState(true);
@@ -562,6 +584,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     noiseInAttachment = std::make_unique<ButtonAttachment>(apvts, "noiseEnabled", noiseInButton);
     dropoutInAttachment = std::make_unique<ButtonAttachment>(apvts, "dropoutEnabled", dropoutInButton);
     bypassAttachment = std::make_unique<ButtonAttachment>(apvts, "bypass", bypassButton);
+    gainLinkAttachment = std::make_unique<ButtonAttachment>(apvts, "gainLink", gainLinkButton);
 
     // ---- Segmented choice groups -----------------------------------------
     buildChoiceGroup(tapeTypeGroup, { "GP9", "456", "499", "250" });
@@ -799,7 +822,7 @@ void NFTapeMachineAudioProcessorEditor::resized()
     wowDepthKnob.setBounds(810 + rowShift, 610, 100, 100);
     placeCaptionIndex(11, 690 + rowShift, 714, 100, 14);  // RATE
     placeCaptionIndex(12, 810 + rowShift, 714, 100, 14);  // DEPTH
-    wowInButton.setBounds(760 + rowShift, 779, 56, 31);
+    wowInButton.setBounds(772 + rowShift, 779, 56, 31);
 
     // NOISE
     placeCaptionIndex(13, 944 + rowShift, capY, 116, 20);
@@ -812,6 +835,12 @@ void NFTapeMachineAudioProcessorEditor::resized()
     eqHfKnob.setBounds(1207 + rowShift, 610, 100, 100);
     placeCaptionIndex(15, 1090 + rowShift, 714, 100, 14); // LF
     placeCaptionIndex(16, 1207 + rowShift, 714, 100, 14); // HF
+
+    // GAIN LINK — sits in EQ's own sub-button row (same slot pattern as
+    // SAT/CAL/IN below their knobs), centred between the LF and HF dials.
+    // Toggles whether INPUT and OUTPUT are coupled (see PluginProcessor's
+    // parameterChanged for the actual dB-for-dB compensation logic).
+    gainLinkButton.setBounds(1171 + rowShift, 779, 56, 31);
 
     // OUTPUT — mirrors INPUT exactly around the canvas centre (1536/2),
     // so both knobs sit the same distance from their side screw (46px in
@@ -861,7 +890,7 @@ void NFTapeMachineAudioProcessorEditor::resized()
 
     // OUTPUT METER
     placeCaptionIndex(28, 1033 + row2Shift, 863, 300, 16);
-    outputMeterBar.setBounds(1033 + row2Shift, 886, 300, 62);
+    outputMeterBar.setBounds(1033 + row2Shift, 882, 300, 74);
 
     // BYPASS
     placeCaptionIndex(29, 1366 + row2Shift, 863, 79, 16);
@@ -869,6 +898,10 @@ void NFTapeMachineAudioProcessorEditor::resized()
 
     // ---- Tagline ----------------------------------------------------------
     captions.getUnchecked(30)->setBounds(423, 985, 690, 25);
+
+    // Version tag, tucked in the bottom-right corner clear of the chassis
+    // screw — small and out of the way, like a manufacturer's print mark.
+    placeCaptionIndex(31, 1390, 982, 75, 20);
 }
 
 //==============================================================================

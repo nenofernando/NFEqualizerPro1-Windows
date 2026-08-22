@@ -436,9 +436,9 @@ void NFTapeLookAndFeel::drawLabel(juce::Graphics& g, juce::Label& label)
         }
 
         juce::ColourGradient goldGrad(
-            juce::Colour(0xfff9ecc4), pathBounds.getX(), pathBounds.getY(),
-            juce::Colour(0xffe8b85c), pathBounds.getX(), pathBounds.getBottom(), false);
-        goldGrad.addColour(0.5, juce::Colour(0xfff2d59a));
+            juce::Colour(0xfffdf7e6), pathBounds.getX(), pathBounds.getY(),
+            juce::Colour(0xffefc978), pathBounds.getX(), pathBounds.getBottom(), false);
+        goldGrad.addColour(0.5, juce::Colour(0xfff8e6bd));
         g.setGradientFill(goldGrad);
         g.fillPath(path);
         return;

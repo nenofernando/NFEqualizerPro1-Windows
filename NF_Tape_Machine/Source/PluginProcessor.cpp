@@ -19,14 +19,14 @@ namespace
                     { "input", 0.0f }, { "hpf", 20.0f }, { "tapeType", 0.0f },
                     { "drive", 4.5f }, { "satEnabled", 1.0f },
                     { "bias", 5.0f }, { "biasCal", 1.0f },
-                    { "wowRate", 0.6f }, { "wowDepth", 8.0f }, { "wowFlutterEnabled", 1.0f },
+                    { "wowRate", 0.6f }, { "wowDepth", 8.0f }, { "wowFlutterEnabled", 0.0f },
                     { "noise", 3.0f }, { "noiseEnabled", 0.0f },
                     { "eqLf", 0.0f }, { "eqHf", 0.0f },
                     { "output", 0.0f }, { "lpf", 20000.0f },
                     { "tapeSpeed", 1.0f }, { "reproHead", 0.0f },
                     { "tapeAge", 12.0f },
                     { "dropout", 2.0f }, { "dropoutEnabled", 0.0f },
-                    { "mix", 100.0f }, { "bypass", 0.0f }
+                    { "mix", 100.0f }, { "bypass", 0.0f }, { "gainLink", 0.0f }
                 }
             },
             {
@@ -42,7 +42,7 @@ namespace
                     { "tapeSpeed", 1.0f }, { "reproHead", 0.0f },
                     { "tapeAge", 15.0f },
                     { "dropout", 2.0f }, { "dropoutEnabled", 0.0f },
-                    { "mix", 100.0f }, { "bypass", 0.0f }
+                    { "mix", 100.0f }, { "bypass", 0.0f }, { "gainLink", 0.0f }
                 }
             },
             {
@@ -58,7 +58,7 @@ namespace
                     { "tapeSpeed", 0.0f }, { "reproHead", 0.0f },
                     { "tapeAge", 45.0f },
                     { "dropout", 3.0f }, { "dropoutEnabled", 1.0f },
-                    { "mix", 100.0f }, { "bypass", 0.0f }
+                    { "mix", 100.0f }, { "bypass", 0.0f }, { "gainLink", 0.0f }
                 }
             },
             {
@@ -74,7 +74,7 @@ namespace
                     { "tapeSpeed", 2.0f }, { "reproHead", 1.0f },
                     { "tapeAge", 5.0f },
                     { "dropout", 0.0f }, { "dropoutEnabled", 0.0f },
-                    { "mix", 100.0f }, { "bypass", 0.0f }
+                    { "mix", 100.0f }, { "bypass", 0.0f }, { "gainLink", 0.0f }
                 }
             },
             {
@@ -90,7 +90,7 @@ namespace
                     { "tapeSpeed", 0.0f }, { "reproHead", 0.0f },
                     { "tapeAge", 80.0f },
                     { "dropout", 6.0f }, { "dropoutEnabled", 1.0f },
-                    { "mix", 100.0f }, { "bypass", 0.0f }
+                    { "mix", 100.0f }, { "bypass", 0.0f }, { "gainLink", 0.0f }
                 }
             }
         };
@@ -105,6 +105,48 @@ NFTapeMachineAudioProcessor::NFTapeMachineAudioProcessor()
         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       apvts(*this, nullptr, "PARAMETERS", createParameterLayout())
 {
+    apvts.addParameterListener("input", this);
+    apvts.addParameterListener("output", this);
+    apvts.addParameterListener("gainLink", this);
+}
+
+NFTapeMachineAudioProcessor::~NFTapeMachineAudioProcessor()
+{
+    apvts.removeParameterListener("input", this);
+    apvts.removeParameterListener("output", this);
+    apvts.removeParameterListener("gainLink", this);
+}
+
+// While Gain Link is on, INPUT drives OUTPUT inversely so the total gain
+// stays constant (dB for dB) — turning input up attenuates output by the
+// same amount. The reference sum is recaptured each time the link is
+// switched on, so it always starts from the knobs' current positions
+// rather than some stale value from the last time it was engaged.
+void NFTapeMachineAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (parameterID == "gainLink")
+    {
+        if (newValue > 0.5f)
+            gainLinkSumDb = apvts.getRawParameterValue("input")->load()
+                          + apvts.getRawParameterValue("output")->load();
+        return;
+    }
+
+    if (apvts.getRawParameterValue("gainLink")->load() <= 0.5f)
+        return;
+
+    if (parameterID == "input")
+    {
+        const float targetOutputDb = juce::jlimit(-24.0f, 24.0f, gainLinkSumDb - newValue);
+        if (auto* outputParam = apvts.getParameter("output"))
+            outputParam->setValueNotifyingHost(outputParam->convertTo0to1(targetOutputDb));
+    }
+    else if (parameterID == "output")
+    {
+        // A direct nudge of OUTPUT while linked rebases the coupling point
+        // instead of being fought on the next INPUT move.
+        gainLinkSumDb = apvts.getRawParameterValue("input")->load() + newValue;
+    }
 }
 
 juce::AudioProcessorValueTreeState::ParameterLayout
@@ -132,7 +174,7 @@ NFTapeMachineAudioProcessor::createParameterLayout()
     parameters.push_back(std::make_unique<FloatParameter>("wowRate", "Wow/Flutter Rate",
         juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.3f), 0.6f));
     parameters.push_back(std::make_unique<FloatParameter>("wowDepth", "Wow/Flutter Depth", 0.0f, 100.0f, 8.0f));
-    parameters.push_back(std::make_unique<BoolParameter>("wowFlutterEnabled", "Wow/Flutter Enabled", true));
+    parameters.push_back(std::make_unique<BoolParameter>("wowFlutterEnabled", "Wow/Flutter Enabled", false));
 
     parameters.push_back(std::make_unique<FloatParameter>("noise", "Noise", 0.0f, 10.0f, 3.0f));
     parameters.push_back(std::make_unique<BoolParameter>("noiseEnabled", "Noise Enabled", false));
@@ -157,6 +199,8 @@ NFTapeMachineAudioProcessor::createParameterLayout()
     parameters.push_back(std::make_unique<FloatParameter>("mix", "Mix", 0.0f, 100.0f, 100.0f));
 
     parameters.push_back(std::make_unique<BoolParameter>("bypass", "Bypass", false));
+
+    parameters.push_back(std::make_unique<BoolParameter>("gainLink", "Gain Link", false));
 
     return { parameters.begin(), parameters.end() };
 }
