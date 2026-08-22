@@ -34,6 +34,12 @@ void NFTapeReels::setTapeType(int typeIndex)
     repaint();
 }
 
+void NFTapeReels::setSpeedIndex(int speedIndex)
+{
+    const float multiplier = speedIndex <= 0 ? 0.55f : (speedIndex == 1 ? 1.0f : 1.85f);
+    speedMultiplier = multiplier;
+}
+
 NFTapeReels::NFTapeReels(bool mirrored)
     : mirroredFlange(mirrored)
 {
@@ -72,7 +78,7 @@ void NFTapeReels::mouseDown(const juce::MouseEvent&)
 
 void NFTapeReels::timerCallback()
 {
-    rotationAngle += (mirroredFlange ? -1.0f : 1.0f) * 0.012f;
+    rotationAngle += (mirroredFlange ? -1.0f : 1.0f) * 0.012f * speedMultiplier;
     if (rotationAngle > juce::MathConstants<float>::twoPi)
         rotationAngle -= juce::MathConstants<float>::twoPi;
     if (rotationAngle < 0.0f)

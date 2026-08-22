@@ -108,13 +108,23 @@ NFTapeMachineAudioProcessor::NFTapeMachineAudioProcessor()
     apvts.addParameterListener("input", this);
     apvts.addParameterListener("output", this);
     apvts.addParameterListener("gainLink", this);
+    startTimerHz(30);
 }
 
 NFTapeMachineAudioProcessor::~NFTapeMachineAudioProcessor()
 {
+    stopTimer();
     apvts.removeParameterListener("input", this);
     apvts.removeParameterListener("output", this);
     apvts.removeParameterListener("gainLink", this);
+}
+
+void NFTapeMachineAudioProcessor::timerCallback()
+{
+    if (auto* l = apvts.getParameter("meterOutL"))
+        l->setValueNotifyingHost(l->convertTo0to1(juce::jlimit(-60.0f, 12.0f, tapeEngine.getOutputLevelL())));
+    if (auto* r = apvts.getParameter("meterOutR"))
+        r->setValueNotifyingHost(r->convertTo0to1(juce::jlimit(-60.0f, 12.0f, tapeEngine.getOutputLevelR())));
 }
 
 // While Gain Link is on, INPUT drives OUTPUT inversely so the total gain
@@ -216,6 +226,14 @@ NFTapeMachineAudioProcessor::createParameterLayout()
     parameters.push_back(std::make_unique<BoolParameter>("bypass", "Bypass", false));
 
     parameters.push_back(std::make_unique<BoolParameter>("gainLink", "Gain Link", false));
+
+    // Read-only telemetry, not a user control: publishes the tape engine's
+    // output level to the host as an ordinary parameter so the VU/output
+    // meters can stay in sync even in hosts/wrappers that don't reliably
+    // service the editor's own UI-refresh timer (see the processor's
+    // timerCallback()).
+    parameters.push_back(std::make_unique<FloatParameter>("meterOutL", "Meter Output L", -60.0f, 12.0f, -60.0f));
+    parameters.push_back(std::make_unique<FloatParameter>("meterOutR", "Meter Output R", -60.0f, 12.0f, -60.0f));
 
     return { parameters.begin(), parameters.end() };
 }

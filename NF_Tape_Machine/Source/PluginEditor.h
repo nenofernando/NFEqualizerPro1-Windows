@@ -9,7 +9,8 @@
 // designHeight and the host window scales it as one block (see resized()),
 // exactly like NFEqualizerPanel does in the sibling NF Pro Eq plugin.
 class NFTapeMachineAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                           private juce::Timer
+                                           private juce::Timer,
+                                           private juce::AudioProcessorValueTreeState::Listener
 {
 public:
     explicit NFTapeMachineAudioProcessorEditor(NFTapeMachineAudioProcessor&);
@@ -25,6 +26,14 @@ private:
     void timerCallback() override;
     void showPresetMenu();
     void refreshPresetLabel();
+
+    // Redundant path for updating the meters: pushed from the processor's
+    // "meterOutL"/"meterOutR" parameters (see PluginProcessor::timerCallback)
+    // rather than this editor's own timer, so the meters keep working even
+    // in hosts/wrappers that don't reliably service a JUCE Timer living in
+    // the plugin's editor.
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
+    float latestMeterL = -60.0f, latestMeterR = -60.0f;
 
     juce::Slider& setupKnob(juce::Slider& knob);
     juce::TextButton& setupLedPill(juce::TextButton& button, const juce::String& text);

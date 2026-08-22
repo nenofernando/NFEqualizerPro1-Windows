@@ -4,7 +4,8 @@
 
 class NFTapeMachineAudioProcessor : public juce::AudioProcessor,
                                      private juce::AudioProcessorValueTreeState::Listener,
-                                     private juce::AsyncUpdater
+                                     private juce::AsyncUpdater,
+                                     private juce::Timer
 {
 public:
     NFTapeMachineAudioProcessor();
@@ -58,6 +59,17 @@ private:
     // Gain Link's cross-parameter write is deferred here instead of being
     // made directly from parameterChanged().
     void handleAsyncUpdate() override;
+
+    // Publishes the tape engine's output levels as ordinary host parameters
+    // ("meterOutL"/"meterOutR"), on a message-thread timer owned by the
+    // processor itself. Some third-party AAX-bridging wrappers (e.g. Blue
+    // Cat's PatchWork) don't reliably service a JUCE Timer living in the
+    // plugin's own editor, which otherwise silently freezes the VU/output
+    // meters even though audio processes normally — parameter changes go
+    // through the host's own automation pipeline instead, which such
+    // wrappers do service correctly (proven by ordinary knob control
+    // working), so routing meter data the same way is more robust.
+    void timerCallback() override;
 
     NF::TapeEngine tapeEngine;
     int currentPresetIndex = 0;

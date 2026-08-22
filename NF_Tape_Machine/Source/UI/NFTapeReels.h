@@ -22,6 +22,10 @@ public:
     // with the stock the user picks.
     void setTapeType(int typeIndex);
 
+    // 0 = 7.5 IPS, 1 = 15 IPS, 2 = 30 IPS — matches the TAPE SPEED selector
+    // index, so the reels visibly spin faster at higher transport speeds.
+    void setSpeedIndex(int speedIndex);
+
     std::function<void()> onToggle;
 
     void paint(juce::Graphics& g) override;
@@ -33,5 +37,6 @@ private:
     bool mirroredFlange;
     bool spinning = true;
     float rotationAngle = 0.0f;
+    float speedMultiplier = 1.0f;
     int tapeTypeIndex = 0;
 };

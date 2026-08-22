@@ -389,6 +389,9 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     panel.setBounds(0, 0, designWidth, designHeight);
     addAndMakeVisible(panel);
 
+    audioProcessor.apvts.addParameterListener("meterOutL", this);
+    audioProcessor.apvts.addParameterListener("meterOutR", this);
+
     auto& apvts = audioProcessor.apvts;
     using SliderAttachment = juce::AudioProcessorValueTreeState::SliderAttachment;
     using ButtonAttachment = juce::AudioProcessorValueTreeState::ButtonAttachment;
@@ -626,7 +629,20 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
 
 NFTapeMachineAudioProcessorEditor::~NFTapeMachineAudioProcessorEditor()
 {
+    audioProcessor.apvts.removeParameterListener("meterOutL", this);
+    audioProcessor.apvts.removeParameterListener("meterOutR", this);
     setLookAndFeel(nullptr);
+}
+
+void NFTapeMachineAudioProcessorEditor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (parameterID == "meterOutL")
+        latestMeterL = newValue;
+    else if (parameterID == "meterOutR")
+        latestMeterR = newValue;
+
+    vuMeter.setLevels(latestMeterL, latestMeterR);
+    outputMeterBar.setLevels(latestMeterL, latestMeterR);
 }
 
 juce::Slider& NFTapeMachineAudioProcessorEditor::setupKnob(juce::Slider& knob)
@@ -727,6 +743,10 @@ void NFTapeMachineAudioProcessorEditor::timerCallback()
     const int tapeType = (int) audioProcessor.apvts.getRawParameterValue("tapeType")->load();
     leftReel.setTapeType(tapeType);
     rightReel.setTapeType(tapeType);
+
+    const int tapeSpeedIndex = (int) audioProcessor.apvts.getRawParameterValue("tapeSpeed")->load();
+    leftReel.setSpeedIndex(tapeSpeedIndex);
+    rightReel.setSpeedIndex(tapeSpeedIndex);
 
     // DRIVE is 0-10 — normalise to 0-1 for the tube glow.
     const float drive = audioProcessor.apvts.getRawParameterValue("drive")->load();
