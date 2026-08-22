@@ -121,6 +121,27 @@ private:
 
     KnobClickToZero gainLinkResetListener;
 
+    // Right-clicking any knob opens a small text field over it so the
+    // exact value can be typed in directly, instead of only being
+    // readable/adjustable via the drag + floating popup. Kept on a
+    // separate mouse button from plain left-click so it can never
+    // interfere with the Gain Link click-to-zero reset.
+    struct KnobRightClickToType : public juce::MouseListener
+    {
+        std::function<void(juce::Slider&)> onRightClick;
+        void mouseDown(const juce::MouseEvent& e) override
+        {
+            if (e.mods.isPopupMenu())
+                if (auto* slider = dynamic_cast<juce::Slider*>(e.eventComponent))
+                    if (onRightClick)
+                        onRightClick(*slider);
+        }
+    };
+
+    KnobRightClickToType knobTypeInListener;
+    juce::TextEditor knobValueEditor;
+    juce::Slider* editingKnob = nullptr;
+
     NFTapeMachineAudioProcessor& audioProcessor;
     NFTapeLookAndFeel lookAndFeel;
 

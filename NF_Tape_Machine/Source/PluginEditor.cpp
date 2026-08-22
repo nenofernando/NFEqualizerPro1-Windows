@@ -552,6 +552,51 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     inputKnob.addMouseListener(&gainLinkResetListener, false);
     outputKnob.addMouseListener(&gainLinkResetListener, false);
 
+    // ---- Type-in value editor -------------------------------------------
+    // A single shared text field, repositioned over whichever knob was
+    // right-clicked; Enter commits the typed number (Slider::setValue
+    // clamps it to that knob's own range), Escape/focus-lost cancels.
+    knobValueEditor.setJustification(juce::Justification::centred);
+    knobValueEditor.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+    knobValueEditor.setInputRestrictions(8, "0123456789.-");
+    knobValueEditor.setSelectAllWhenFocused(true);
+    knobValueEditor.setColour(juce::TextEditor::backgroundColourId, juce::Colours::black.withAlpha(0.9f));
+    knobValueEditor.setColour(juce::TextEditor::textColourId, NFTapeColours::amberBright);
+    knobValueEditor.setColour(juce::TextEditor::outlineColourId, NFTapeColours::amber);
+    knobValueEditor.setColour(juce::TextEditor::focusedOutlineColourId, NFTapeColours::amberBright);
+    knobValueEditor.setVisible(false);
+    panel.addAndMakeVisible(knobValueEditor);
+
+    knobTypeInListener.onRightClick = [this](juce::Slider& slider)
+    {
+        editingKnob = &slider;
+        auto bounds = slider.getBounds();
+        constexpr int w = 74, h = 22;
+        knobValueEditor.setBounds(bounds.getCentreX() - w / 2, bounds.getCentreY() - h / 2, w, h);
+        knobValueEditor.setText(juce::String(slider.getValue(), 2), juce::dontSendNotification);
+        knobValueEditor.setVisible(true);
+        knobValueEditor.toFront(true);
+        knobValueEditor.grabKeyboardFocus();
+        knobValueEditor.selectAll();
+    };
+    knobValueEditor.onReturnKey = [this]
+    {
+        if (editingKnob != nullptr)
+            editingKnob->setValue(knobValueEditor.getText().getDoubleValue(), juce::sendNotificationSync);
+        knobValueEditor.setVisible(false);
+        editingKnob = nullptr;
+    };
+    knobValueEditor.onEscapeKey = [this]
+    {
+        knobValueEditor.setVisible(false);
+        editingKnob = nullptr;
+    };
+    knobValueEditor.onFocusLost = [this]
+    {
+        knobValueEditor.setVisible(false);
+        editingKnob = nullptr;
+    };
+
     // ---- Section captions ----------------------------------------------
     addCaption("INPUT", true, 15.0f);
     addCaption("HPF", false, 10.0f);
@@ -639,6 +684,11 @@ juce::Slider& NFTapeMachineAudioProcessorEditor::setupKnob(juce::Slider& knob)
     // A small floating value bubble follows the mouse while dragging, so
     // you can read the exact number instead of judging it by ear/eye.
     knob.setPopupDisplayEnabled(true, true, &panel);
+
+    // Right-click opens a text field over the knob to type an exact value
+    // — left-click stays free for normal dragging and (on Input/Output)
+    // the Gain Link reset-to-zero.
+    knob.addMouseListener(&knobTypeInListener, false);
     return knob;
 }
 
