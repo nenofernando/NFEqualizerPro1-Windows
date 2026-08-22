@@ -255,7 +255,7 @@ void NFTapeReels::renderFlangeLayer(juce::Graphics& g, juce::Point<float> centre
         // wider (window cutouts flare outward), narrower right at the
         // top where the spoke is at its thinnest.
         const float nfW = radius * 0.26f;
-        const float audioW = radius * 0.4f;
+        const float audioW = radius * 0.46f;
 
         auto drawEmbossed = [&g](const juce::String& text, juce::Rectangle<float> textArea, float fontSize, bool bold)
         {
@@ -272,7 +272,7 @@ void NFTapeReels::renderFlangeLayer(juce::Graphics& g, juce::Point<float> centre
         };
 
         drawEmbossed("NF", { centre.x - nfW * 0.5f, markY, nfW, radius * 0.2f }, radius * 0.13f, true);
-        drawEmbossed("AUDIO TOOLS", { centre.x - audioW * 0.5f, markY + radius * 0.22f, audioW, radius * 0.1f }, radius * 0.05f, false);
+        drawEmbossed("AUDIO TOOLS", { centre.x - audioW * 0.5f, markY + radius * 0.22f, audioW, radius * 0.13f }, radius * 0.065f, false);
     }
 }
 

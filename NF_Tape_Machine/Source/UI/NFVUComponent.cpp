@@ -195,10 +195,10 @@ void NFVUComponent::drawDial(juce::Graphics& g, juce::Rectangle<float> area,
         g.drawLine(p1.x, p1.y, p2.x, p2.y, tickDb == 0.0f ? 2.0f : 1.3f);
 
         const auto textPos = pivot + dir * (outerR + 8.0f);
-        juce::Rectangle<float> textArea(textPos.x - 12.0f, textPos.y - 6.0f, 24.0f, 12.0f);
+        juce::Rectangle<float> textArea(textPos.x - 16.0f, textPos.y - 9.0f, 32.0f, 18.0f);
 
-        g.setColour(juce::Colours::black.withAlpha(0.8f));
-        g.setFont(juce::Font(juce::FontOptions(8.5f, juce::Font::bold)));
+        g.setColour(juce::Colours::black.withAlpha(0.95f));
+        g.setFont(juce::Font(juce::FontOptions(12.5f, juce::Font::bold)));
         g.drawFittedText(tickDb == 0.0f ? "0" : juce::String((int) tickDb),
                          textArea.toNearestInt(), juce::Justification::centred, 1);
     }

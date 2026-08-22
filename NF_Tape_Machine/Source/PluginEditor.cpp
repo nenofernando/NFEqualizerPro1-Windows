@@ -463,10 +463,10 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     rightReel.onToggle = [this] { leftReel.setSpinning(rightReel.isSpinning()); };
     panel.addAndMakeVisible(vuMeter);
 
-    addCaption("NF TAPE MACHINE", true, 16.0f).setJustificationType(juce::Justification::centred);
-    addCaption("STUDIO SERIES", false, 12.0f).setColour(juce::Label::textColourId, NFTapeColours::amber);
-    addCaption(juce::String(juce::CharPointer_UTF8("15 IPS  \xc2\xb7  NAB  \xc2\xb7  2 TRACK")), false, 12.0f);
-    addCaption("MADE IN ANALOG", false, 11.0f).setColour(juce::Label::textColourId, NFTapeColours::textDim);
+    addCaption("NF TAPE MACHINE", true, 19.0f).setJustificationType(juce::Justification::centred);
+    addCaption("STUDIO SERIES", false, 14.0f).setColour(juce::Label::textColourId, NFTapeColours::amber);
+    addCaption(juce::String(juce::CharPointer_UTF8("15 IPS  \xc2\xb7  NAB  \xc2\xb7  2 TRACK")), false, 14.0f);
+    addCaption("MADE IN ANALOG", false, 15.0f).setColour(juce::Label::textColourId, NFTapeColours::textDim);
 
     // ---- Knobs --------------------------------------------------------
     for (auto* knob : { &inputKnob, &hpfKnob, &driveKnob, &biasKnob, &wowRateKnob, &wowDepthKnob,
@@ -598,32 +598,32 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     outputKnob.onDragEnd = hideLinkedPeerBubble;
 
     // ---- Section captions ----------------------------------------------
-    addCaption("INPUT", true, 15.0f);
+    addCaption("INPUT", true, 24.0f);
     addCaption("HPF", false, 10.0f);
-    addCaption("TAPE TYPE", true, 13.0f);
-    addCaption("DRIVE", true, 15.0f);
-    addCaption("BIAS", true, 15.0f);
-    addCaption("WOW & FLUTTER", true, 13.0f);
+    addCaption("TAPE TYPE", true, 24.0f);
+    addCaption("DRIVE", true, 24.0f);
+    addCaption("BIAS", true, 24.0f);
+    addCaption("WOW & FLUTTER", true, 24.0f);
     addCaption("RATE", false, 10.0f);
     addCaption("DEPTH", false, 10.0f);
-    addCaption("NOISE", true, 15.0f);
-    addCaption("EQ", true, 15.0f);
+    addCaption("NOISE", true, 24.0f);
+    addCaption("EQ", true, 24.0f);
     addCaption("LF", false, 11.0f);
     addCaption("HF", false, 11.0f);
-    addCaption("OUTPUT", true, 15.0f);
-    addCaption("LPF", false, 10.0f);
-    addCaption("TAPE SPEED", true, 13.0f);
-    addCaption("REPRO HEAD", true, 13.0f);
-    addCaption("TAPE AGE", true, 13.0f);
-    addCaption("NEW", false, 9.5f);
-    addCaption("WORN", false, 9.5f);
-    addCaption("DROPOUTS", true, 13.0f);
-    addCaption("MIX", true, 15.0f);
-    addCaption("DRY", false, 9.5f);
-    addCaption("WET", false, 9.5f);
-    addCaption("OUTPUT METER", true, 13.0f);
-    addCaption("BYPASS", true, 14.0f);
-    addCaption(juce::String(juce::CharPointer_UTF8("WARMTH  \xc2\xb7  BODY  \xc2\xb7  CHARACTER  \xc2\xb7  ANALOG MAGIC")), false, 13.0f)
+    addCaption("OUTPUT", true, 24.0f);
+    addCaption("LPF", false, 11.0f);
+    addCaption("TAPE SPEED", true, 24.0f);
+    addCaption("REPRO HEAD", true, 24.0f);
+    addCaption("TAPE AGE", true, 24.0f);
+    addCaption("NEW", false, 14.0f);
+    addCaption("WORN", false, 14.0f);
+    addCaption("DROPOUTS", true, 24.0f);
+    addCaption("MIX", true, 24.0f);
+    addCaption("DRY", false, 14.0f);
+    addCaption("WET", false, 14.0f);
+    addCaption("OUTPUT METER", true, 24.0f);
+    addCaption("BYPASS", true, 24.0f);
+    addCaption(juce::String(juce::CharPointer_UTF8("WARMTH  \xc2\xb7  BODY  \xc2\xb7  CHARACTER  \xc2\xb7  ANALOG MAGIC")), false, 16.0f)
         .setColour(juce::Label::textColourId, NFTapeColours::textDim);
     addCaption("v0.1", true, 13.0f, juce::Justification::centred)
         .setColour(juce::Label::textColourId, NFTapeColours::textDim.withAlpha(0.75f));
@@ -851,10 +851,10 @@ void NFTapeMachineAudioProcessorEditor::resized()
     panel.nameplateArea = juce::Rectangle<int>(plateX, plateTop, plateWidth, plateBottom - plateTop).toFloat();
 
     auto* studioLabel = captions.getUnchecked(1); // "NF TAPE MACHINE" small plate caption
-    studioLabel->setBounds(plateX, vuY + 206, plateWidth, 22);
-    captions.getUnchecked(2)->setBounds(plateX, vuY + 228, plateWidth, 16); // STUDIO SERIES
-    captions.getUnchecked(3)->setBounds(plateX, vuY + 246, plateWidth, 16); // 15 IPS . NAB . 2 TRACK
-    captions.getUnchecked(4)->setBounds(plateX, vuY + 264, plateWidth, 14); // MADE IN ANALOG
+    studioLabel->setBounds(plateX, vuY + 202, plateWidth, 25);
+    captions.getUnchecked(2)->setBounds(plateX, vuY + 228, plateWidth, 18); // STUDIO SERIES
+    captions.getUnchecked(3)->setBounds(plateX, vuY + 247, plateWidth, 18); // 15 IPS . NAB . 2 TRACK
+    captions.getUnchecked(4)->setBounds(plateX, vuY + 263, plateWidth, 20); // MADE IN ANALOG
 
     // ---- Control row 1 --------------------------------------------------
     const int capY = 584;
@@ -874,13 +874,13 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // label and sub-knob both sit right under the knob instead of
     // reading as offset from it.
     inputKnob.setBounds(100 + rowShift, 610, 130, 130);
-    placeCaptionIndex(5, 70 + rowShift, capY, 190, 20);
+    placeCaptionIndex(5, 70 + rowShift, capY - 16, 190, 32);
     hpfKnob.setBounds(130 + rowShift, 758, 70, 70);
     placeCaptionIndex(6, 130 + rowShift, 829, 70, 12); // HPF
 
     // TAPE TYPE (4 stacked buttons) — sized to the widest box that still
     // clears INPUT's and DRIVE's tick-label rings on either side.
-    placeCaptionIndex(7, 240 + rowShift, capY, 115, 24);
+    placeCaptionIndex(7, 228 + rowShift, capY - 16, 140, 32);
     {
         int by = 610;
         for (auto* b : tapeTypeGroup.buttons)
@@ -891,30 +891,30 @@ void NFTapeMachineAudioProcessorEditor::resized()
     }
 
     // DRIVE
-    placeCaptionIndex(8, 365 + rowShift, capY, 135, 20);
+    placeCaptionIndex(8, 365 + rowShift, capY - 16, 135, 32);
     driveKnob.setBounds(365 + rowShift, 608, 135, 135);
-    satButton.setBounds(401 + rowShift, 779, 56, 31);
+    satButton.setBounds(397 + rowShift, 777, 64, 35);
 
     // BIAS
-    placeCaptionIndex(9, 521 + rowShift, capY, 135, 20);
+    placeCaptionIndex(9, 521 + rowShift, capY - 16, 135, 32);
     biasKnob.setBounds(521 + rowShift, 608, 135, 135);
-    calButton.setBounds(558 + rowShift, 779, 56, 31);
+    calButton.setBounds(554 + rowShift, 777, 64, 35);
 
     // WOW & FLUTTER
-    placeCaptionIndex(10, 690 + rowShift, capY, 220, 20);
+    placeCaptionIndex(10, 670 + rowShift, capY - 16, 260, 32);
     wowRateKnob.setBounds(690 + rowShift, 610, 100, 100);
     wowDepthKnob.setBounds(810 + rowShift, 610, 100, 100);
     placeCaptionIndex(11, 690 + rowShift, 714, 100, 14);  // RATE
     placeCaptionIndex(12, 810 + rowShift, 714, 100, 14);  // DEPTH
-    wowInButton.setBounds(772 + rowShift, 779, 56, 31);
+    wowInButton.setBounds(768 + rowShift, 777, 64, 35);
 
     // NOISE
-    placeCaptionIndex(13, 944 + rowShift, capY, 116, 20);
-    noiseKnob.setBounds(944 + rowShift, 610, 116, 110);
-    noiseInButton.setBounds(979 + rowShift, 779, 56, 31);
+    placeCaptionIndex(13, 944 + rowShift, capY - 16, 116, 32);
+    noiseKnob.setBounds(952 + rowShift, 615, 100, 100);
+    noiseInButton.setBounds(975 + rowShift, 777, 64, 35);
 
     // EQ
-    placeCaptionIndex(14, 1090 + rowShift, capY, 217, 20);
+    placeCaptionIndex(14, 1090 + rowShift, capY - 16, 217, 32);
     eqLfKnob.setBounds(1090 + rowShift, 610, 100, 100);
     eqHfKnob.setBounds(1207 + rowShift, 610, 100, 100);
     placeCaptionIndex(15, 1090 + rowShift, 714, 100, 14); // LF
@@ -924,13 +924,13 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // SAT/CAL/IN below their knobs), centred between the LF and HF dials.
     // Toggles whether INPUT and OUTPUT are coupled (see PluginProcessor's
     // parameterChanged for the actual dB-for-dB compensation logic).
-    gainLinkButton.setBounds(1171 + rowShift, 779, 56, 31);
+    gainLinkButton.setBounds(1167 + rowShift, 777, 64, 35);
 
     // OUTPUT — mirrors INPUT exactly around the canvas centre (1536/2),
     // so both knobs sit the same distance from their side screw (46px in
     // from the chassis edge) instead of drifting apart after the row1
     // recentring above.
-    placeCaptionIndex(17, 1308, capY, 190, 20);
+    placeCaptionIndex(17, 1308, capY - 16, 190, 32);
     outputKnob.setBounds(1338, 610, 130, 130);
     lpfKnob.setBounds(1368, 758, 70, 70);
     placeCaptionIndex(18, 1368, 829, 70, 12); // LPF
@@ -945,39 +945,40 @@ void NFTapeMachineAudioProcessorEditor::resized()
     constexpr int row2Shift = 33;
 
     // TAPE SPEED
-    placeCaptionIndex(19, 61 + row2Shift, row2CapY, 244, 16);
+    placeCaptionIndex(19, 61 + row2Shift, row2CapY - 4, 244, 32);
     tapeSpeedGroup.buttons.getUnchecked(0)->setBounds(61 + row2Shift, 895, 80, 43);
     tapeSpeedGroup.buttons.getUnchecked(1)->setBounds(143 + row2Shift, 895, 80, 43);
     tapeSpeedGroup.buttons.getUnchecked(2)->setBounds(225 + row2Shift, 895, 80, 43);
 
     // REPRO HEAD
-    placeCaptionIndex(20, 329 + row2Shift, row2CapY, 162, 16);
+    placeCaptionIndex(20, 329 + row2Shift, row2CapY - 4, 162, 32);
     reproHeadGroup.buttons.getUnchecked(0)->setBounds(329 + row2Shift, 895, 80, 43);
     reproHeadGroup.buttons.getUnchecked(1)->setBounds(411 + row2Shift, 895, 80, 43);
 
     // TAPE AGE
-    placeCaptionIndex(21, 542 + row2Shift, row2CapY, 90, 16);
+    placeCaptionIndex(21, 517 + row2Shift, row2CapY - 4, 140, 32);
     tapeAgeKnob.setBounds(542 + row2Shift, 873, 90, 90);
-    placeCaptionIndex(22, 542 + row2Shift, 965, 45, 12);      // NEW
-    placeCaptionIndex(23, 587 + row2Shift, 965, 45, 12);      // WORN
+    placeCaptionIndex(22, 542 + row2Shift, 962, 45, 18);      // NEW
+    placeCaptionIndex(23, 587 + row2Shift, 962, 45, 18);      // WORN
 
-    // DROPOUTS
-    placeCaptionIndex(24, 690 + row2Shift, row2CapY, 149, 16);
+    // DROPOUTS — caption centred on the knob itself (690+45=735) rather
+    // than sharing the knob's left edge with a much wider text box.
+    placeCaptionIndex(24, 655 + row2Shift, row2CapY - 4, 160, 32);
     dropoutKnob.setBounds(690 + row2Shift, 873, 90, 90);
     dropoutInButton.setBounds(797 + row2Shift, 910, 42, 38);
 
     // MIX
-    placeCaptionIndex(25, 882 + row2Shift, row2CapY, 90, 16);
+    placeCaptionIndex(25, 857 + row2Shift, row2CapY - 4, 140, 32);
     mixKnob.setBounds(882 + row2Shift, 873, 90, 90);
-    placeCaptionIndex(26, 882 + row2Shift, 965, 45, 12);      // DRY
-    placeCaptionIndex(27, 927 + row2Shift, 965, 45, 12);      // WET
+    placeCaptionIndex(26, 882 + row2Shift, 962, 45, 18);      // DRY
+    placeCaptionIndex(27, 927 + row2Shift, 962, 45, 18);      // WET
 
     // OUTPUT METER
-    placeCaptionIndex(28, 1033 + row2Shift, 863, 300, 16);
+    placeCaptionIndex(28, 1033 + row2Shift, row2CapY - 4, 300, 32);
     outputMeterBar.setBounds(1033 + row2Shift, 884, 300, 79);
 
     // BYPASS
-    placeCaptionIndex(29, 1366 + row2Shift, 863, 79, 16);
+    placeCaptionIndex(29, 1335 + row2Shift, row2CapY - 4, 140, 32);
     bypassButton.setBounds(1366 + row2Shift, 884, 79, 79);
 
     // ---- Tagline ----------------------------------------------------------
