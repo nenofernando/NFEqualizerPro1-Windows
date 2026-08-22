@@ -17,7 +17,7 @@ namespace
                 "Default",
                 {
                     { "input", 0.0f }, { "hpf", 20.0f }, { "tapeType", 0.0f },
-                    { "drive", 4.5f }, { "satEnabled", 1.0f },
+                    { "drive", 3.75f }, { "satEnabled", 1.0f },
                     { "bias", 5.0f }, { "biasCal", 1.0f },
                     { "wowRate", 0.6f }, { "wowDepth", 2.0f }, { "wowFlutterEnabled", 1.0f },
                     { "noise", 3.0f }, { "noiseEnabled", 0.0f },
@@ -190,7 +190,7 @@ NFTapeMachineAudioProcessor::createParameterLayout()
     parameters.push_back(std::make_unique<ChoiceParameter>("tapeType", "Tape Type",
         juce::StringArray { "GP9", "456", "499", "250" }, 0));
 
-    parameters.push_back(std::make_unique<FloatParameter>("drive", "Drive", 0.0f, 10.0f, 4.5f));
+    parameters.push_back(std::make_unique<FloatParameter>("drive", "Drive", 0.0f, 10.0f, 3.75f));
     parameters.push_back(std::make_unique<BoolParameter>("satEnabled", "Saturation", true));
 
     parameters.push_back(std::make_unique<FloatParameter>("bias", "Bias", 0.0f, 10.0f, 5.0f));
