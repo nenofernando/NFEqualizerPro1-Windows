@@ -555,6 +555,48 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     inputKnob.addMouseListener(&gainLinkResetListener, false);
     outputKnob.addMouseListener(&gainLinkResetListener, false);
 
+    // While linked, dragging one of INPUT/OUTPUT shows a matching bubble
+    // over the other, since it's changing too but isn't the one under the
+    // mouse (so it doesn't get its own native drag-popup).
+    linkedPeerBubble.setJustificationType(juce::Justification::centred);
+    linkedPeerBubble.setColour(juce::Label::backgroundColourId, juce::Colours::black.withAlpha(0.85f));
+    linkedPeerBubble.setColour(juce::Label::textColourId, juce::Colours::white);
+    linkedPeerBubble.setFont(juce::Font(juce::FontOptions(14.0f, juce::Font::bold)));
+    linkedPeerBubble.setInterceptsMouseClicks(false, false);
+    linkedPeerBubble.setVisible(false);
+    panel.addAndMakeVisible(linkedPeerBubble);
+
+    auto showLinkedPeerBubble = [this](juce::Slider& peer)
+    {
+        if (audioProcessor.apvts.getRawParameterValue("gainLink")->load() <= 0.5f)
+            return;
+
+        const auto bounds = peer.getBounds();
+        constexpr int w = 74, h = 22;
+        linkedPeerBubble.setBounds(bounds.getCentreX() - w / 2, bounds.getCentreY() - h / 2, w, h);
+        linkedPeerBubble.setText(juce::String(peer.getValue(), 1) + peer.getTextValueSuffix(),
+                                 juce::dontSendNotification);
+        linkedPeerBubble.setVisible(true);
+        linkedPeerBubble.toFront(false);
+    };
+    auto hideLinkedPeerBubble = [this] { linkedPeerBubble.setVisible(false); };
+
+    inputKnob.onDragStart = [this, showLinkedPeerBubble] { showLinkedPeerBubble(outputKnob); };
+    inputKnob.onValueChange = [this, showLinkedPeerBubble]
+    {
+        if (inputKnob.isMouseButtonDown())
+            showLinkedPeerBubble(outputKnob);
+    };
+    inputKnob.onDragEnd = hideLinkedPeerBubble;
+
+    outputKnob.onDragStart = [this, showLinkedPeerBubble] { showLinkedPeerBubble(inputKnob); };
+    outputKnob.onValueChange = [this, showLinkedPeerBubble]
+    {
+        if (outputKnob.isMouseButtonDown())
+            showLinkedPeerBubble(inputKnob);
+    };
+    outputKnob.onDragEnd = hideLinkedPeerBubble;
+
     // ---- Section captions ----------------------------------------------
     addCaption("INPUT", true, 15.0f);
     addCaption("HPF", false, 10.0f);

@@ -130,6 +130,12 @@ private:
 
     KnobClickToZero gainLinkResetListener;
 
+    // While Gain Link is on, dragging INPUT or OUTPUT shows this bubble
+    // over whichever of the two ISN'T being dragged, so both linked
+    // values stay visible at once instead of only the one under the
+    // mouse (which already gets its own native popup from setPopupDisplayEnabled).
+    juce::Label linkedPeerBubble;
+
     NFTapeMachineAudioProcessor& audioProcessor;
     NFTapeLookAndFeel lookAndFeel;
 

@@ -34,6 +34,23 @@ public:
 private:
     void timerCallback() override;
 
+    // The rotating flange used to be rebuilt from raw vector Paths and
+    // gradients on every single paint() call (30fps x 2 reels), which was
+    // heavy enough to visibly steal message-thread time from other
+    // components' own timers (reported as the VU/output meters going
+    // sluggish specifically while the reels were spinning). Everything
+    // that doesn't change frame-to-frame is now pre-rendered once into
+    // cached images, invalidated only when the size or tape-type finish
+    // changes; paint() just blits/rotates those images.
+    void rebuildCacheIfNeeded();
+    void renderBaseLayer(juce::Graphics& g, juce::Point<float> centre, float radius);
+    void renderFlangeLayer(juce::Graphics& g, juce::Point<float> centre, float radius);
+    void renderOverlayLayer(juce::Graphics& g, juce::Point<float> centre, float radius);
+
+    juce::Image cachedBase, cachedFlange, cachedOverlay;
+    juce::Rectangle<int> cachedForBounds;
+    int cachedForTapeType = -1;
+
     bool mirroredFlange;
     bool spinning = true;
     float rotationAngle = 0.0f;

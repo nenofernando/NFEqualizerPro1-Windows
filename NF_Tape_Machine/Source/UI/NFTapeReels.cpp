@@ -87,12 +87,8 @@ void NFTapeReels::timerCallback()
     repaint();
 }
 
-void NFTapeReels::paint(juce::Graphics& g)
+void NFTapeReels::renderBaseLayer(juce::Graphics& g, juce::Point<float> centre, float radius)
 {
-    auto bounds = getLocalBounds().toFloat();
-    const auto centre = bounds.getCentre();
-    const float radius = juce::jmin(bounds.getWidth(), bounds.getHeight()) * 0.5f;
-
     // Soft contact shadow under the whole spool — several translucent
     // passes fake a blur since JUCE has no native gaussian blur.
     for (int i = 5; i >= 1; --i)
@@ -158,13 +154,20 @@ void NFTapeReels::paint(juce::Graphics& g)
         g.setColour(juce::Colours::black.withAlpha(0.5f));
         g.drawEllipse(centre.x - packOuter, centre.y - packOuter, packOuter * 2.0f, packOuter * 2.0f, 1.0f);
     }
+}
 
-    // Rotating bronze flange: four large open windows cut clean through it
-    // (evenodd hole, not a dark wash) so the tape pack underneath shows
-    // through directly, exactly like a real NAB reel.
-    g.saveState();
-    g.addTransform(juce::AffineTransform::rotation(rotationAngle, centre.x, centre.y));
+void NFTapeReels::renderFlangeLayer(juce::Graphics& g, juce::Point<float> centre, float radius)
+{
+    const auto& finish = getReelFinish(tapeTypeIndex);
+    const float rimInner = radius * 0.91f;
+    const float packOuter = rimInner;
+    const float packInner = radius * 0.24f;
 
+    // Bronze flange: four large open windows cut clean through it (evenodd
+    // hole, not a dark wash) so the tape pack underneath shows through
+    // directly, exactly like a real NAB reel. Rendered once at angle 0 —
+    // paint() supplies the rotation as an image transform instead of this
+    // being rebuilt from raw geometry every frame.
     const float flangeRadius = packOuter;
     constexpr int numWindows = 4;
     const float windowOuter = flangeRadius * 0.93f;
@@ -271,8 +274,12 @@ void NFTapeReels::paint(juce::Graphics& g)
         drawEmbossed("NF", { centre.x - nfW * 0.5f, markY, nfW, radius * 0.2f }, radius * 0.13f, true);
         drawEmbossed("AUDIO TOOLS", { centre.x - audioW * 0.5f, markY + radius * 0.22f, audioW, radius * 0.1f }, radius * 0.05f, false);
     }
+}
 
-    g.restoreState();
+void NFTapeReels::renderOverlayLayer(juce::Graphics& g, juce::Point<float> centre, float radius)
+{
+    const float packOuter = radius * 0.91f;
+    const float flangeRadius = packOuter;
 
     // Fixed specular sweep — a constant light source hitting a spinning
     // glossy disc puts the highlight at the same screen position no
@@ -336,4 +343,51 @@ void NFTapeReels::paint(juce::Graphics& g)
     // Outer chrome bezel ring framing the whole spool.
     g.setColour(juce::Colour(0xff45484c));
     g.drawEllipse(centre.x - radius * 0.97f, centre.y - radius * 0.97f, radius * 1.94f, radius * 1.94f, 1.6f);
+}
+
+void NFTapeReels::rebuildCacheIfNeeded()
+{
+    const auto bounds = getLocalBounds();
+    if (bounds.isEmpty())
+        return;
+
+    if (! cachedBase.isNull() && bounds == cachedForBounds && tapeTypeIndex == cachedForTapeType)
+        return;
+
+    cachedForBounds = bounds;
+    cachedForTapeType = tapeTypeIndex;
+
+    const auto boundsF = bounds.toFloat();
+    const auto centre = boundsF.getCentre();
+    const float radius = juce::jmin(boundsF.getWidth(), boundsF.getHeight()) * 0.5f;
+
+    cachedBase = juce::Image(juce::Image::ARGB, bounds.getWidth(), bounds.getHeight(), true);
+    cachedFlange = juce::Image(juce::Image::ARGB, bounds.getWidth(), bounds.getHeight(), true);
+    cachedOverlay = juce::Image(juce::Image::ARGB, bounds.getWidth(), bounds.getHeight(), true);
+
+    {
+        juce::Graphics g(cachedBase);
+        renderBaseLayer(g, centre, radius);
+    }
+    {
+        juce::Graphics g(cachedFlange);
+        renderFlangeLayer(g, centre, radius);
+    }
+    {
+        juce::Graphics g(cachedOverlay);
+        renderOverlayLayer(g, centre, radius);
+    }
+}
+
+void NFTapeReels::paint(juce::Graphics& g)
+{
+    rebuildCacheIfNeeded();
+    if (cachedBase.isNull())
+        return;
+
+    const auto centre = getLocalBounds().toFloat().getCentre();
+
+    g.drawImageAt(cachedBase, 0, 0);
+    g.drawImageTransformed(cachedFlange, juce::AffineTransform::rotation(rotationAngle, centre.x, centre.y), false);
+    g.drawImageAt(cachedOverlay, 0, 0);
 }
