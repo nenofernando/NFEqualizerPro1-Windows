@@ -1,0 +1,49 @@
+name: Build Windows Tape Machine Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'NF_Tape_Machine/**'
+      - '.github/workflows/build-windows-tape-machine.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout plugin source
+        uses: actions/checkout@v4
+
+      - name: Checkout JUCE
+        uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.1
+          path: JUCE
+
+      - name: Configure CMake
+        working-directory: NF_Tape_Machine
+        run: cmake -B build -DJUCE_DIR="${{ github.workspace }}\JUCE" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3
+        working-directory: NF_Tape_Machine
+        run: cmake --build build --config Release --target NFTapeMachine_VST3
+
+      - name: Make sure NSIS is available
+        run: |
+          choco install nsis -y --no-progress
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Build installer (NSIS)
+        working-directory: NF_Tape_Machine/installer
+        run: makensis windows-installer.nsi
+        shell: cmd
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NF-Tape-Machine-Windows-Installer
+          path: NF_Tape_Machine/installer/*.exe
