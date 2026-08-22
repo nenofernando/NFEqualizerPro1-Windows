@@ -65,10 +65,11 @@ NFVUComponent::~NFVUComponent()
 
 void NFVUComponent::setLevels(float leftDb, float rightDb)
 {
-    // Calibration: 0 VU reads at -18 dBFS (common broadcast/mix reference),
-    // so normally-mixed program material sits near the middle of the scale
-    // instead of pinned at the bottom.
-    constexpr float calibrationOffset = 18.0f;
+    // Calibration: 0 VU reads at -9 dBFS. The classic -18 dBFS broadcast
+    // reference pegs the needle at max for almost any modern, hotter-mixed
+    // material; -9 dBFS gives that material real headroom to move within
+    // the dial's -20..+3 window instead of sitting pinned to the right.
+    constexpr float calibrationOffset = 9.0f;
     targetLeftDb = juce::jlimit(minDb, maxDb, leftDb + calibrationOffset);
     targetRightDb = juce::jlimit(minDb, maxDb, rightDb + calibrationOffset);
 }
