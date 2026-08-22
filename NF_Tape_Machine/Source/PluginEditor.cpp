@@ -487,6 +487,23 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     NFTapeLookAndFeel::setTickLabels(dropoutKnob, { "0", "10" });
     NFTapeLookAndFeel::setTickLabels(mixKnob, { "0", "100" });
 
+    // Units/precision for the floating value bubble each knob pops up
+    // while being dragged (see setupKnob's setPopupDisplayEnabled).
+    inputKnob.setTextValueSuffix(" dB");     inputKnob.setNumDecimalPlacesToDisplay(1);
+    outputKnob.setTextValueSuffix(" dB");    outputKnob.setNumDecimalPlacesToDisplay(1);
+    eqLfKnob.setTextValueSuffix(" dB");      eqLfKnob.setNumDecimalPlacesToDisplay(1);
+    eqHfKnob.setTextValueSuffix(" dB");      eqHfKnob.setNumDecimalPlacesToDisplay(1);
+    hpfKnob.setTextValueSuffix(" Hz");       hpfKnob.setNumDecimalPlacesToDisplay(0);
+    lpfKnob.setTextValueSuffix(" Hz");       lpfKnob.setNumDecimalPlacesToDisplay(0);
+    wowRateKnob.setTextValueSuffix(" Hz");   wowRateKnob.setNumDecimalPlacesToDisplay(2);
+    driveKnob.setNumDecimalPlacesToDisplay(1);
+    biasKnob.setNumDecimalPlacesToDisplay(1);
+    noiseKnob.setNumDecimalPlacesToDisplay(1);
+    dropoutKnob.setNumDecimalPlacesToDisplay(1);
+    wowDepthKnob.setNumDecimalPlacesToDisplay(0);
+    tapeAgeKnob.setTextValueSuffix(" %");    tapeAgeKnob.setNumDecimalPlacesToDisplay(0);
+    mixKnob.setTextValueSuffix(" %");        mixKnob.setNumDecimalPlacesToDisplay(0);
+
     panel.addAndMakeVisible(inputKnob);
     panel.addAndMakeVisible(hpfKnob);
     panel.addAndMakeVisible(driveKnob);
@@ -618,6 +635,10 @@ juce::Slider& NFTapeMachineAudioProcessorEditor::setupKnob(juce::Slider& knob)
     knob.setRotaryParameters(juce::MathConstants<float>::pi * 1.2f,
                              juce::MathConstants<float>::pi * 2.8f, true);
     knob.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
+
+    // A small floating value bubble follows the mouse while dragging, so
+    // you can read the exact number instead of judging it by ear/eye.
+    knob.setPopupDisplayEnabled(true, true, &panel);
     return knob;
 }
 
