@@ -411,7 +411,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     titleLabel.setText("NF TAPE MACHINE", juce::dontSendNotification);
     titleLabel.setJustificationType(juce::Justification::centred);
     {
-        auto titleFont = juce::Font(juce::FontOptions(36.0f, juce::Font::bold));
+        auto titleFont = juce::Font(juce::FontOptions(39.0f, juce::Font::bold));
         titleFont.setExtraKerningFactor(0.06f);
         titleLabel.setFont(titleFont);
     }
@@ -421,7 +421,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     subtitleLabel.setText("ANALOG TAPE EMULATOR", juce::dontSendNotification);
     subtitleLabel.setJustificationType(juce::Justification::centred);
     {
-        auto subtitleFont = juce::Font(juce::FontOptions(17.0f, juce::Font::plain));
+        auto subtitleFont = juce::Font(juce::FontOptions(19.0f, juce::Font::plain));
         subtitleFont.setExtraKerningFactor(0.18f);
         subtitleLabel.setFont(subtitleFont);
     }
@@ -563,7 +563,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     addCaption("BYPASS", true, 14.0f);
     addCaption(juce::String(juce::CharPointer_UTF8("WARMTH  \xc2\xb7  BODY  \xc2\xb7  CHARACTER  \xc2\xb7  ANALOG MAGIC")), false, 13.0f)
         .setColour(juce::Label::textColourId, NFTapeColours::textDim);
-    addCaption("v0.1", true, 13.0f, juce::Justification::centredRight)
+    addCaption("v0.1", true, 13.0f, juce::Justification::centred)
         .setColour(juce::Label::textColourId, NFTapeColours::textDim.withAlpha(0.75f));
 
     // ---- LED-pill toggles -----------------------------------------------
@@ -795,14 +795,15 @@ void NFTapeMachineAudioProcessorEditor::resized()
     hpfKnob.setBounds(130 + rowShift, 758, 70, 70);
     placeCaptionIndex(6, 130 + rowShift, 829, 70, 12); // HPF
 
-    // TAPE TYPE (4 stacked buttons)
-    placeCaptionIndex(7, 244 + rowShift, capY, 135, 24);
+    // TAPE TYPE (4 stacked buttons) — sized to the widest box that still
+    // clears INPUT's and DRIVE's tick-label rings on either side.
+    placeCaptionIndex(7, 240 + rowShift, capY, 115, 24);
     {
         int by = 610;
         for (auto* b : tapeTypeGroup.buttons)
         {
-            b->setBounds(244 + rowShift, by, 135, 30);
-            by += 36;
+            b->setBounds(240 + rowShift, by, 115, 28);
+            by += 34;
         }
     }
 
@@ -899,9 +900,9 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // ---- Tagline ----------------------------------------------------------
     captions.getUnchecked(30)->setBounds(423, 985, 690, 25);
 
-    // Version tag, tucked in the bottom-right corner clear of the chassis
-    // screw — small and out of the way, like a manufacturer's print mark.
-    placeCaptionIndex(31, 1390, 982, 75, 20);
+    // Version tag, centred under the BYPASS button rather than pinned to
+    // the corner screw.
+    placeCaptionIndex(31, 1401, 982, 75, 20);
 }
 
 //==============================================================================

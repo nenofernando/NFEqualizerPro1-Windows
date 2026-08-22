@@ -69,7 +69,7 @@ void NFTapeLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
 
     constexpr int numTicks = 25;
     const float tickInner = radius + 6.0f;
-    const float tickOuter = radius + 11.0f;
+    const float tickOuter = radius + 9.0f;
 
     for (int i = 0; i < numTicks; ++i)
     {
@@ -94,10 +94,10 @@ void NFTapeLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
     {
         const auto labels = juce::StringArray::fromTokens(tickLabelsCsv, "|", "");
         const int count = labels.size();
-        const float labelR = tickOuter + 11.0f;
+        const float labelR = tickOuter + 4.0f;
 
         g.setColour(NFTapeColours::textDim);
-        g.setFont(juce::Font(juce::FontOptions(juce::jmax(9.5f, radius * 0.30f), juce::Font::bold)));
+        g.setFont(juce::Font(juce::FontOptions(juce::jmax(9.0f, radius * 0.26f), juce::Font::bold)));
 
         for (int i = 0; i < count; ++i)
         {
@@ -107,7 +107,7 @@ void NFTapeLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int wi
             const float lx = centre.x + std::cos(labelAngle) * labelR;
             const float ly = centre.y + std::sin(labelAngle) * labelR;
 
-            juce::Rectangle<float> labelArea(lx - 16.0f, ly - 7.0f, 32.0f, 14.0f);
+            juce::Rectangle<float> labelArea(lx - 11.0f, ly - 6.0f, 22.0f, 12.0f);
             g.drawFittedText(labels[i], labelArea.toNearestInt(), juce::Justification::centred, 1);
         }
     }
