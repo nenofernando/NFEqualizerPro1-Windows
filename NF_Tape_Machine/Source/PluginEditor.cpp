@@ -833,7 +833,7 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // Height (not width) sets the drawn circle's diameter here since the
     // box is wider than tall — growing only height makes the reels bigger
     // without pushing into the VU meter or the tube lamps on either side.
-    leftReel.setBounds(113, 104, 410, 420);
+    leftReel.setBounds(109, 104, 410, 420);
     rightReel.setBounds(1015, 104, 410, 420);
 
     // Centred on the canvas (x) and on the reels' own vertical centre (y =
@@ -875,8 +875,8 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // reading as offset from it.
     inputKnob.setBounds(100 + rowShift, 610, 130, 130);
     placeCaptionIndex(5, 70 + rowShift, capY - 16, 190, 32);
-    hpfKnob.setBounds(130 + rowShift, 758, 70, 70);
-    placeCaptionIndex(6, 130 + rowShift, 829, 70, 12); // HPF
+    hpfKnob.setBounds(130 + rowShift, 749, 70, 70);
+    placeCaptionIndex(6, 130 + rowShift, 820, 70, 12); // HPF
 
     // TAPE TYPE (4 stacked buttons) — sized to the widest box that still
     // clears INPUT's and DRIVE's tick-label rings on either side.
@@ -893,12 +893,12 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // DRIVE
     placeCaptionIndex(8, 365 + rowShift, capY - 16, 135, 32);
     driveKnob.setBounds(365 + rowShift, 608, 135, 135);
-    satButton.setBounds(397 + rowShift, 777, 64, 35);
+    satButton.setBounds(397 + rowShift, 763, 64, 35);
 
     // BIAS
     placeCaptionIndex(9, 521 + rowShift, capY - 16, 135, 32);
     biasKnob.setBounds(521 + rowShift, 608, 135, 135);
-    calButton.setBounds(554 + rowShift, 777, 64, 35);
+    calButton.setBounds(554 + rowShift, 763, 64, 35);
 
     // WOW & FLUTTER
     placeCaptionIndex(10, 670 + rowShift, capY - 16, 260, 32);
@@ -906,12 +906,12 @@ void NFTapeMachineAudioProcessorEditor::resized()
     wowDepthKnob.setBounds(810 + rowShift, 610, 100, 100);
     placeCaptionIndex(11, 690 + rowShift, 714, 100, 14);  // RATE
     placeCaptionIndex(12, 810 + rowShift, 714, 100, 14);  // DEPTH
-    wowInButton.setBounds(768 + rowShift, 777, 64, 35);
+    wowInButton.setBounds(768 + rowShift, 763, 64, 35);
 
     // NOISE
     placeCaptionIndex(13, 944 + rowShift, capY - 16, 116, 32);
     noiseKnob.setBounds(952 + rowShift, 615, 100, 100);
-    noiseInButton.setBounds(975 + rowShift, 777, 64, 35);
+    noiseInButton.setBounds(975 + rowShift, 763, 64, 35);
 
     // EQ
     placeCaptionIndex(14, 1090 + rowShift, capY - 16, 217, 32);
@@ -924,7 +924,7 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // SAT/CAL/IN below their knobs), centred between the LF and HF dials.
     // Toggles whether INPUT and OUTPUT are coupled (see PluginProcessor's
     // parameterChanged for the actual dB-for-dB compensation logic).
-    gainLinkButton.setBounds(1167 + rowShift, 777, 64, 35);
+    gainLinkButton.setBounds(1167 + rowShift, 763, 64, 35);
 
     // OUTPUT — mirrors INPUT exactly around the canvas centre (1536/2),
     // so both knobs sit the same distance from their side screw (46px in
@@ -932,8 +932,8 @@ void NFTapeMachineAudioProcessorEditor::resized()
     // recentring above.
     placeCaptionIndex(17, 1308, capY - 16, 190, 32);
     outputKnob.setBounds(1338, 610, 130, 130);
-    lpfKnob.setBounds(1368, 758, 70, 70);
-    placeCaptionIndex(18, 1368, 829, 70, 12); // LPF
+    lpfKnob.setBounds(1368, 749, 70, 70);
+    placeCaptionIndex(18, 1368, 820, 70, 12); // LPF
 
     // ---- Control row 2 (bottomPanel 31,838,1472,139) ---------------------
     const int row2CapY = 845;
@@ -975,11 +975,11 @@ void NFTapeMachineAudioProcessorEditor::resized()
 
     // OUTPUT METER
     placeCaptionIndex(28, 1033 + row2Shift, row2CapY - 4, 300, 32);
-    outputMeterBar.setBounds(1033 + row2Shift, 884, 300, 79);
+    outputMeterBar.setBounds(1033 + row2Shift, 884, 300, 100);
 
     // BYPASS
     placeCaptionIndex(29, 1335 + row2Shift, row2CapY - 4, 140, 32);
-    bypassButton.setBounds(1366 + row2Shift, 884, 79, 79);
+    bypassButton.setBounds(1366 + row2Shift, 895, 79, 79);
 
     // ---- Tagline ----------------------------------------------------------
     captions.getUnchecked(30)->setBounds(423, 985, 690, 25);
