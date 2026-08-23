@@ -72,8 +72,8 @@ void StressorEngine::reset()
     {
         state->scHpf.reset();
         state->levelSmoothed = 0.0f;
-        state->fastGrDb = 0.0f;
-        state->slowGrDb = 0.0f;
+        state->grDb = 0.0f;
+        state->releaseMemory = 0.0f;
     }
 
     inputGainSmoothed.setCurrentAndTargetValue(juce::Decibels::decibelsToGain(params.inputDb));
@@ -82,45 +82,80 @@ void StressorEngine::reset()
     gainReductionDb.store(0.0f);
 }
 
-float StressorEngine::computeGainReductionDb(float levelDb, float ratio, bool nukeEngaged) const
+float StressorEngine::computeGainReductionDb(float levelDb, float ratio, bool nukeEngaged, bool bigNuke) const
 {
     const float overDb = levelDb - kThresholdDb;
-    const float kneeWidth = nukeEngaged ? kNukeKneeWidthDb : kSoftKneeWidthDb;
+
+    // NUKE overrides the ratio entirely with an effectively infinite ratio
+    // and a razor-thin knee — a true brick-wall limiter stage, stacked on
+    // top of whatever RATIO/knee is already selected rather than replacing
+    // the UI's ratio choice.
+    constexpr float kBrickWallRatio = 500.0f;
+    constexpr float kBrickWallKneeDb = 0.3f;
+    const float effectiveRatio = bigNuke ? kBrickWallRatio : ratio;
+    const float kneeWidth = bigNuke ? kBrickWallKneeDb : (nukeEngaged ? kNukeKneeWidthDb : kSoftKneeWidthDb);
 
     float reduction;
     if (2.0f * overDb < -kneeWidth)
         reduction = 0.0f;
     else if (2.0f * std::abs(overDb) <= kneeWidth)
-        reduction = ((1.0f / ratio - 1.0f) * std::pow(overDb + kneeWidth * 0.5f, 2.0f)) / (2.0f * kneeWidth);
+        reduction = ((1.0f / effectiveRatio - 1.0f) * std::pow(overDb + kneeWidth * 0.5f, 2.0f)) / (2.0f * kneeWidth);
     else
-        reduction = overDb * (1.0f / ratio - 1.0f);
+        reduction = overDb * (1.0f / effectiveRatio - 1.0f);
 
     float grDb = -reduction; // reduction is <= 0 (a gain change); track the magnitude
-    if (nukeEngaged)
-        grDb *= 1.15f; // extra redline bite on top of the harder knee
+    if (bigNuke)
+        grDb *= 1.35f; // extra redline bite, harder than the mild 10:1/20:1 nuke stage
+    else if (nukeEngaged)
+        grDb *= 1.15f;
 
     return juce::jmax(0.0f, grDb);
 }
 
-float StressorEngine::detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged,
-                                      float attackCoeff, float releaseCoeffFast, float releaseCoeffSlow)
+float StressorEngine::detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged, bool bigNuke,
+                                      float attackAmount, float releaseAmount)
 {
     const float levelCoeff = calcOnePoleCoeff(kLevelSmoothMs, sampleRate);
     state.levelSmoothed += (absLevel - state.levelSmoothed) * (1.0f - levelCoeff);
 
     const float levelDb = juce::Decibels::gainToDecibels(state.levelSmoothed, -100.0f);
-    const float grTargetDb = computeGainReductionDb(levelDb, ratio, nukeEngaged);
+    const float grTargetDb = computeGainReductionDb(levelDb, ratio, nukeEngaged, bigNuke);
 
-    const float fastCoeff = grTargetDb > state.fastGrDb ? attackCoeff : releaseCoeffFast;
-    state.fastGrDb = state.fastGrDb * fastCoeff + grTargetDb * (1.0f - fastCoeff);
+    // OPTO ATTACK: past the "10" detent, the fixed FET attack time blends
+    // into a program-dependent one — bigger transients (bigger GR jumps) get
+    // a slower, gentler attack instead of slamming instantly, the classic
+    // opto-cell softening. Below the detent it's the plain FET time.
+    constexpr float kOptoAttackStart = 9.0f;
+    const float attackOptoBlend = juce::jlimit(0.0f, 1.0f,
+        (attackAmount - kOptoAttackStart) / (10.0f - kOptoAttackStart));
+    const float normalAttackMs = mapAttackMs(attackAmount);
+    const float optoAttackMs = juce::jmap(juce::jlimit(0.0f, 24.0f, grTargetDb), 0.0f, 24.0f, 8.0f, 60.0f);
+    float attackMsUsed = juce::jmap(attackOptoBlend, normalAttackMs, optoAttackMs);
+    // A brick-wall limiter can't leak transients while it waits on the
+    // ATTACK knob — NUKE forces a near-instant catch regardless of that
+    // knob's setting.
+    if (bigNuke)
+        attackMsUsed = juce::jmin(attackMsUsed, 0.3f);
+    const float attackCoeff = calcOnePoleCoeff(attackMsUsed, sampleRate);
 
-    const float slowCoeff = grTargetDb > state.slowGrDb ? attackCoeff : releaseCoeffSlow;
-    state.slowGrDb = state.slowGrDb * slowCoeff + grTargetDb * (1.0f - slowCoeff);
+    // OPTO RELEASE: past the "0" detent, release becomes a program-dependent
+    // auto-release driven by a slow (~1.5 s) memory of recent gain reduction
+    // — the harder/longer the signal has been compressing, the longer it
+    // takes to let go afterward, mimicking a real opto cell's "fatigue".
+    // Above the detent it's the plain fixed FET release time.
+    constexpr float kOptoReleaseEnd = 1.0f;
+    const float releaseOptoBlend = juce::jlimit(0.0f, 1.0f, (kOptoReleaseEnd - releaseAmount) / kOptoReleaseEnd);
+    const float memoryCoeff = calcOnePoleCoeff(1500.0, sampleRate);
+    state.releaseMemory += (grTargetDb - state.releaseMemory) * (1.0f - memoryCoeff);
+    const float normalReleaseMs = mapReleaseMs(releaseAmount);
+    const float optoReleaseMs = juce::jmap(juce::jlimit(0.0f, 20.0f, state.releaseMemory), 0.0f, 20.0f, 300.0f, 3000.0f);
+    const float releaseMsUsed = juce::jmap(releaseOptoBlend, normalReleaseMs, optoReleaseMs);
+    const float releaseCoeff = calcOnePoleCoeff(releaseMsUsed, sampleRate);
 
-    // Program-dependent "auto release" feel: whichever stage still holds more
-    // reduction gates the output, so a slow tail lingers after loud passages
-    // even though the fast stage has already let go.
-    return std::max(state.fastGrDb, state.slowGrDb);
+    const float coeff = grTargetDb > state.grDb ? attackCoeff : releaseCoeff;
+    state.grDb = state.grDb * coeff + grTargetDb * (1.0f - coeff);
+
+    return state.grDb;
 }
 
 float StressorEngine::shapeCharacter(float x) const
@@ -137,6 +172,14 @@ float StressorEngine::shapeCharacter(float x) const
     // both -> coloured "British"/Nuke character: cascade both curves
     const float y = driveShape(x, 3.0f, 0.35f);
     return driveShape(y, 2.0f, -0.25f);
+}
+
+float StressorEngine::shapeCharacterWithNuke(float x) const
+{
+    float y = shapeCharacter(x);
+    if (params.nukeMode)
+        y = driveShape(y, 1.8f, 0.0f); // extra grit/bite on top, whatever the character switches are doing
+    return y;
 }
 
 void StressorEngine::process(juce::AudioBuffer<float>& buffer)
@@ -163,11 +206,9 @@ void StressorEngine::process(juce::AudioBuffer<float>& buffer)
 
     const float ratio = kRatioTable[(size_t) juce::jlimit(0, (int) kRatioTable.size() - 1, params.ratioIndex)];
     const bool nukeEngaged = params.ratioIndex >= kNukeStartIndex;
-
-    const float attackCoeff = calcOnePoleCoeff(mapAttackMs(params.attackAmount), sampleRate);
-    const float releaseMs = mapReleaseMs(params.releaseAmount);
-    const float releaseCoeffFast = calcOnePoleCoeff(releaseMs, sampleRate);
-    const float releaseCoeffSlow = calcOnePoleCoeff(juce::jmin(releaseMs * 3.0f, 8000.0f), sampleRate);
+    const bool bigNuke = params.nukeMode;
+    const float attackAmount = params.attackAmount;
+    const float releaseAmount = params.releaseAmount;
 
     const bool linked = params.linkEnabled && numChannels > 1;
     float maxGrDb = 0.0f;
@@ -192,21 +233,21 @@ void StressorEngine::process(juce::AudioBuffer<float>& buffer)
             for (int ch = 0; ch < numChannels; ++ch)
                 linkedLevel = juce::jmax(linkedLevel, std::abs(scSamples[ch]));
 
-            linkedGrDb = detectAndFollow(*channels[0], linkedLevel, ratio, nukeEngaged,
-                                        attackCoeff, releaseCoeffFast, releaseCoeffSlow);
+            linkedGrDb = detectAndFollow(*channels[0], linkedLevel, ratio, nukeEngaged, bigNuke,
+                                        attackAmount, releaseAmount);
         }
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
             const float chGrDb = linked ? linkedGrDb
-                                        : detectAndFollow(*channels[ch], std::abs(scSamples[ch]), ratio, nukeEngaged,
-                                                          attackCoeff, releaseCoeffFast, releaseCoeffSlow);
+                                        : detectAndFollow(*channels[ch], std::abs(scSamples[ch]), ratio, nukeEngaged, bigNuke,
+                                                          attackAmount, releaseAmount);
 
             maxGrDb = juce::jmax(maxGrDb, chGrDb);
 
             const float driven = buffer.getSample(ch, i) * inputGain;
             const float compressed = driven * juce::Decibels::decibelsToGain(-chGrDb);
-            const float wet = shapeCharacter(compressed);
+            const float wet = shapeCharacterWithNuke(compressed);
             const float dry = dryBuffer.getSample(ch, i);
 
             const float mixed = dry * (1.0f - mixAmount) + wet * mixAmount;

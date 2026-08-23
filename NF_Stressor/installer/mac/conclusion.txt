@@ -1,0 +1,9 @@
+NF - Stressor has been installed.
+
+Installed formats:
+  VST3        /Library/Audio/Plug-Ins/VST3/NF - Stressor.vst3
+  Audio Unit  /Library/Audio/Plug-Ins/Components/NF - Stressor.component
+
+If your DAW was open during installation, restart it (and rescan plug-ins if needed) before looking for NF - Stressor.
+
+Thank you for using NF Audio Tools.

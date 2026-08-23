@@ -1,0 +1,8 @@
+NF - Stressor v0.1
+by NF Audio Tools
+
+This installer places NF - Stressor into the standard system-wide plug-in folders so it's available to every audio application on this Mac.
+
+You can choose to install the VST3 format, the Audio Unit (AU) format, or both.
+
+A PDF manual (English and Portuguese) is included with your download — it is not installed by this package, so keep it wherever you like for reference.

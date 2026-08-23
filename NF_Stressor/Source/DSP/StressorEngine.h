@@ -32,14 +32,23 @@ struct StressorParameters
     float outputDb = 0.0f;     // -20..20
 
     bool bypass = false;
+
+    // Dedicated NUKE button next to MIX — independent of RATIO. Engages a
+    // true brick-wall limiter stage (effectively infinite ratio, razor-thin
+    // knee, near-instant catch) layered on top of whatever RATIO/character
+    // is already dialled in, with extra harmonic bite for that "redlined"
+    // edge — a genuinely more extreme mode, not just a shortcut to 20:1.
+    bool nukeMode = false;
 };
 
 // Faithful-in-spirit emulation of a classic opto/FET "Distressor"-style
 // channel compressor, stripped to the controls of the vertical-strip front
-// panel: sidechain HPF -> program-dependent envelope (two release time
-// constants blended, giving the auto/opto "long tail" feel) -> soft/hard-knee
-// ratio gain computer with an extra NUKE stage at 10:1/20:1 -> FET/opto
-// character shaping -> dry/wet mix -> output trim.
+// panel: sidechain HPF -> envelope detector with a real discrete OPTO mode
+// (ATTACK all the way up / RELEASE all the way down engages a slower,
+// program-dependent opto-cell response instead of the fixed FET time,
+// exactly like the hardware's end-of-travel detents) -> soft/hard-knee ratio
+// gain computer with an extra NUKE stage at 10:1/20:1 -> FET/opto character
+// shaping -> dry/wet mix -> output trim.
 class StressorEngine
 {
 public:
@@ -57,14 +66,17 @@ private:
     {
         juce::dsp::IIR::Filter<float> scHpf;
         float levelSmoothed = 0.0f; // linear, fast one-pole rectifier smoothing
-        float fastGrDb = 0.0f;
-        float slowGrDb = 0.0f;
+        float grDb = 0.0f;
+        float releaseMemory = 0.0f; // slow average of recent GR; drives the OPTO
+                                    // release's "the harder it's been hit, the
+                                    // longer it takes to let go" behaviour
     };
 
-    float detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged,
-                          float attackCoeff, float releaseCoeffFast, float releaseCoeffSlow);
-    float computeGainReductionDb(float levelDb, float ratio, bool nukeEngaged) const;
+    float detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged, bool bigNuke,
+                          float attackAmount, float releaseAmount);
+    float computeGainReductionDb(float levelDb, float ratio, bool nukeEngaged, bool bigNuke) const;
     float shapeCharacter(float x) const;
+    float shapeCharacterWithNuke(float x) const;
 
     double sampleRate = 44100.0;
 

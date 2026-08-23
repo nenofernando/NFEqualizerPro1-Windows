@@ -61,6 +61,10 @@ NFStressorAudioProcessor::createParameterLayout()
         std::make_unique<juce::AudioParameterBool>(
             juce::ParameterID("bypass", 13), "Bypass", false));
 
+    parameters.push_back(
+        std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID("nuke", 14), "Nuke", false));
+
     return { parameters.begin(), parameters.end() };
 }
 
@@ -110,6 +114,7 @@ void NFStressorAudioProcessor::updateEngineParameters()
     params.mixPct = get("mix");
     params.outputDb = get("output");
     params.bypass = get("bypass") > 0.5f;
+    params.nukeMode = get("nuke") > 0.5f;
 
     stressorEngine.setParameters(params);
 }

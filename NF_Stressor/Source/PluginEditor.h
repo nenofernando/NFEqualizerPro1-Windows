@@ -17,12 +17,21 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
-    static constexpr int designWidth = 260;
-    static constexpr int designHeight = 820;
+    static constexpr int designWidth = 410;
+    static constexpr int designHeight = 1086;
 
 private:
     void timerCallback() override;
     void layOutContent();
+    void applyDefaultSize();
+
+    // Preset save/load, reached via the hamburger menu button top-left.
+    void showPresetMenu();
+    void savePresetAs();
+    void loadPresetFrom();
+    void loadPresetFile(const juce::File& file);
+    void resetToDefault();
+    juce::File getPresetsDirectory() const;
 
     juce::Slider& setupKnob(juce::Slider& knob);
     juce::TextButton& setupSegmentButton(juce::TextButton& button, const juce::String& text);
@@ -35,12 +44,67 @@ private:
         void paint(juce::Graphics& g) override;
         void setInsetPanels(std::vector<juce::Rectangle<int>> panels) { insetPanels = std::move(panels); repaint(); }
 
+        // Double-clicking the bare top-left corner of the chassis (no knob
+        // or button lives there) resets the window back to its default
+        // launch size — a quick escape hatch after dragging the resize
+        // corner around, without hunting for that corner again.
+        std::function<void()> onCornerDoubleClicked;
+        void mouseDoubleClick(const juce::MouseEvent& e) override
+        {
+            if (onCornerDoubleClicked && e.position.x < cornerHotZone && e.position.y < cornerHotZone)
+                onCornerDoubleClicked();
+        }
+        static constexpr float cornerHotZone = 50.0f;
+
+        // Knob centre + radius + current 0..1 value — a warm glow is drawn at
+        // each, as if light from the circuit board behind the panel were
+        // leaking out around the knob's base. Intensity tracks the knob's
+        // value (turned up = brighter) rather than sitting at a fixed
+        // strength. Drawn on the panel (never clipped by the knob components
+        // sitting on top of it).
+        struct KnobGlow { juce::Point<float> centre; float radius; float value = 0.0f; };
+        void setKnobGlows(std::vector<KnobGlow> glows) { knobGlows = std::move(glows); repaint(); }
+        void setKnobGlowValues(const std::vector<float>& values)
+        {
+            bool changed = false;
+            for (size_t i = 0; i < knobGlows.size() && i < values.size(); ++i)
+            {
+                if (std::abs(knobGlows[i].value - values[i]) > 0.005f)
+                {
+                    knobGlows[i].value = values[i];
+                    changed = true;
+                }
+            }
+            if (changed)
+                repaint();
+        }
+
+        // The "NF Audio Tools" brand mark, replacing the old horizontal
+        // footer strip — set sideways in the space beside MIX (mirroring
+        // NUKE on the other side), read bottom-to-top like a rack-gear
+        // spine label.
+        void setBrandLabelArea(juce::Rectangle<int> area) { brandLabelArea = area; repaint(); }
+
     private:
         std::vector<juce::Rectangle<int>> insetPanels;
+        std::vector<KnobGlow> knobGlows;
+        juce::Rectangle<int> brandLabelArea;
+    };
+
+    // Small indicator LED, lit whenever the adjacent knob (ATTACK/RELEASE) is
+    // in its OPTO-engage zone.
+    struct OptoLed : public juce::Component
+    {
+        void paint(juce::Graphics& g) override;
+        void setOn(bool shouldBeOn) { if (isOn != shouldBeOn) { isOn = shouldBeOn; repaint(); } }
+
+    private:
+        bool isOn = false;
     };
 
     NFStressorAudioProcessor& audioProcessor;
     NFStressorLookAndFeel lookAndFeel;
+    int blinkCounter = 0; // drives the BYPASS LED's blink while engaged
 
     // Everything is added to `content` and laid out once at designWidth x
     // designHeight; resized() only rescales this single component, so
@@ -54,12 +118,16 @@ private:
     juce::Label titleLabel, taglineLabel;
     juce::TextButton powerButton;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> powerAttachment;
+    juce::TextButton menuButton; // hamburger icon, top-left — preset save/load
+    std::unique_ptr<juce::FileChooser> activeFileChooser;
 
     // Main knobs
     juce::Slider inputKnob, attackKnob, releaseKnob, outputKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
         inputAttachment, attackAttachment, releaseAttachment, outputAttachment;
     juce::Label inputCaption, attackCaption, releaseCaption, outputCaption;
+    OptoLed attackOptoLed, releaseOptoLed;
+    juce::Label attackOptoLabel, releaseOptoLabel;
 
     GRLadderMeter grMeter;
 
@@ -75,13 +143,15 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
         hpAttachment, linkAttachment, dist2Attachment, dist3Attachment;
 
-    // Mix
+    // Mix, with the dedicated NUKE brick-wall-limiter toggle beside it
     juce::Slider mixKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttachment;
     juce::Label mixCaption;
+    juce::TextButton nukeButton;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> nukeAttachment;
 
-    // Bottom nameplate
-    juce::Label footerLabel;
+    // Small version tag, tucked in the bottom-right corner of the chassis.
+    juce::Label versionLabel;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFStressorAudioProcessorEditor)
 };

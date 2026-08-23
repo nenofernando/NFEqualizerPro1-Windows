@@ -45,8 +45,8 @@ void GRLadderMeter::paint(juce::Graphics& g)
         }
 
         auto numberArea = row.removeFromLeft(row.getWidth() * 0.55f);
-        g.setColour(lit ? textLight : textDim.withAlpha(0.55f));
-        g.setFont(juce::Font(juce::FontOptions(juce::jmin(row.getHeight() * 0.6f, 11.0f)).withStyle("Bold")));
+        g.setColour(lit ? textLight : textLight.withAlpha(0.8f));
+        g.setFont(juce::Font(juce::FontOptions(juce::jmin(row.getHeight() * 0.6f, 12.5f)).withStyle("Bold")));
         g.drawFittedText(juce::String((int) steps[i]), numberArea.toNearestInt(),
                          juce::Justification::centredRight, 1);
 

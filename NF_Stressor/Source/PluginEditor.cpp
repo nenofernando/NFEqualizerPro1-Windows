@@ -35,8 +35,29 @@ void NFStressorAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
         g.drawLine(tray.getX() + 4, tray.getY() + 0.6f, tray.getRight() - 4, tray.getY() + 0.6f, 1.2f);
         g.setColour(juce::Colours::white.withAlpha(0.05f));
         g.drawLine(tray.getX() + 4, tray.getBottom() - 0.6f, tray.getRight() - 4, tray.getBottom() - 0.6f, 1.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.55f));
-        g.drawRoundedRectangle(tray, 6.0f, 1.0f);
+
+        // White contour on the darker recessed tray itself.
+        g.setColour(juce::Colours::white.withAlpha(0.85f));
+        g.drawRoundedRectangle(tray, 6.0f, 2.6f);
+    }
+
+    // Ambient glow behind each knob, as if light from the circuit board is
+    // leaking out around its base. Drawn here, on the panel itself, so it
+    // isn't clipped by the knob component sitting on top of it — only the
+    // ring peeking out past the knob's edge ends up visible. Intensity rises
+    // with the knob's own value, so it reads as the circuit lighting up as
+    // you turn it, not a fixed decoration.
+    for (const auto& glow : knobGlows)
+    {
+        const auto knobCentre = glow.centre;
+        const float knobRadius = glow.radius;
+        const float glowRadius = knobRadius * 1.3f;
+        const float intensity = 0.02f + juce::jlimit(0.0f, 1.0f, glow.value) * 0.14f;
+
+        juce::ColourGradient knobGlow(glowWhite.withAlpha(intensity), knobCentre.x, knobCentre.y,
+                                      glowWhite.withAlpha(0.0f), knobCentre.x, knobCentre.y + glowRadius, true);
+        g.setGradientFill(knobGlow);
+        g.fillEllipse(knobCentre.x - glowRadius, knobCentre.y - glowRadius, glowRadius * 2.0f, glowRadius * 2.0f);
     }
 
     // Vignette
@@ -67,19 +88,61 @@ void NFStressorAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
     g.setColour(juce::Colours::white.withAlpha(0.04f));
     g.drawRect(bounds.reduced(2.0f), 1.0f);
 
-    // Brand medallion, top-left of the title row.
+    // Brand mark, set sideways (read bottom-to-top) in the space beside
+    // MIX, mirroring NUKE on the other side — replaces the old horizontal
+    // footer strip along the bottom edge.
+    if (!brandLabelArea.isEmpty())
     {
-        const auto c = juce::Point<float>(22.0f, 25.0f);
-        const float r = 11.0f;
-        juce::ColourGradient badge(pointerTip.brighter(0.2f), c.x - r, c.y - r, pointerTip.darker(0.4f), c.x + r, c.y + r, false);
-        g.setGradientFill(badge);
-        g.fillEllipse(c.x - r, c.y - r, r * 2.0f, r * 2.0f);
-        g.setColour(juce::Colours::black.withAlpha(0.5f));
-        g.drawEllipse(c.x - r, c.y - r, r * 2.0f, r * 2.0f, 1.0f);
-        g.setColour(textLight);
-        g.setFont(juce::Font(juce::FontOptions(11.0f).withStyle("Bold")));
-        g.drawFittedText("NF", juce::Rectangle<float>(c.x - r, c.y - r, r * 2.0f, r * 2.0f).toNearestInt(),
-                         juce::Justification::centred, 1);
+        const auto area = brandLabelArea.toFloat();
+        g.setColour(textLight.withAlpha(0.8f));
+        g.setFont(juce::Font(juce::FontOptions(13.5f).withStyle("Bold")));
+        g.saveState();
+        g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi, area.getCentreX(), area.getCentreY()));
+        // Unrotated, text reads left-to-right along what becomes, after the
+        // -90 degree turn, the vertical axis — so swap width/height here to
+        // give drawText the long axis it needs.
+        auto textBounds = juce::Rectangle<float>(area.getHeight(), area.getWidth()).withCentre(area.getCentre());
+        g.drawText("NF AUDIO TOOLS", textBounds, juce::Justification::centred, false);
+        g.restoreState();
+    }
+}
+
+void NFStressorAudioProcessorEditor::OptoLed::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().toFloat();
+    // The glow layers below need headroom around the core dot, so the core
+    // itself is only part of the component's box — sized so every glow
+    // layer stays within bounds and never gets clipped into a square.
+    const float box = juce::jmin(bounds.getWidth(), bounds.getHeight());
+    const float diameter = box * 0.56f;
+    const float margin = (box - diameter) * 0.5f;
+    auto led = juce::Rectangle<float>(diameter, diameter).withCentre(bounds.getCentre());
+
+    g.setColour(juce::Colours::black.withAlpha(0.6f));
+    g.fillEllipse(led.expanded(margin * 0.3f));
+
+    if (isOn)
+    {
+        // Layered glow — bigger and brighter so the lit state reads as
+        // vivid, not just a dim colour change.
+        g.setColour(amber.withAlpha(0.22f));
+        g.fillEllipse(led.expanded(margin));
+        g.setColour(amber.withAlpha(0.4f));
+        g.fillEllipse(led.expanded(margin * 0.55f));
+    }
+
+    juce::ColourGradient ledGradient(isOn ? amber.brighter(0.6f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
+                                     isOn ? amber.darker(0.1f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
+    g.setGradientFill(ledGradient);
+    g.fillEllipse(led);
+
+    g.setColour(juce::Colours::black.withAlpha(0.5f));
+    g.drawEllipse(led, 0.7f);
+
+    if (isOn)
+    {
+        g.setColour(juce::Colours::white.withAlpha(0.75f));
+        g.fillEllipse(led.reduced(diameter * 0.58f).translated(-diameter * 0.08f, -diameter * 0.1f));
     }
 }
 
@@ -91,24 +154,33 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
     addAndMakeVisible(content);
     content.addAndMakeVisible(panel);
 
-    setupCaption(titleLabel, "NF - STRESSOR", 15.0f, true);
+    setupCaption(titleLabel, "NF - STRESSOR", 19.0f, true);
     content.addAndMakeVisible(titleLabel);
 
-    setupCaption(taglineLabel, "REDLINE  /  1% THD", 9.0f, false);
+    setupCaption(taglineLabel, "REDLINE  /  1% THD", 12.5f, false);
     taglineLabel.setColour(juce::Label::textColourId, textDim);
     content.addAndMakeVisible(taglineLabel);
 
-    powerButton.setButtonText(juce::String::fromUTF8("\xe2\x8f\xbb"));
+    powerButton.setButtonText("BYPASS");
     powerButton.setClickingTogglesState(true);
     content.addAndMakeVisible(powerButton);
     powerAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.apvts, "bypass", powerButton);
 
+    menuButton.setButtonText("MENU");
+    menuButton.setClickingTogglesState(false);
+    menuButton.onClick = [this] { showPresetMenu(); };
+    content.addAndMakeVisible(menuButton);
+
+    setupCaption(versionLabel, "v0.1", 13.5f, false, juce::Justification::centredLeft);
+    versionLabel.setColour(juce::Label::textColourId, textDim);
+    content.addAndMakeVisible(versionLabel);
+
     auto setupMainKnob = [this](juce::Slider& knob, juce::Label& caption, const juce::String& text)
     {
         setupKnob(knob);
         content.addAndMakeVisible(knob);
-        setupCaption(caption, text, 10.0f, true);
+        setupCaption(caption, text, 15.5f, true);
         content.addAndMakeVisible(caption);
     };
 
@@ -126,9 +198,19 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
     outputAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "output", outputKnob);
 
+    content.addAndMakeVisible(attackOptoLed);
+    content.addAndMakeVisible(releaseOptoLed);
+
+    setupCaption(attackOptoLabel, "OPTO", 12.5f, true, juce::Justification::centred);
+    attackOptoLabel.setColour(juce::Label::textColourId, textLight);
+    content.addAndMakeVisible(attackOptoLabel);
+    setupCaption(releaseOptoLabel, "OPTO", 12.5f, true, juce::Justification::centred);
+    releaseOptoLabel.setColour(juce::Label::textColourId, textLight);
+    content.addAndMakeVisible(releaseOptoLabel);
+
     content.addAndMakeVisible(grMeter);
 
-    setupCaption(ratioCaption, "RATIO", 9.0f, true);
+    setupCaption(ratioCaption, "RATIO", 15.5f, true);
     content.addAndMakeVisible(ratioCaption);
 
     static const juce::StringArray ratioNames { "1:1", "2:1", "3:1", "4:1", "6:1", "10:1", "20:1" };
@@ -152,9 +234,9 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
         });
     ratioAttachment->sendInitialUpdate();
 
-    setupCaption(detectorCaption, "DETECTOR", 8.5f, true);
+    setupCaption(detectorCaption, "DETECTOR", 14.0f, true);
     content.addAndMakeVisible(detectorCaption);
-    setupCaption(audioCaption, "AUDIO", 8.5f, true);
+    setupCaption(audioCaption, "AUDIO", 14.0f, true);
     content.addAndMakeVisible(audioCaption);
 
     setupToggleButton(hpButton, "HP");
@@ -173,14 +255,16 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
 
     setupKnob(mixKnob);
     content.addAndMakeVisible(mixKnob);
-    setupCaption(mixCaption, "MIX", 9.0f, true);
+    setupCaption(mixCaption, "MIX", 15.5f, true);
     content.addAndMakeVisible(mixCaption);
     mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "mix", mixKnob);
 
-    setupCaption(footerLabel, "NF - Stressor", 10.0f, false);
-    footerLabel.setColour(juce::Label::textColourId, textDim);
-    content.addAndMakeVisible(footerLabel);
+    nukeButton.setButtonText("NUKE");
+    nukeButton.setClickingTogglesState(true);
+    content.addAndMakeVisible(nukeButton);
+    nukeAttachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
+        audioProcessor.apvts, "nuke", nukeButton);
 
     content.setBounds(0, 0, designWidth, designHeight);
     layOutContent();
@@ -193,9 +277,12 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
                                    (int) (designWidth * 1.5f), (int) (designHeight * 1.5f));
     }
 
-    // Open a little smaller than the full design size so the whole window —
-    // corner resizer included — comfortably fits on screen at first launch.
-    setSize((int) (designWidth * 0.8f), (int) (designHeight * 0.8f));
+    // Double-clicking the bare top-left corner of the chassis snaps the
+    // window straight back to this same default size — a quick way out
+    // after dragging the resize corner around.
+    panel.onCornerDoubleClicked = [this] { applyDefaultSize(); };
+
+    applyDefaultSize();
 
     startTimerHz(30);
 }
@@ -203,6 +290,140 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
 NFStressorAudioProcessorEditor::~NFStressorAudioProcessorEditor()
 {
     setLookAndFeel(nullptr);
+}
+
+void NFStressorAudioProcessorEditor::applyDefaultSize()
+{
+    // Small enough that the whole window — corner resizer included —
+    // comfortably fits within the user's actual screen. The panel is a tall
+    // vertical strip, so a fixed 0.8 scale can still open taller than some
+    // screens' usable height, pushing the resize handle off-screen and out
+    // of reach; scale to the display instead.
+    float openScale = 0.8f;
+    if (auto* display = juce::Desktop::getInstance().getDisplays().getPrimaryDisplay())
+    {
+        const auto workArea = display->userBounds;
+        const float maxHeightScale = (float) (workArea.getHeight() - 80) / (float) designHeight;
+        const float maxWidthScale = (float) (workArea.getWidth() - 80) / (float) designWidth;
+        openScale = juce::jlimit(0.35f, 0.8f, juce::jmin(openScale, maxHeightScale, maxWidthScale));
+    }
+    setSize((int) (designWidth * openScale), (int) (designHeight * openScale));
+}
+
+juce::File NFStressorAudioProcessorEditor::getPresetsDirectory() const
+{
+    auto dir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                   .getChildFile("NF Audio Tools")
+                   .getChildFile("NF - Stressor")
+                   .getChildFile("Presets");
+    dir.createDirectory();
+    return dir;
+}
+
+void NFStressorAudioProcessorEditor::showPresetMenu()
+{
+    juce::PopupMenu menu;
+    menu.addItem(1, "Default");
+    menu.addSeparator();
+    menu.addItem(2, "Save Preset...");
+    menu.addItem(3, "Load Preset...");
+
+    // List whatever's already saved in the presets folder directly in the
+    // menu, so picking one is a single click instead of a file dialog trip
+    // every time.
+    juce::Array<juce::File> presetFiles;
+    getPresetsDirectory().findChildFiles(presetFiles, juce::File::findFiles, false, "*.nfstressorpreset");
+    presetFiles.sort();
+
+    if (!presetFiles.isEmpty())
+    {
+        menu.addSeparator();
+        constexpr int firstPresetId = 100;
+        for (int i = 0; i < presetFiles.size(); ++i)
+            menu.addItem(firstPresetId + i, presetFiles.getReference(i).getFileNameWithoutExtension());
+
+        menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(menuButton),
+            [this, presetFiles](int result)
+            {
+                if (result == 1)
+                    resetToDefault();
+                else if (result == 2)
+                    savePresetAs();
+                else if (result == 3)
+                    loadPresetFrom();
+                else if (result >= 100 && result - 100 < presetFiles.size())
+                    loadPresetFile(presetFiles.getReference(result - 100));
+            });
+        return;
+    }
+
+    menu.showMenuAsync(juce::PopupMenu::Options().withTargetComponent(menuButton),
+        [this](int result)
+        {
+            if (result == 1)
+                resetToDefault();
+            else if (result == 2)
+                savePresetAs();
+            else if (result == 3)
+                loadPresetFrom();
+        });
+}
+
+void NFStressorAudioProcessorEditor::resetToDefault()
+{
+    for (auto* param : audioProcessor.getParameters())
+        if (auto* ranged = dynamic_cast<juce::RangedAudioParameter*>(param))
+        {
+            ranged->beginChangeGesture();
+            ranged->setValueNotifyingHost(ranged->getDefaultValue());
+            ranged->endChangeGesture();
+        }
+}
+
+void NFStressorAudioProcessorEditor::loadPresetFile(const juce::File& file)
+{
+    if (auto xml = juce::XmlDocument::parse(file))
+    {
+        auto newState = juce::ValueTree::fromXml(*xml);
+        if (newState.isValid())
+            audioProcessor.apvts.replaceState(newState);
+    }
+}
+
+void NFStressorAudioProcessorEditor::savePresetAs()
+{
+    activeFileChooser = std::make_unique<juce::FileChooser>(
+        "Save Preset", getPresetsDirectory(), "*.nfstressorpreset");
+
+    const auto flags = juce::FileBrowserComponent::saveMode
+                      | juce::FileBrowserComponent::canSelectFiles
+                      | juce::FileBrowserComponent::warnAboutOverwriting;
+
+    activeFileChooser->launchAsync(flags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file == juce::File{})
+            return;
+        if (file.getFileExtension().isEmpty())
+            file = file.withFileExtension("nfstressorpreset");
+
+        if (auto xml = audioProcessor.apvts.copyState().createXml())
+            xml->writeTo(file);
+    });
+}
+
+void NFStressorAudioProcessorEditor::loadPresetFrom()
+{
+    activeFileChooser = std::make_unique<juce::FileChooser>(
+        "Load Preset", getPresetsDirectory(), "*.nfstressorpreset");
+
+    activeFileChooser->launchAsync(juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+        [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file != juce::File{})
+            loadPresetFile(file);
+    });
 }
 
 juce::Slider& NFStressorAudioProcessorEditor::setupKnob(juce::Slider& knob)
@@ -242,6 +463,38 @@ void NFStressorAudioProcessorEditor::setupCaption(juce::Label& label, const juce
 void NFStressorAudioProcessorEditor::timerCallback()
 {
     grMeter.setGainReductionDb(audioProcessor.getGainReductionDb());
+
+    // Same engage thresholds as StressorEngine::detectAndFollow (attack >= 9,
+    // release <= 1) — lights the little indicator whenever OPTO is live.
+    const float attackValue = audioProcessor.apvts.getRawParameterValue("attack")->load();
+    const float releaseValue = audioProcessor.apvts.getRawParameterValue("release")->load();
+    attackOptoLed.setOn(attackValue >= 9.0f);
+    releaseOptoLed.setOn(releaseValue <= 1.0f);
+
+    // BYPASS blinks while engaged, at 30Hz timer / 15 ticks ~ 1s full cycle,
+    // so it's hard to miss that the plugin is currently doing nothing.
+    const bool bypassOn = audioProcessor.apvts.getRawParameterValue("bypass")->load() > 0.5f;
+    if (bypassOn)
+    {
+        blinkCounter = (blinkCounter + 1) % 15;
+        powerButton.getProperties().set("blinkVisible", blinkCounter < 8);
+    }
+    else
+    {
+        blinkCounter = 0;
+        powerButton.getProperties().set("blinkVisible", true);
+    }
+    powerButton.repaint();
+
+    // Refresh the per-knob glow intensity so it tracks the live value —
+    // turning a knob up visibly brightens the light leaking out around it.
+    panel.setKnobGlowValues({
+        (float) inputKnob.valueToProportionOfLength(inputKnob.getValue()),
+        (float) attackKnob.valueToProportionOfLength(attackKnob.getValue()),
+        (float) releaseKnob.valueToProportionOfLength(releaseKnob.getValue()),
+        (float) outputKnob.valueToProportionOfLength(outputKnob.getValue()),
+        (float) mixKnob.valueToProportionOfLength(mixKnob.getValue())
+    });
 }
 
 void NFStressorAudioProcessorEditor::paint(juce::Graphics&) {}
@@ -263,38 +516,113 @@ void NFStressorAudioProcessorEditor::layOutContent()
     bounds.reduce(10, 10);
 
     // --- Top plate --------------------------------------------------
-    auto topRow = bounds.removeFromTop(30);
-    powerButton.setBounds(topRow.removeFromRight(26));
-    topRow.removeFromLeft(26); // clears the brand medallion painted on the panel
+    const int topSectionTop = bounds.getY();
+    auto topRow = bounds.removeFromTop(38);
+    // Reserve the slot now (so the title below still centres correctly),
+    // but BYPASS's final X position is set later, once the GR meter column
+    // is known, so the two line up vertically.
+    auto powerButtonSlot = topRow.removeFromRight(60);
+    // Mirrors BYPASS's slot on the right, so the title still centres — the
+    // preset menu button (hamburger icon) sits centred in this same space.
+    auto menuButtonSlot = topRow.removeFromLeft(60);
+    menuButton.setBounds(juce::Rectangle<int>(32, 24).withCentre(menuButtonSlot.getCentre()));
     titleLabel.setBounds(topRow);
 
-    taglineLabel.setBounds(bounds.removeFromTop(20));
-    bounds.removeFromTop(8);
+    // Tagline gets the full row width, centred the same way the title is —
+    // nothing else shares this row now.
+    auto taglineRow = bounds.removeFromTop(20);
+    taglineLabel.setBounds(taglineRow.translated(0, -4));
+
+    // A touch shorter than before, so the knob tray below (stretched up a
+    // little more) can meet it neatly rather than leaving a big gap.
+    juce::Rectangle<int> topSectionInset(bounds.getX(), topSectionTop, bounds.getWidth(), bounds.getY() - topSectionTop + 6);
+
+    bounds.removeFromTop(13); // raises the whole knob row block a touch higher still
 
     // --- Knobs + GR ladder -------------------------------------------
+    // Compact vertical rhythm and large knobs relative to their row, matching
+    // the reference's dense, hardware-strip proportions.
     auto mainArea = bounds.removeFromTop((int) (bounds.getHeight() * 0.62f));
-    auto knobSectionInset = mainArea.expanded(2, 4);
-    auto meterColumn = mainArea.removeFromRight((int) (mainArea.getWidth() * 0.30f));
+    // Stretched up close to (but not touching) the tagline row above, for a
+    // tight, tidy gap instead of a loose one. Stretched further down than
+    // mainArea's own bottom edge too — OUTPUT's knob (like all four) bleeds
+    // 7px past its row via the negative reduce below, so the tray needs at
+    // least that much clearance or its bottom border cuts across the knob.
+    juce::Rectangle<int> knobSectionInset(mainArea.getX() - 2, mainArea.getY() - 17,
+                                          mainArea.getWidth() + 4, mainArea.getHeight() + 17 + 10);
+    const int mainAreaCentreX = mainArea.getCentreX(); // same centre MIX uses below,
+                                                       // so the top 4 knobs line up with it
+    auto meterColumn = mainArea.removeFromRight((int) (mainArea.getWidth() * 0.26f));
+
+    // Now that the meter column's span is known, line BYPASS up with the
+    // actual LED lights' horizontal centre (not the whole column, which is
+    // biased left by the dB number labels) — matches GRLadderMeter's own
+    // internal split: 55% numbers, then the LED sits centred in the
+    // remaining 45%, i.e. at 0.775 of the column's width.
+    auto grMeterBounds = meterColumn.reduced(3, 8);
+    const int ledCentreX = grMeterBounds.getX() + (int) (grMeterBounds.getWidth() * 0.775f);
+    powerButton.setBounds(juce::Rectangle<int>(powerButtonSlot.getWidth(), powerButtonSlot.getHeight())
+                              .withCentre({ ledCentreX, powerButtonSlot.getCentreY() }));
 
     juce::Slider* knobs[] { &inputKnob, &attackKnob, &releaseKnob, &outputKnob };
     juce::Label* knobCaptions[] { &inputCaption, &attackCaption, &releaseCaption, &outputCaption };
-    const int knobRowHeight = mainArea.getHeight() / 4;
+    const int knobGap = 16;
+    const int knobRowHeight = (mainArea.getHeight() - knobGap * 3) / 4;
+
+    std::vector<BackgroundPanel::KnobGlow> knobGlowSpots;
+    auto addKnobGlow = [&knobGlowSpots](juce::Slider& knob)
+    {
+        auto kb = knob.getBounds().toFloat();
+        const float r = juce::jmin(kb.getWidth(), kb.getHeight()) * 0.5f - 4.0f;
+        const float value = (float) knob.valueToProportionOfLength(knob.getValue());
+        knobGlowSpots.push_back({ kb.getCentre(), r, value });
+    };
 
     for (int i = 0; i < 4; ++i)
     {
+        // Every row is exactly knobRowHeight tall with nothing else nudging
+        // it — that even, identical spacing is what keeps all four knobs
+        // (and their captions) perfectly aligned on the same grid.
         auto row = mainArea.removeFromTop(knobRowHeight);
-        knobCaptions[i]->setBounds(row.removeFromTop(16));
-        knobs[i]->setBounds(row.reduced(row.getWidth() / 5, 2));
+        auto captionRow = row.removeFromTop(15);
+        const int shiftX = mainAreaCentreX - row.getCentreX();
+        knobCaptions[i]->setBounds(captionRow.translated(shiftX, -5));
+        // Knobs are height-bound (row is much wider than tall), so a small
+        // negative vertical reduce is what actually makes them bigger —
+        // bleeding a few px up into the caption band and down into the gap
+        // below, both of which have slack to spare.
+        knobs[i]->setBounds(row.reduced(row.getWidth() / 22, -7).translated(shiftX, 0));
+        addKnobGlow(*knobs[i]);
+
+        // OPTO indicator LED, with its label below it (shifted a touch left),
+        // on the left side of the ATTACK/RELEASE captions.
+        if (i == 1)
+        {
+            const int ledX = captionRow.getCentreX() + shiftX - captionRow.getWidth() * 2 / 5 - 4;
+            const int ledCentreY = captionRow.getCentreY();
+            attackOptoLed.setBounds(juce::Rectangle<int>(36, 36).withCentre({ ledX, ledCentreY }));
+            attackOptoLabel.setBounds(juce::Rectangle<int>(54, 15).withCentre({ ledX, ledCentreY + 22 }));
+        }
+        else if (i == 2)
+        {
+            const int ledX = captionRow.getCentreX() + shiftX - captionRow.getWidth() * 2 / 5 - 4;
+            const int ledCentreY = captionRow.getCentreY();
+            releaseOptoLed.setBounds(juce::Rectangle<int>(36, 36).withCentre({ ledX, ledCentreY }));
+            releaseOptoLabel.setBounds(juce::Rectangle<int>(54, 15).withCentre({ ledX, ledCentreY + 22 }));
+        }
+
+        if (i < 3)
+            mainArea.removeFromTop(knobGap);
     }
 
-    grMeter.setBounds(meterColumn.reduced(4, 16));
+    grMeter.setBounds(meterColumn.reduced(3, 8));
 
-    bounds.removeFromTop(10);
+    bounds.removeFromTop(12); // a little more room, so the knob tray's extra bottom stretch (for OUTPUT's bleed) has space to sit in without touching the RATIO tray below
 
     // --- Ratio row -----------------------------------------------------
     const int ratioSectionTop = bounds.getY();
-    ratioCaption.setBounds(bounds.removeFromTop(14));
-    auto ratioRow = bounds.removeFromTop(30);
+    ratioCaption.setBounds(bounds.removeFromTop(20));
+    auto ratioRow = bounds.removeFromTop(32);
     const int ratioButtonWidth = ratioRow.getWidth() / ratioButtons.size();
     for (auto* button : ratioButtons)
         button->setBounds(ratioRow.removeFromLeft(ratioButtonWidth).reduced(2, 0));
@@ -302,35 +630,56 @@ void NFStressorAudioProcessorEditor::layOutContent()
 
     bounds.removeFromTop(12);
 
-    // --- Character grid --------------------------------------------
+    // --- Character grid, full width --------------------------------------
     const int charSectionTop = bounds.getY();
-    auto captionRow = bounds.removeFromTop(14);
+    auto captionRow = bounds.removeFromTop(20);
     detectorCaption.setBounds(captionRow.removeFromLeft(captionRow.getWidth() / 2));
     audioCaption.setBounds(captionRow);
 
     auto charRow1 = bounds.removeFromTop(38);
-    hpButton.setBounds(charRow1.removeFromLeft(charRow1.getWidth() / 2).reduced(4, 2));
-    dist2Button.setBounds(charRow1.reduced(4, 2));
+    hpButton.setBounds(charRow1.removeFromLeft(charRow1.getWidth() / 2).reduced(3, 2));
+    dist2Button.setBounds(charRow1.reduced(3, 2));
 
-    bounds.removeFromTop(6);
+    bounds.removeFromTop(4);
 
     auto charRow2 = bounds.removeFromTop(38);
-    linkButton.setBounds(charRow2.removeFromLeft(charRow2.getWidth() / 2).reduced(4, 2));
-    dist3Button.setBounds(charRow2.reduced(4, 2));
+    linkButton.setBounds(charRow2.removeFromLeft(charRow2.getWidth() / 2).reduced(3, 2));
+    dist3Button.setBounds(charRow2.reduced(3, 2));
     juce::Rectangle<int> charSectionInset(bounds.getX(), charSectionTop, bounds.getWidth(), bounds.getY() - charSectionTop);
 
     bounds.removeFromTop(14);
 
-    // --- Mix -------------------------------------------------------
+    // --- Mix, same size as the main knobs, at the bottom, with the square
+    // NUKE brick-wall-limiter button beside it. NUKE's space is trimmed
+    // symmetrically off both sides of the row (same trick as the BYPASS/
+    // title row above) so the MIX knob still centres on mainAreaCentreX
+    // instead of drifting toward the middle of a lopsidedly-narrowed area.
     const int mixSectionTop = bounds.getY();
-    mixCaption.setBounds(bounds.removeFromTop(14));
-    auto mixArea = bounds.removeFromTop(90);
-    mixKnob.setBounds(mixArea.withSizeKeepingCentre(80, 80));
-    juce::Rectangle<int> mixSectionInset(bounds.getX(), mixSectionTop, bounds.getWidth(), bounds.getY() - mixSectionTop);
+    bounds.removeFromTop(10);
+    mixCaption.setBounds(bounds.removeFromTop(12).translated(0, -5));
+    auto mixArea = bounds.removeFromTop(knobRowHeight - 12);
+    auto nukeArea = mixArea.removeFromRight(70);
+    auto brandArea = mixArea.removeFromLeft(70);
+    mixKnob.setBounds(mixArea.reduced(mixArea.getWidth() / 10, -7).translated(0, 4));
+    addKnobGlow(mixKnob);
+    const int nukeSize = 60;
+    // +4 to match the same downward nudge applied to mixKnob above, so the
+    // two stay vertically aligned with each other.
+    nukeButton.setBounds(juce::Rectangle<int>(nukeSize, nukeSize).withCentre(nukeArea.getCentre().translated(0, 4)));
+    // Matches the same +4 nudge as mixKnob/nukeButton, so all three line up
+    // on the same vertical centre rather than each picking a different
+    // reference point.
+    panel.setBrandLabelArea(brandArea.translated(-4, 4));
+    // Stretched a bit further down than the raw row height, since the MIX
+    // knob itself bleeds a few px past mixArea's own bottom edge (see the
+    // negative vertical reduce above) — without this the tray's bottom edge
+    // cut across the knob instead of framing it.
+    juce::Rectangle<int> mixSectionInset(bounds.getX(), mixSectionTop, bounds.getWidth(), bounds.getY() - mixSectionTop + 10);
 
-    // --- Footer ------------------------------------------------------
-    footerLabel.setBounds(bounds.removeFromBottom(24));
-
-    panel.setInsetPanels({ knobSectionInset, ratioSectionInset.expanded(2, 3),
+    panel.setInsetPanels({ topSectionInset.expanded(2, 3), knobSectionInset, ratioSectionInset.expanded(2, 3),
                           charSectionInset.expanded(2, 3), mixSectionInset.expanded(2, 3) });
+    panel.setKnobGlows(knobGlowSpots);
+
+    constexpr int versionW = 54, versionH = 19;
+    versionLabel.setBounds(10, content.getHeight() - versionH - 6, versionW, versionH);
 }
