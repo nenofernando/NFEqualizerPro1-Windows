@@ -95,7 +95,7 @@ void NFStressorAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
     {
         const auto area = brandLabelArea.toFloat();
         g.setColour(textLight.withAlpha(0.8f));
-        g.setFont(juce::Font(juce::FontOptions(13.5f).withStyle("Bold")));
+        g.setFont(juce::Font(juce::FontOptions(12.8f).withStyle("Bold")));
         g.saveState();
         g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi, area.getCentreX(), area.getCentreY()));
         // Unrotated, text reads left-to-right along what becomes, after the
@@ -669,7 +669,7 @@ void NFStressorAudioProcessorEditor::layOutContent()
     // Matches the same +4 nudge as mixKnob/nukeButton, so all three line up
     // on the same vertical centre rather than each picking a different
     // reference point.
-    panel.setBrandLabelArea(brandArea.translated(-4, 4));
+    panel.setBrandLabelArea(brandArea.translated(-6, 4));
     // Stretched a bit further down than the raw row height, since the MIX
     // knob itself bleeds a few px past mixArea's own bottom edge (see the
     // negative vertical reduce above) — without this the tray's bottom edge
