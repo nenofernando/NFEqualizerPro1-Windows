@@ -812,7 +812,7 @@ void NFTapeMachineAudioProcessorEditor::showPresetMenu()
     menu.addItem(manualEnId, "Manual (English)", getManualFile(true).existsAsFile());
     menu.addItem(manualPtId, "Manual (Portugues)", getManualFile(false).existsAsFile());
 
-    menu.showMenuAsync(juce::PopupMenu::Options(), [this, numPresets](int result)
+    menu.showMenuAsync(juce::PopupMenu::Options(), [this, numPresets, manualEnId, manualPtId](int result)
     {
         if (result == manualEnId)
             getManualFile(true).startAsProcess();
