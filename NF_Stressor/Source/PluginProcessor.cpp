@@ -65,6 +65,11 @@ NFStressorAudioProcessor::createParameterLayout()
         std::make_unique<juce::AudioParameterBool>(
             juce::ParameterID("nuke", 14), "Nuke", false));
 
+    parameters.push_back(
+        std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID("outHp", 15), "Output HP",
+            juce::StringArray { "Off", "70 Hz", "120 Hz" }, 0));
+
     return { parameters.begin(), parameters.end() };
 }
 
@@ -115,6 +120,7 @@ void NFStressorAudioProcessor::updateEngineParameters()
     params.outputDb = get("output");
     params.bypass = get("bypass") > 0.5f;
     params.nukeMode = get("nuke") > 0.5f;
+    params.outHpMode = (int) get("outHp");
 
     stressorEngine.setParameters(params);
 }

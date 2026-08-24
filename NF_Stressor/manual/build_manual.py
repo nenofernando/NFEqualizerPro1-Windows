@@ -65,7 +65,8 @@ strong { color: #f2efe6; }
 .section-img { text-align: center; margin: 14px 0 20px; }
 .section-img img { max-width: 100%; border-radius: 4px; box-shadow: 0 6px 24px rgba(0,0,0,0.5); }
 .section-img.knobs img { max-width: 55%; }
-.section-img.top img, .section-img.ratio img, .section-img.character img, .section-img.mix img { max-width: 90%; }
+.section-img.top img, .section-img.ratio img, .section-img.mix img { max-width: 90%; }
+.section-img.character img { max-width: 62%; }
 .section-img.inline { margin: 10px 0 16px; }
 .section-img.inline img { max-width: 70%; }
 .section-img.inline.wide img { max-width: 90%; }
@@ -183,6 +184,8 @@ def build(lang: str) -> str:
         <div class="control"><div class="name">LINK</div><p>{t['c_link']}</p></div>
         <h3>AUDIO</h3>
         <div class="control"><div class="name">DIST 2 / DIST 3</div><p>{t['c_dist']}</p></div>
+        <div class="control"><div class="name">{t['c_outhp_name']}</div><p>{t['c_outhp']}</p></div>
+        <div class="control"><div class="name">NUKE</div><p>{t['c_nuke_short']}</p></div>
         <div class="section-img inline wide"><img src="data:image/png;base64,{IMAGES['dist_on']}" /></div>
         <div class="img-caption">{t['cap_dist']}</div>
     """, footer=t['footer'], pagenum="7")
@@ -247,7 +250,7 @@ TEXT = {
     ownersManual="Owner's Manual",
     footer="All rights reserved.",
     overview_h="Overview",
-    overview_p1="NF &ndash; Stressor is a faithful, from-scratch emulation of a classic opto/FET rack compressor, built as a tall, narrow vertical strip inspired by outboard hardware. It covers the full signature behaviour of the original design: a fixed internal threshold driven by the INPUT knob, a true discrete OPTO mode tied to the RATIO 10:1 position, a hard-knee \u201cNUKE\u201d ratio stage, and independent character (distortion) switches.",
+    overview_p1="NF &ndash; Stressor is a faithful, from-scratch emulation of a classic opto/FET rack compressor, built as a tall, narrow vertical strip inspired by outboard hardware. It covers the full signature behaviour of the original design: a fixed internal threshold driven by the INPUT knob, a true discrete OPTO mode tied to the RATIO 10:1 position, a hard-knee \u201cNUKE\u201d ratio stage, independent character (distortion) switches, and a two-stage output high-pass filter for cleaning up low-end buildup.",
     overview_p2="Everything on the panel mirrors real hardware conventions &mdash; there is no dedicated THRESHOLD knob; instead, INPUT drives your signal harder or softer against a fixed internal reference, exactly like the classic units this plugin is inspired by.",
     overview_callout="Tip: because there's no threshold control, gain reduction is driven entirely by how hard you push INPUT. Start low and raise it until the GR meter starts moving.",
     formats_h="Formats",
@@ -258,7 +261,7 @@ TEXT = {
     install_win_p="Run the NF - Stressor installer and follow the wizard. It installs the VST3 into the standard system-wide folder:",
     install_rescan="After installing, rescan plug-ins in your DAW if it doesn't pick up NF &ndash; Stressor automatically.",
     tour_h="Interface Tour",
-    tour_p="The panel is a single vertical strip, read top to bottom: brand plate at the top with the BYPASS switch in its top-right corner, the four main knobs with the OPTO light and gain-reduction ladder meter beside them, the RATIO row, the DETECTOR/AUDIO character switches, and finally MIX with the NUKE button beside it.",
+    tour_p="The panel is a single vertical strip, read top to bottom: brand plate at the top with the BYPASS switch in its top-right corner, the four main knobs with the OPTO light and gain-reduction ladder meter beside them, the RATIO row, the DETECTOR/AUDIO character switches (AUDIO now also holds the output HP filter and NUKE), and finally MIX on its own.",
     tour_top="The hamburger icon (top-left) opens the preset menu. Double-clicking the brand plate itself, or the bare top-left corner of the chassis, snaps the window back to its default size &mdash; handy after resizing it larger for detail work.",
     tour_knobs="INPUT, ATTACK, RELEASE and OUTPUT, each with a rotating numbered dial (0&ndash;10) and a fixed red index mark at the top. The ladder of LEDs on the right shows live gain reduction in dB.",
     controls_h="Main Controls",
@@ -271,12 +274,15 @@ TEXT = {
     c_ratio="Selects the compression ratio. 1:1 through 6:1 behave as classic soft-knee compression. 10:1 and 20:1 engage an extra \u201credline\u201d stage: a harder knee and a touch more drive into the character stage, matching the tagline lighting up amber. 10:1 is also the panel's dedicated OPTO position &mdash; see OPTO mode above.",
     ratio_soft="Soft-knee compression",
     ratio_redline="Redline / harder knee",
-    c_nuke="NUKE: a dedicated button, independent of RATIO, sitting beside MIX. Engaging it layers a true brick-wall limiter on top of whatever ratio is dialled in &mdash; an effectively infinite ratio, a razor-thin knee, a near-instant catch regardless of the ATTACK knob, and extra harmonic bite. Use it when you need a hard ceiling, not just more compression.",
+    c_nuke="NUKE: a dedicated button, independent of RATIO, living in the AUDIO column below the output HP filter (it used to sit beside MIX). Engaging it layers a true brick-wall limiter on top of whatever ratio is dialled in &mdash; an effectively infinite ratio, a razor-thin knee, a near-instant catch regardless of the ATTACK knob, and extra harmonic bite. It lights blue instead of red, so it still reads as a more extreme switch even though it now shares DIST 2/DIST 3's exact pill shape. Use it when you need a hard ceiling, not just more compression.",
     character_h="DETECTOR & AUDIO",
     c_hp="Engages a fixed high-pass filter in the sidechain, so low end doesn't dominate the detector's decisions &mdash; useful on bass-heavy sources.",
     c_link="Links the detector across both channels of a stereo signal so gain reduction tracks together, avoiding image shift on stereo material.",
     c_dist="Two independent character switches shaping the tone of the compressed signal: DIST 2 alone gives an FET-ish, asymmetric edge; DIST 3 alone gives a smoother, more opto-ish drive; engaging both together gives a coloured, more aggressive \u201cBritish\u201d character.",
-    mix_h="MIX & NUKE",
+    c_outhp_name="OUTPUT HP (HPF)",
+    c_outhp="A three-position switch, cycling Off &rarr; ~70 Hz &rarr; ~120 Hz on each click. Engages a clean high-pass filter after compression, character shaping and mix &mdash; aimed at the low-end buildup the character switches (or the source itself) can leave behind, e.g. on vocals. The button lights red like the other AUDIO switches, and its label shows the active cutoff.",
+    c_nuke_short="Now lives here in the AUDIO column, below the output HP filter, lit blue instead of red &mdash; see NUKE under RATIO for its full brick-wall-limiter behaviour.",
+    mix_h="MIX",
     c_mix="Blends dry and compressed (wet) signal, for parallel compression &mdash; keep the punch of the uncompressed signal while still catching peaks.",
     c_bypass="Disengages all processing. Sits in the top-right corner of the brand plate, matching the hamburger menu button's slot on the opposite side. The whole button blinks while engaged, so it's never ambiguous that the plugin is doing nothing.",
     c_meter_name="Gain Reduction Ladder",
@@ -302,8 +308,8 @@ TEXT = {
     tip4="Reach for NUKE only when you need a hard ceiling on top of your ratio &mdash; it's a limiter stage, not a subtler compression option.",
     tip5="Double-click a knob any time you want to compare against its factory default without reaching for the preset menu.",
     cap_opto="OPTO engaged: RATIO at 10:1, ATTACK snapped to 10, RELEASE snapped to 0, the light lit beside ATTACK.",
-    cap_nuke="NUKE engaged (blue) beside a driven MIX knob.",
-    cap_dist="DIST 2 and DIST 3 both engaged &mdash; the coloured “British” character.",
+    cap_nuke="NUKE engaged (blue), in the AUDIO column below the output HP filter.",
+    cap_dist="DIST 2, DIST 3, the output HP filter (at 70 Hz) and NUKE, all engaged together in the AUDIO column.",
     cap_bypass="BYPASS engaged (blinking red), top-right corner of the brand plate.",
     cap_meter="\u201cGR\u201d directly over the first LED; the ladder shifted so its 4 dB step lines up with the OPTO light.",
     cap_presets="The preset menu, with a saved preset ready to recall.",
@@ -314,7 +320,7 @@ TEXT = {
     ownersManual="Manual do Usu\u00e1rio",
     footer="Todos os direitos reservados.",
     overview_h="Vis\u00e3o Geral",
-    overview_p1="O NF &ndash; Stressor \u00e9 uma emula\u00e7\u00e3o fiel, feita do zero, de um cl\u00e1ssico compressor de rack opto/FET, constru\u00eddo como uma tira vertical estreita inspirada em equipamentos de outboard. Ele reproduz todo o comportamento caracter\u00edstico do design original: um limiar interno fixo controlado pelo knob INPUT, um verdadeiro modo OPTO discreto ligado \u00e0 posi\u00e7\u00e3o RATIO 10:1, um est\u00e1gio de raz\u00e3o \u201cNUKE\u201d de joelho duro, e chaves de car\u00e1ter (distor\u00e7\u00e3o) independentes.",
+    overview_p1="O NF &ndash; Stressor \u00e9 uma emula\u00e7\u00e3o fiel, feita do zero, de um cl\u00e1ssico compressor de rack opto/FET, constru\u00eddo como uma tira vertical estreita inspirada em equipamentos de outboard. Ele reproduz todo o comportamento caracter\u00edstico do design original: um limiar interno fixo controlado pelo knob INPUT, um verdadeiro modo OPTO discreto ligado \u00e0 posi\u00e7\u00e3o RATIO 10:1, um est\u00e1gio de raz\u00e3o \u201cNUKE\u201d de joelho duro, chaves de car\u00e1ter (distor\u00e7\u00e3o) independentes, e um filtro passa-altas de sa\u00edda de dois est\u00e1gios para limpar sobra de grave.",
     overview_p2="Tudo no painel segue as conven\u00e7\u00f5es do hardware real &mdash; n\u00e3o existe um knob de THRESHOLD dedicado; em vez disso, o INPUT empurra seu sinal com mais ou menos for\u00e7a contra uma refer\u00eancia interna fixa, exatamente como nos equipamentos cl\u00e1ssicos que inspiraram este plugin.",
     overview_callout="Dica: como n\u00e3o h\u00e1 controle de threshold, a redu\u00e7\u00e3o de ganho \u00e9 controlada inteiramente por o qu\u00e3o forte voc\u00ea empurra o INPUT. Comece baixo e v\u00e1 aumentando at\u00e9 o medidor de GR come\u00e7ar a se mover.",
     formats_h="Formatos",
@@ -325,7 +331,7 @@ TEXT = {
     install_win_p="Execute o instalador do NF - Stressor e siga o assistente. Ele instala o VST3 na pasta padr\u00e3o do sistema:",
     install_rescan="Depois de instalar, refa\u00e7a a busca de plugins na sua DAW caso ela n\u00e3o reconhe\u00e7a o NF &ndash; Stressor automaticamente.",
     tour_h="Tour pela Interface",
-    tour_p="O painel \u00e9 uma \u00fanica tira vertical, lida de cima para baixo: placa de marca no topo com o bot\u00e3o BYPASS no canto superior direito, os quatro knobs principais com a luz OPTO e o medidor de redu\u00e7\u00e3o de ganho ao lado, a fileira de RATIO, as chaves de car\u00e1ter DETECTOR/AUDIO, e por fim o MIX com o bot\u00e3o NUKE ao lado.",
+    tour_p="O painel \u00e9 uma \u00fanica tira vertical, lida de cima para baixo: placa de marca no topo com o bot\u00e3o BYPASS no canto superior direito, os quatro knobs principais com a luz OPTO e o medidor de redu\u00e7\u00e3o de ganho ao lado, a fileira de RATIO, as chaves de car\u00e1ter DETECTOR/AUDIO (a coluna AUDIO agora tamb\u00e9m tem o filtro passa-altas de sa\u00edda e o NUKE), e por fim o MIX sozinho.",
     tour_top="O \u00edcone de menu (canto superior esquerdo) abre o menu de presets. Dar duplo clique na pr\u00f3pria placa de marca, ou no canto superior esquerdo vazio do chassi, faz a janela voltar ao tamanho padr\u00e3o &mdash; \u00fatil depois de deix\u00e1-la maior pra um trabalho de detalhe.",
     tour_knobs="INPUT, ATTACK, RELEASE e OUTPUT, cada um com um disco numerado giratório (0&ndash;10) e uma marca vermelha fixa no topo. A escada de LEDs \u00e0 direita mostra a redu\u00e7\u00e3o de ganho em tempo real, em dB.",
     controls_h="Controles Principais",
@@ -338,12 +344,15 @@ TEXT = {
     c_ratio="Seleciona a raz\u00e3o de compress\u00e3o. De 1:1 a 6:1 o comportamento \u00e9 de compress\u00e3o soft-knee cl\u00e1ssica. Em 10:1 e 20:1 um est\u00e1gio extra \u201credline\u201d \u00e9 ativado: um joelho mais duro e um toque a mais de satura\u00e7\u00e3o no est\u00e1gio de car\u00e1ter, com a etiqueta do painel acendendo em \u00e2mbar. O 10:1 tamb\u00e9m \u00e9 a posi\u00e7\u00e3o dedicada de OPTO do painel &mdash; veja o modo OPTO acima.",
     ratio_soft="Compress\u00e3o soft-knee",
     ratio_redline="Redline / joelho mais duro",
-    c_nuke="NUKE: um bot\u00e3o dedicado, independente do RATIO, ao lado do MIX. Ao ativ\u00e1-lo, um limitador brick-wall de verdade \u00e9 somado por cima do que estiver selecionado no RATIO &mdash; uma raz\u00e3o efetivamente infinita, um joelho fin\u00edssimo, captura quase instant\u00e2nea (ignorando o knob ATTACK) e uma mordida harm\u00f4nica extra. Use quando precisar de um teto r\u00edgido, n\u00e3o s\u00f3 de mais compress\u00e3o.",
+    c_nuke="NUKE: um bot\u00e3o dedicado, independente do RATIO, que agora mora na coluna AUDIO, abaixo do filtro passa-altas de sa\u00edda (antes ficava ao lado do MIX). Ao ativ\u00e1-lo, um limitador brick-wall de verdade \u00e9 somado por cima do que estiver selecionado no RATIO &mdash; uma raz\u00e3o efetivamente infinita, um joelho fin\u00edssimo, captura quase instant\u00e2nea (ignorando o knob ATTACK) e uma mordida harm\u00f4nica extra. Ele acende azul em vez de vermelho, ent\u00e3o continua lendo como uma chave mais extrema mesmo compartilhando o mesmo formato de pill do DIST 2/DIST 3. Use quando precisar de um teto r\u00edgido, n\u00e3o s\u00f3 de mais compress\u00e3o.",
     character_h="DETECTOR & AUDIO",
     c_hp="Ativa um filtro passa-altas fixo no sidechain, para que os graves n\u00e3o dominem as decis\u00f5es do detector &mdash; \u00fatil em fontes com muito grave.",
     c_link="Liga a detec\u00e7\u00e3o entre os dois canais de um sinal est\u00e9reo, para que a redu\u00e7\u00e3o de ganho acompanhe junto, evitando deslocamento de imagem em material est\u00e9reo.",
     c_dist="Duas chaves de car\u00e1ter independentes que moldam o timbre do sinal comprimido: DIST 2 sozinho d\u00e1 um ar tipo FET, assim\u00e9trico; DIST 3 sozinho d\u00e1 uma satura\u00e7\u00e3o mais suave, tipo opto; ativando os dois juntos d\u00e1 um car\u00e1ter colorido, mais agressivo, \u201cBritish\u201d.",
-    mix_h="MIX e NUKE",
+    c_outhp_name="HP DE SA\u00cdDA (HPF)",
+    c_outhp="Um bot\u00e3o de tr\u00eas posi\u00e7\u00f5es, que alterna Desligado &rarr; ~70 Hz &rarr; ~120 Hz a cada clique. Ativa um filtro passa-altas limpo depois da compress\u00e3o, da modelagem de car\u00e1ter e do mix &mdash; mirando na sobra de grave que as chaves de car\u00e1ter (ou a pr\u00f3pria fonte) podem deixar, por exemplo em vocais. O bot\u00e3o acende vermelho como as outras chaves da coluna AUDIO, e o texto mostra o corte ativo.",
+    c_nuke_short="Agora mora aqui na coluna AUDIO, abaixo do filtro passa-altas de sa\u00edda, acendendo azul em vez de vermelho &mdash; veja o NUKE em RATIO para o comportamento completo de limitador brick-wall.",
+    mix_h="MIX",
     c_mix="Mistura o sinal seco (dry) com o comprimido (wet), para compress\u00e3o paralela &mdash; mant\u00e9m o impacto do sinal n\u00e3o comprimido enquanto ainda captura os picos.",
     c_bypass="Desliga todo o processamento. Fica no canto superior direito da placa de marca, espelhando o bot\u00e3o de menu (hamb\u00farguer) do lado oposto. O bot\u00e3o inteiro pisca enquanto ativado, deixando bem claro que o plugin n\u00e3o est\u00e1 fazendo nada.",
     c_meter_name="Escada de Redu\u00e7\u00e3o de Ganho",
@@ -369,8 +378,8 @@ TEXT = {
     tip4="Use o NUKE apenas quando precisar de um teto r\u00edgido por cima da sua raz\u00e3o &mdash; \u00e9 um est\u00e1gio de limita\u00e7\u00e3o, n\u00e3o uma op\u00e7\u00e3o de compress\u00e3o mais sutil.",
     tip5="D\u00ea um duplo clique num knob sempre que quiser comparar contra o valor de f\u00e1brica sem precisar abrir o menu de presets.",
     cap_opto="OPTO ativado: RATIO em 10:1, ATTACK saltando pra 10, RELEASE saltando pra 0, luz acesa ao lado do ATTACK.",
-    cap_nuke="NUKE ativado (azul) ao lado de um MIX puxado.",
-    cap_dist="DIST 2 e DIST 3 ativados juntos &mdash; o car\u00e1ter colorido \u201cBritish\u201d.",
+    cap_nuke="NUKE ativado (azul), na coluna AUDIO, abaixo do filtro passa-altas de sa\u00edda.",
+    cap_dist="DIST 2, DIST 3, o filtro passa-altas de sa\u00edda (em 70 Hz) e o NUKE, todos ativados juntos na coluna AUDIO.",
     cap_bypass="BYPASS ativado (piscando em vermelho), no canto superior direito da placa de marca.",
     cap_meter="\u201cGR\u201d bem em cima do primeiro LED; a escada deslocada pra o degrau de 4 dB alinhar com a luz OPTO.",
     cap_presets="O menu de presets, com um preset salvo pronto para carregar.",

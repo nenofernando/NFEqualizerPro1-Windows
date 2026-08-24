@@ -176,13 +176,23 @@ private:
     std::unique_ptr<juce::ParameterAttachment> ratioAttachment;
     int currentRatioIndex = 3;
 
-    // Character toggles (DETECTOR: hp/link, AUDIO: dist2/dist3)
+    // Character toggles (DETECTOR: hp/link, AUDIO: dist2/dist3, plus the
+    // output HP + NUKE pair added to the right of the AUDIO column)
     juce::Label detectorCaption, audioCaption;
     juce::TextButton hpButton, linkButton, dist2Button, dist3Button;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment>
         hpAttachment, linkAttachment, dist2Attachment, dist3Attachment;
 
-    // Mix, with the dedicated NUKE brick-wall-limiter toggle beside it
+    // Output high-pass, AUDIO column: a 3-way cycle button (Off/70 Hz/120 Hz)
+    // rather than a plain toggle, so it uses a ParameterAttachment like RATIO
+    // instead of a ButtonAttachment. Cleans up excess low end left over from
+    // the character stage — e.g. on vocals.
+    juce::TextButton outHpButton;
+    std::unique_ptr<juce::ParameterAttachment> outHpAttachment;
+    int currentOutHpMode = 0;
+
+    // Mix knob. NUKE (the brick-wall-limiter toggle) used to sit beside it
+    // here but now lives in the AUDIO column, under outHpButton.
     juce::Slider mixKnob;
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment> mixAttachment;
     juce::Label mixCaption;

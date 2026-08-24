@@ -34,6 +34,7 @@ namespace NFStressorColours
     inline const juce::Colour greenDim { 0xff1c3320 };
     inline const juce::Colour ledOff { 0xff232326 };
     inline const juce::Colour nukeBlue { 0xff2f8fff }; // NUKE button's own lit colour, distinct from the red LEDs
+    inline const juce::Colour optoGreen { 0xffccff00 }; // OPTO light's own lit colour — neon lime, distinct from the amber RATIO/GR-meter LEDs
 
     // Text
     inline const juce::Colour textLight { 0xfff2efe6 };

@@ -49,12 +49,20 @@ void StressorEngine::prepare(const juce::dsp::ProcessSpec& spec)
 {
     sampleRate = spec.sampleRate;
 
+    outHpCoeffs70 = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 70.0f);
+    outHpCoeffs120 = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 120.0f);
+    currentOutHpMode = 0;
+
     channels.clear();
     for (juce::uint32 ch = 0; ch < spec.numChannels; ++ch)
     {
         auto* state = channels.add(new ChannelState());
         *state->scHpf.coefficients = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 150.0f);
         state->scHpf.prepare(spec);
+        state->outHpf1.coefficients = outHpCoeffs70;
+        state->outHpf2.coefficients = outHpCoeffs70;
+        state->outHpf1.prepare(spec);
+        state->outHpf2.prepare(spec);
     }
 
     dryBuffer.setSize((int) spec.numChannels, (int) spec.maximumBlockSize);
@@ -71,6 +79,8 @@ void StressorEngine::reset()
     for (auto* state : channels)
     {
         state->scHpf.reset();
+        state->outHpf1.reset();
+        state->outHpf2.reset();
         state->levelSmoothed = 0.0f;
         state->grDb = 0.0f;
         state->releaseMemory = 0.0f;
@@ -230,6 +240,20 @@ void StressorEngine::process(juce::AudioBuffer<float>& buffer)
     const bool linked = params.linkEnabled && numChannels > 1;
     float maxGrDb = 0.0f;
 
+    const int outHpMode = juce::jlimit(0, 2, params.outHpMode);
+    if (outHpMode != currentOutHpMode)
+    {
+        currentOutHpMode = outHpMode;
+        const auto& coeffs = currentOutHpMode == 2 ? outHpCoeffs120 : outHpCoeffs70;
+        for (auto* state : channels)
+        {
+            state->outHpf1.coefficients = coeffs;
+            state->outHpf2.coefficients = coeffs;
+            state->outHpf1.reset();
+            state->outHpf2.reset();
+        }
+    }
+
     for (int i = 0; i < numSamples; ++i)
     {
         const float inputGain = inputGainSmoothed.getNextValue();
@@ -268,7 +292,14 @@ void StressorEngine::process(juce::AudioBuffer<float>& buffer)
             const float dry = dryBuffer.getSample(ch, i);
 
             const float mixed = dry * (1.0f - mixAmount) + wet * mixAmount;
-            buffer.setSample(ch, i, mixed * outputGain);
+            float outSample = mixed * outputGain;
+            if (currentOutHpMode != 0)
+            {
+                outSample = channels[ch]->outHpf1.processSample(outSample);
+                if (currentOutHpMode == 2)
+                    outSample = channels[ch]->outHpf2.processSample(outSample);
+            }
+            buffer.setSample(ch, i, outSample);
         }
     }
 

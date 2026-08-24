@@ -197,16 +197,13 @@ void NFStressorLookAndFeel::drawButtonBackground(juce::Graphics& g,
         return;
     }
 
-    // NUKE and BYPASS are both plain square buttons — no LED, the whole
-    // face lights up solid when engaged, like a hardware push switch with a
-    // lit cap. NUKE lights blue and stays solidly lit; BYPASS lights red and
-    // blinks (see PluginEditor::timerCallback) so it's impossible to miss
-    // that the plugin is doing nothing while it's on.
-    if (button.getButtonText() == "NUKE" || button.getButtonText() == "BYPASS")
+    // BYPASS is a plain square button — no LED, the whole face lights up
+    // solid red and blinks while engaged (see PluginEditor::timerCallback)
+    // so it's impossible to miss that the plugin is doing nothing.
+    if (button.getButtonText() == "BYPASS")
     {
-        const bool isBypass = button.getButtonText() == "BYPASS";
-        const bool lit = isBypass ? (isOn && button.getProperties().getWithDefault("blinkVisible", true)) : isOn;
-        const juce::Colour litColour = isBypass ? red : nukeBlue;
+        const bool lit = isOn && button.getProperties().getWithDefault("blinkVisible", true);
+        const juce::Colour litColour = red;
         const bool hovered = shouldDrawButtonAsHighlighted && !shouldDrawButtonAsDown && !lit;
         const float corner = 6.0f;
 
@@ -339,7 +336,10 @@ void NFStressorLookAndFeel::drawButtonBackground(juce::Graphics& g,
     g.setColour(juce::Colours::white.withAlpha(hovered ? 0.55f : 0.3f));
     g.drawRoundedRectangle(bounds.reduced(0.75f), corner - 0.75f, hovered ? 1.5f : 1.1f);
 
-    // LED indicator, inset at the left of the switch.
+    // LED indicator, inset at the left of the switch. NUKE lights blue
+    // instead of red so it still reads as a distinct, more extreme switch
+    // even though it now shares DIST 2/DIST 3's exact pill shape and size.
+    const juce::Colour ledOnColour = button.getButtonText() == "NUKE" ? nukeBlue : red;
     const float ledDiameter = bounds.getHeight() * 0.34f;
     const auto ledCentre = juce::Point<float>(bounds.getX() + bounds.getHeight() * 0.5f, bounds.getCentreY());
     juce::Rectangle<float> led(ledDiameter, ledDiameter);
@@ -352,12 +352,12 @@ void NFStressorLookAndFeel::drawButtonBackground(juce::Graphics& g,
     {
         // Tight rim glow only, hugging the LED edge — no soft bloom
         // spreading out into the switch body around it.
-        g.setColour(red.withAlpha(0.45f));
+        g.setColour(ledOnColour.withAlpha(0.45f));
         g.fillEllipse(led.expanded(ledDiameter * 0.1f));
     }
 
-    juce::ColourGradient ledGradient(isOn ? red.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
-                                     isOn ? red.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
+    juce::ColourGradient ledGradient(isOn ? ledOnColour.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
+                                     isOn ? ledOnColour.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
     g.setGradientFill(ledGradient);
     g.fillEllipse(led);
     g.setColour(juce::Colours::black.withAlpha(0.5f));
@@ -384,15 +384,12 @@ void NFStressorLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& 
 
     auto bounds = button.getLocalBounds().toFloat();
 
-    if (button.getButtonText() == "NUKE" || button.getButtonText() == "BYPASS")
+    if (button.getButtonText() == "BYPASS")
     {
         // Centred in the plain square face — the whole button lights up
-        // solid when engaged, so the text just needs enough contrast to
-        // read against either state. BYPASS blinks in sync with its fill.
-        const bool isBypass = button.getButtonText() == "BYPASS";
-        const bool lit = isBypass
-                             ? (button.getToggleState() && button.getProperties().getWithDefault("blinkVisible", true))
-                             : button.getToggleState();
+        // solid red when engaged, blinking in sync with its fill, so the
+        // text just needs enough contrast to read against either state.
+        const bool lit = button.getToggleState() && button.getProperties().getWithDefault("blinkVisible", true);
         g.setFont(getTextButtonFont(button, button.getHeight()));
         g.setColour(lit ? panelDarker.darker(0.3f) : textLight.withAlpha(0.75f));
         g.drawFittedText(button.getButtonText(), bounds.toNearestInt(), juce::Justification::centred, 1);
@@ -403,7 +400,15 @@ void NFStressorLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& 
     }
 
     if (button.getClickingTogglesState())
-        bounds.removeFromLeft(bounds.getHeight() * 0.85f); // clears the LED
+    {
+        // Clear the LED on the left, then trim the same amount off the
+        // right too — so the remaining text box is symmetric around the
+        // button's true centre, and the label reads as centred in the whole
+        // pill rather than centred in "whatever's left after the LED".
+        const float ledClear = bounds.getHeight() * 0.85f;
+        bounds.removeFromLeft(ledClear);
+        bounds.removeFromRight(ledClear);
+    }
 
     g.setFont(getTextButtonFont(button, button.getHeight()));
     g.setColour(button.getClickingTogglesState() ? (button.getToggleState() ? textLight : textLight.withAlpha(0.75f))
@@ -416,9 +421,6 @@ void NFStressorLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& 
 
 juce::Font NFStressorLookAndFeel::getTextButtonFont(juce::TextButton& button, int buttonHeight)
 {
-    if (button.getButtonText() == "NUKE")
-        return juce::Font(juce::FontOptions(15.5f).withStyle("Bold"));
-
     if (button.getButtonText() == "BYPASS")
         return juce::Font(juce::FontOptions(11.0f).withStyle("Bold"));
 

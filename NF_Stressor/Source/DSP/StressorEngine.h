@@ -31,6 +31,12 @@ struct StressorParameters
     bool dist3Enabled = false; // AUDIO column, bottom switch: opto-style character
                                // (both on together = coloured "British"/Nuke character)
 
+    // AUDIO column, output high-pass: 0 = off, 1 = ~70 Hz cut, 2 = ~120 Hz
+    // cut (steeper, removes more low end). Sits after everything else —
+    // mix, character, output trim — to clean up bass buildup the character
+    // stage can add, e.g. on vocals.
+    int outHpMode = 0;
+
     float mixPct = 100.0f;     // 0..100
     float outputDb = 0.0f;     // -20..20
 
@@ -68,6 +74,10 @@ private:
     struct ChannelState
     {
         juce::dsp::IIR::Filter<float> scHpf;
+        // Output high-pass, two cascaded stages: mode 1 runs the signal
+        // through outHpf1 only (~12 dB/oct at 70 Hz); mode 2 runs it through
+        // both, back to back, at 120 Hz for a steeper ~24 dB/oct cut.
+        juce::dsp::IIR::Filter<float> outHpf1, outHpf2;
         float levelSmoothed = 0.0f; // linear, fast one-pole rectifier smoothing
         float grDb = 0.0f;
         float releaseMemory = 0.0f; // slow average of recent GR; drives the OPTO
@@ -85,6 +95,12 @@ private:
 
     juce::OwnedArray<ChannelState> channels;
     juce::AudioBuffer<float> dryBuffer;
+
+    // Precomputed once per sample-rate change (see prepare()) so switching
+    // outHpMode on the audio thread just swaps a pointer rather than
+    // allocating new coefficients.
+    juce::dsp::IIR::Coefficients<float>::Ptr outHpCoeffs70, outHpCoeffs120;
+    int currentOutHpMode = 0;
 
     StressorParameters params;
 

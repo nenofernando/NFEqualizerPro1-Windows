@@ -150,12 +150,12 @@ void NFStressorAudioProcessorEditor::OptoLed::paint(juce::Graphics& g)
     {
         // Tight rim glow only, hugging the lamp edge — no soft bloom
         // spreading out into the bezel around it.
-        g.setColour(amber.withAlpha(0.45f));
+        g.setColour(optoGreen.withAlpha(0.45f));
         g.fillEllipse(led.expanded(margin * 0.18f));
     }
 
-    juce::ColourGradient ledGradient(isOn ? amber.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
-                                     isOn ? amber.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
+    juce::ColourGradient ledGradient(isOn ? optoGreen.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
+                                     isOn ? optoGreen.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
     g.setGradientFill(ledGradient);
     g.fillEllipse(led);
 
@@ -344,6 +344,27 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
         audioProcessor.apvts, "dist2", dist2Button);
     dist3Attachment = std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(
         audioProcessor.apvts, "dist3", dist3Button);
+
+    // Output HP cycles Off -> 70 Hz -> 120 Hz -> Off on each click; the LED
+    // just needs to read "engaged" (red) or not, so the button text carries
+    // which cutoff is active. Labelled "HPF" (not "HP") so it doesn't read
+    // as the DETECTOR column's own HP switch.
+    setupToggleButton(outHpButton, "HPF");
+    outHpButton.onClick = [this]
+    {
+        outHpAttachment->setValueAsCompleteGesture((float) ((currentOutHpMode + 1) % 3));
+    };
+    outHpAttachment = std::make_unique<juce::ParameterAttachment>(
+        *audioProcessor.apvts.getParameter("outHp"),
+        [this](float newValue)
+        {
+            currentOutHpMode = (int) newValue;
+            outHpButton.setToggleState(currentOutHpMode != 0, juce::dontSendNotification);
+            outHpButton.setButtonText(currentOutHpMode == 0 ? "HPF"
+                                      : currentOutHpMode == 1 ? "HPF 70Hz"
+                                                              : "HPF 120Hz");
+        });
+    outHpAttachment->sendInitialUpdate();
 
     setupKnob(mixKnob);
     content.addAndMakeVisible(mixKnob);
@@ -793,42 +814,61 @@ void NFStressorAudioProcessorEditor::layOutContent()
     bounds.removeFromTop(12);
 
     // --- Character grid, full width --------------------------------------
+    // Three equal columns across the full width — HP/LINK (DETECTOR), DIST
+    // 2/DIST 3, and the output-HP + NUKE pair (both AUDIO) — so all six
+    // buttons are the same size and aligned on the same two-row grid. NUKE
+    // moved here from the MIX row (see below) and now shares DIST 2/DIST
+    // 3's exact pill-switch shape (see NFStressorLookAndFeel), just lit
+    // blue instead of red.
     const int charSectionTop = bounds.getY();
     auto captionRow = bounds.removeFromTop(20);
-    detectorCaption.setBounds(captionRow.removeFromLeft(captionRow.getWidth() / 2));
-    audioCaption.setBounds(captionRow);
+    const int charColWidth = bounds.getWidth() / 3;
+    auto detectorCaptionSlot = captionRow.removeFromLeft(charColWidth);
+    captionRow.removeFromLeft(charColWidth); // DIST 2/DIST 3 column — no caption of its own
+    auto audioCaptionSlot = captionRow;       // HPF/NUKE column, on the right
 
     auto charRow1 = bounds.removeFromTop(38);
-    hpButton.setBounds(charRow1.removeFromLeft(charRow1.getWidth() / 2).reduced(3, 2));
-    dist2Button.setBounds(charRow1.reduced(3, 2));
+    hpButton.setBounds(charRow1.removeFromLeft(charColWidth).reduced(3, 2));
+    dist2Button.setBounds(charRow1.removeFromLeft(charColWidth).reduced(3, 2));
+    outHpButton.setBounds(charRow1.reduced(3, 2));
+
+    // DETECTOR is centred over its whole column, matching HP/LINK below it.
+    detectorCaption.setJustificationType(juce::Justification::centred);
+    detectorCaption.setBounds(detectorCaptionSlot);
+
+    // AUDIO is centred directly over the HPF button below it (same
+    // convention as DETECTOR/HP), rather than the whole HPF/NUKE column.
+    {
+        auto textBox = outHpButton.getBounds();
+        textBox.setY(outHpButton.getY() - 20);
+        textBox.setHeight(20);
+        audioCaption.setJustificationType(juce::Justification::centred);
+        audioCaption.setBounds(textBox);
+    }
 
     bounds.removeFromTop(4);
 
     auto charRow2 = bounds.removeFromTop(38);
-    linkButton.setBounds(charRow2.removeFromLeft(charRow2.getWidth() / 2).reduced(3, 2));
-    dist3Button.setBounds(charRow2.reduced(3, 2));
+    linkButton.setBounds(charRow2.removeFromLeft(charColWidth).reduced(3, 2));
+    dist3Button.setBounds(charRow2.removeFromLeft(charColWidth).reduced(3, 2));
+    nukeButton.setBounds(charRow2.reduced(3, 2));
     juce::Rectangle<int> charSectionInset(bounds.getX(), charSectionTop, bounds.getWidth(), bounds.getY() - charSectionTop);
 
     bounds.removeFromTop(14);
 
-    // --- Mix, same size as the main knobs, at the bottom, with the square
-    // NUKE brick-wall-limiter button beside it. NUKE's space is trimmed
-    // symmetrically off both sides of the row (same trick as the BYPASS/
-    // title row above) so the MIX knob still centres on mainAreaCentreX
-    // instead of drifting toward the middle of a lopsidedly-narrowed area.
+    // --- Mix, same size as the main knobs, at the bottom. NUKE used to sit
+    // beside it here (now moved to the AUDIO column above) — its slot is
+    // still trimmed off the row's right edge, unused, purely so MIX keeps
+    // centring on mainAreaCentreX exactly as before instead of drifting
+    // toward the middle of a now-wider area.
     const int mixSectionTop = bounds.getY();
     bounds.removeFromTop(10);
     mixCaption.setBounds(bounds.removeFromTop(12).translated(0, -5));
     auto mixArea = bounds.removeFromTop(knobRowHeight - 12);
-    auto nukeArea = mixArea.removeFromRight(70);
+    mixArea.removeFromRight(70);
     auto brandArea = mixArea.removeFromLeft(70);
     mixKnob.setBounds(mixArea.reduced(mixArea.getWidth() / 10, -7).translated(0, 4));
     addKnobGlow(mixKnob);
-    // Same size as BYPASS (50, see the top-right corner above) — +4 to
-    // match the same downward nudge applied to mixKnob, so NUKE stays
-    // vertically aligned with it.
-    constexpr int nukeSize = 50;
-    nukeButton.setBounds(juce::Rectangle<int>(nukeSize, nukeSize).withCentre(nukeArea.getCentre().translated(0, 4)));
     panel.setBrandLabelArea(brandArea.translated(-4, 4));
     // Stretched a bit further down than the raw row height, since the MIX
     // knob itself bleeds a few px past mixArea's own bottom edge (see the
