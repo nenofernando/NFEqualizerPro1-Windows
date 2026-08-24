@@ -41,6 +41,15 @@ VIAddVersionKey "LegalCopyright" "${PRODUCT_COPYRIGHT}"
 !insertmacro MUI_LANGUAGE "English"
 
 Section "VST3 Plug-in"
+  ; Clear out anything already at this exact path first. Older installer
+  ; versions may have dropped a flat "<name>.vst3" FILE here (the pre-bundle
+  ; VST3 format); if that file is still there, Windows can't create a folder
+  ; with the same name, and every nested write below it fails with a cryptic
+  ; "Error opening file for writing" dialog. Delete/RMDir are no-ops when the
+  ; target doesn't match, so this is always safe to run.
+  Delete "$INSTDIR"
+  RMDir /r "$INSTDIR"
+
   SetOutPath "$INSTDIR"
   File /r "${VST3_SRC}\*.*"
 
