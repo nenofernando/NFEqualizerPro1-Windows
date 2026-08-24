@@ -25,6 +25,13 @@ private:
     void layOutContent();
     void applyDefaultSize();
 
+    // True only when RATIO is at 10:1 AND the ATTACK/RELEASE knobs are
+    // still sitting at their OPTO detent (10 / 0) — dragging either knob
+    // away from that position leaves OPTO even though RATIO itself stays
+    // at 10:1. Checked continuously (see timerCallback) since it depends
+    // on live knob position, not just a parameter-change event.
+    bool isOptoActive() const;
+
     // Preset save/load, reached via the hamburger menu button top-left.
     void showPresetMenu();
     void savePresetAs();
@@ -47,14 +54,22 @@ private:
         // Double-clicking the bare top-left corner of the chassis (no knob
         // or button lives there) resets the window back to its default
         // launch size — a quick escape hatch after dragging the resize
-        // corner around, without hunting for that corner again.
+        // corner around, without hunting for that corner again. The same
+        // reset also fires when double-clicking directly on the "NF -
+        // STRESSOR" logo text itself (see logoHotZone below).
         std::function<void()> onCornerDoubleClicked;
         void mouseDoubleClick(const juce::MouseEvent& e) override
         {
-            if (onCornerDoubleClicked && e.position.x < cornerHotZone && e.position.y < cornerHotZone)
+            const bool onCorner = e.position.x < cornerHotZone && e.position.y < cornerHotZone;
+            if (onCornerDoubleClicked && (onCorner || logoHotZone.contains(e.getPosition())))
                 onCornerDoubleClicked();
         }
         static constexpr float cornerHotZone = 50.0f;
+
+        // Set from layOutContent() to match the title label's bounds, so
+        // double-clicking the visible "NF - STRESSOR" logo also resets the
+        // window size, not just the bare corner.
+        void setLogoHotZone(juce::Rectangle<int> area) { logoHotZone = area; }
 
         // Knob centre + radius + current 0..1 value — a warm glow is drawn at
         // each, as if light from the circuit board behind the panel were
@@ -85,18 +100,28 @@ private:
         // spine label.
         void setBrandLabelArea(juce::Rectangle<int> area) { brandLabelArea = area; repaint(); }
 
+        // Short radial tick marks beside the ATTACK/RELEASE knobs, pointing
+        // at their "0" position (SLOW for Attack, FAST for Release — see
+        // the matching text labels set up alongside these in the editor).
+        void setIndicatorTicks(std::vector<juce::Line<float>> newTicks) { ticks = std::move(newTicks); repaint(); }
+
     private:
         std::vector<juce::Rectangle<int>> insetPanels;
         std::vector<KnobGlow> knobGlows;
         juce::Rectangle<int> brandLabelArea;
+        juce::Rectangle<int> logoHotZone;
+        std::vector<juce::Line<float>> ticks;
     };
 
-    // Small indicator LED, lit whenever the adjacent knob (ATTACK/RELEASE) is
-    // in its OPTO-engage zone.
+    // Small indicator LED, lit whenever RATIO is set to 10:1 (OPTO). Also
+    // clickable — it's a second way to engage OPTO besides the 10:1 RATIO
+    // button itself, both driving the same ratio parameter.
     struct OptoLed : public juce::Component
     {
         void paint(juce::Graphics& g) override;
         void setOn(bool shouldBeOn) { if (isOn != shouldBeOn) { isOn = shouldBeOn; repaint(); } }
+        std::function<void()> onClick;
+        void mouseUp(const juce::MouseEvent&) override { if (onClick) onClick(); }
 
     private:
         bool isOn = false;
@@ -126,9 +151,23 @@ private:
     std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>
         inputAttachment, attackAttachment, releaseAttachment, outputAttachment;
     juce::Label inputCaption, attackCaption, releaseCaption, outputCaption;
-    OptoLed attackOptoLed, releaseOptoLed;
-    juce::Label attackOptoLabel, releaseOptoLabel;
 
+    // Small "SLOW"/"FAST" hints beside ATTACK/RELEASE, next to a short tick
+    // mark (drawn on the panel, see BackgroundPanel::setIndicatorTicks)
+    // pointing at each knob's two end-stops ("0" and "10") — see
+    // mapAttackMs/mapReleaseMs in StressorEngine.cpp for which end is which.
+    juce::Label attackSlowLabel, attackFastLabel, releaseFastLabel, releaseSlowLabel;
+
+    // OPTO indicator — lit whenever RATIO is set to 10:1 (see
+    // NF::kOptoRatioIndex), sitting between the ATTACK/RELEASE knobs.
+    // Clicking it is a second way to engage/disengage OPTO, alongside
+    // clicking the 10:1 RATIO button directly — both just move the same
+    // ratio parameter, so they can never disagree.
+    OptoLed optoLed;
+    juce::Label optoLabel;
+    int lastNonOptoRatioIndex = 3; // remembers where to go back to when OPTO is switched off via the light
+
+    juce::Label grCaption; // "GR" label, directly above the ladder meter
     GRLadderMeter grMeter;
 
     // Ratio segmented row

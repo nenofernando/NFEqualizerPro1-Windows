@@ -9,6 +9,9 @@ namespace NF
 // stage (harder knee + a touch more drive into the character stage).
 inline constexpr std::array<float, 7> kRatioTable { 1.0f, 2.0f, 3.0f, 4.0f, 6.0f, 10.0f, 20.0f };
 inline constexpr int kNukeStartIndex = 5; // 10:1 and above
+inline constexpr int kOptoRatioIndex = 5; // 10:1 only — real hardware's "Opto" ratio position;
+                                          // selecting it swaps in a program-dependent detector,
+                                          // independent of the ATTACK/RELEASE knob settings
 
 // One call per processed block; the engine smooths internally so parameter
 // changes never zipper/click even though this only lands once per block.
@@ -72,7 +75,7 @@ private:
                                     // longer it takes to let go" behaviour
     };
 
-    float detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged, bool bigNuke,
+    float detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged, bool bigNuke, bool optoEngaged,
                           float attackAmount, float releaseAmount);
     float computeGainReductionDb(float levelDb, float ratio, bool nukeEngaged, bool bigNuke) const;
     float shapeCharacter(float x) const;

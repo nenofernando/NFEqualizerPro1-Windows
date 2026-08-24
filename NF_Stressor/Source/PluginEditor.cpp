@@ -60,6 +60,11 @@ void NFStressorAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
         g.fillEllipse(knobCentre.x - glowRadius, knobCentre.y - glowRadius, glowRadius * 2.0f, glowRadius * 2.0f);
     }
 
+    // SLOW/SLOW-FAST tick marks beside ATTACK/RELEASE (see setIndicatorTicks).
+    g.setColour(textDim);
+    for (const auto& tick : ticks)
+        g.drawLine(tick, 1.6f);
+
     // Vignette
     juce::ColourGradient vignette(juce::Colours::transparentBlack, bounds.getCentreX(), bounds.getCentreY(),
                                   juce::Colours::black.withAlpha(0.35f), bounds.getX(), bounds.getY(), true);
@@ -95,7 +100,7 @@ void NFStressorAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
     {
         const auto area = brandLabelArea.toFloat();
         g.setColour(textLight.withAlpha(0.8f));
-        g.setFont(juce::Font(juce::FontOptions(12.8f).withStyle("Bold")));
+        g.setFont(juce::Font(juce::FontOptions(13.5f).withStyle("Bold")));
         g.saveState();
         g.addTransform(juce::AffineTransform::rotation(-juce::MathConstants<float>::halfPi, area.getCentreX(), area.getCentreY()));
         // Unrotated, text reads left-to-right along what becomes, after the
@@ -172,7 +177,7 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
     menuButton.onClick = [this] { showPresetMenu(); };
     content.addAndMakeVisible(menuButton);
 
-    setupCaption(versionLabel, "v0.1", 13.5f, false, juce::Justification::centredLeft);
+    setupCaption(versionLabel, "V1.0", 13.5f, false, juce::Justification::centredLeft);
     versionLabel.setColour(juce::Label::textColourId, textDim);
     content.addAndMakeVisible(versionLabel);
 
@@ -198,16 +203,44 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
     outputAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "output", outputKnob);
 
-    content.addAndMakeVisible(attackOptoLed);
-    content.addAndMakeVisible(releaseOptoLed);
+    // Double-click any knob to snap it back to that parameter's own default
+    // value — the same convention Slate Digital's FG-Stress (also a
+    // Distressor-style plug-in) uses on its Input/Attack/Release knobs.
+    auto setKnobDoubleClickDefault = [this](juce::Slider& knob, const char* paramId)
+    {
+        if (auto* param = audioProcessor.apvts.getParameter(paramId))
+            knob.setDoubleClickReturnValue(true, param->getNormalisableRange().convertFrom0to1(param->getDefaultValue()));
+    };
+    setKnobDoubleClickDefault(inputKnob, "input");
+    setKnobDoubleClickDefault(attackKnob, "attack");
+    setKnobDoubleClickDefault(releaseKnob, "release");
+    setKnobDoubleClickDefault(outputKnob, "output");
 
-    setupCaption(attackOptoLabel, "OPTO", 12.5f, true, juce::Justification::centred);
-    attackOptoLabel.setColour(juce::Label::textColourId, textLight);
-    content.addAndMakeVisible(attackOptoLabel);
-    setupCaption(releaseOptoLabel, "OPTO", 12.5f, true, juce::Justification::centred);
-    releaseOptoLabel.setColour(juce::Label::textColourId, textLight);
-    content.addAndMakeVisible(releaseOptoLabel);
+    content.addAndMakeVisible(optoLed);
+    setupCaption(optoLabel, "OPTO", 12.5f, true, juce::Justification::centred);
+    optoLabel.setColour(juce::Label::textColourId, textLight);
+    content.addAndMakeVisible(optoLabel);
 
+    // SLOW/FAST hints, beside the tick marks drawn on the panel at each
+    // knob's two end-stops ("0" on the left, "10" on the right). ATTACK is
+    // slowest at 0 / fastest at 10; RELEASE is the other way round (fastest
+    // at 0 / slowest at 10) — see mapAttackMs/mapReleaseMs in
+    // StressorEngine.cpp.
+    setupCaption(attackSlowLabel, "SLOW", 13.0f, true, juce::Justification::centredRight);
+    attackSlowLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    content.addAndMakeVisible(attackSlowLabel);
+    setupCaption(attackFastLabel, "FAST", 13.0f, true, juce::Justification::centredLeft);
+    attackFastLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    content.addAndMakeVisible(attackFastLabel);
+    setupCaption(releaseFastLabel, "FAST", 13.0f, true, juce::Justification::centredRight);
+    releaseFastLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    content.addAndMakeVisible(releaseFastLabel);
+    setupCaption(releaseSlowLabel, "SLOW", 13.0f, true, juce::Justification::centredLeft);
+    releaseSlowLabel.setColour(juce::Label::textColourId, juce::Colours::white);
+    content.addAndMakeVisible(releaseSlowLabel);
+
+    setupCaption(grCaption, "GR", 17.0f, true);
+    content.addAndMakeVisible(grCaption);
     content.addAndMakeVisible(grMeter);
 
     setupCaption(ratioCaption, "RATIO", 15.5f, true);
@@ -227,12 +260,53 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
         [this](float newValue)
         {
             currentRatioIndex = (int) newValue;
+            if (currentRatioIndex != NF::kOptoRatioIndex)
+                lastNonOptoRatioIndex = currentRatioIndex;
             for (int i = 0; i < ratioButtons.size(); ++i)
                 ratioButtons[i]->setToggleState(i == currentRatioIndex, juce::dontSendNotification);
             taglineLabel.setColour(juce::Label::textColourId,
                                    currentRatioIndex >= 5 ? amber : textDim);
+
+            // Selecting 10:1 snaps ATTACK/RELEASE to their panel "OPTO"
+            // positions (10 / 0) as a starting point, matching the
+            // hardware's end-of-travel detents — but the knobs stay fully
+            // interactive. Dragging either one away from that position
+            // (checked live in timerCallback, since that's a continuous
+            // knob-position condition, not something that only changes
+            // when RATIO itself changes) is what actually turns the OPTO
+            // light back off; see timerCallback and StressorEngine's own
+            // optoEngaged check for the matching DSP-side condition.
+            if (currentRatioIndex == NF::kOptoRatioIndex)
+            {
+                attackKnob.setValue(10.0, juce::sendNotificationSync);
+                releaseKnob.setValue(0.0, juce::sendNotificationSync);
+            }
         });
     ratioAttachment->sendInitialUpdate();
+
+    // Clicking the OPTO light is a second way to engage/disengage it,
+    // alongside clicking the 10:1 RATIO button directly.
+    optoLed.onClick = [this]
+    {
+        if (isOptoActive())
+        {
+            // Fully exits — back to whatever ratio was last selected.
+            ratioAttachment->setValueAsCompleteGesture((float) lastNonOptoRatioIndex);
+        }
+        else if (currentRatioIndex == NF::kOptoRatioIndex)
+        {
+            // RATIO's already at 10:1 but the knobs have drifted off the
+            // OPTO detent (10 / 0) — re-snap them directly, since setting
+            // the ratio parameter to the value it already has wouldn't
+            // fire the parameter-change callback that normally does this.
+            attackKnob.setValue(10.0, juce::sendNotificationSync);
+            releaseKnob.setValue(0.0, juce::sendNotificationSync);
+        }
+        else
+        {
+            ratioAttachment->setValueAsCompleteGesture((float) NF::kOptoRatioIndex);
+        }
+    };
 
     setupCaption(detectorCaption, "DETECTOR", 14.0f, true);
     content.addAndMakeVisible(detectorCaption);
@@ -259,6 +333,7 @@ NFStressorAudioProcessorEditor::NFStressorAudioProcessorEditor(NFStressorAudioPr
     content.addAndMakeVisible(mixCaption);
     mixAttachment = std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(
         audioProcessor.apvts, "mix", mixKnob);
+    setKnobDoubleClickDefault(mixKnob, "mix");
 
     nukeButton.setButtonText("NUKE");
     nukeButton.setClickingTogglesState(true);
@@ -428,6 +503,11 @@ void NFStressorAudioProcessorEditor::loadPresetFrom()
 
 juce::Slider& NFStressorAudioProcessorEditor::setupKnob(juce::Slider& knob)
 {
+    // Relative vertical/horizontal drag (the project's original feel) —
+    // moving the mouse up/right always increases the value and down/left
+    // decreases it, regardless of where on the knob you first clicked.
+    // True circular (angle-around-the-knob) drag was tried at one point but
+    // felt unstable/jumpy under the mouse, so this reverts back to it.
     knob.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);
     knob.setTextBoxStyle(juce::Slider::NoTextBox, false, 0, 0);
     knob.setRotaryParameters(juce::MathConstants<float>::pi * 1.25f,
@@ -460,16 +540,17 @@ void NFStressorAudioProcessorEditor::setupCaption(juce::Label& label, const juce
     label.setInterceptsMouseClicks(false, false);
 }
 
+bool NFStressorAudioProcessorEditor::isOptoActive() const
+{
+    return currentRatioIndex == NF::kOptoRatioIndex
+        && attackKnob.getValue() >= 9.95
+        && releaseKnob.getValue() <= 0.05;
+}
+
 void NFStressorAudioProcessorEditor::timerCallback()
 {
     grMeter.setGainReductionDb(audioProcessor.getGainReductionDb());
-
-    // Same engage thresholds as StressorEngine::detectAndFollow (attack >= 9,
-    // release <= 1) — lights the little indicator whenever OPTO is live.
-    const float attackValue = audioProcessor.apvts.getRawParameterValue("attack")->load();
-    const float releaseValue = audioProcessor.apvts.getRawParameterValue("release")->load();
-    attackOptoLed.setOn(attackValue >= 9.0f);
-    releaseOptoLed.setOn(releaseValue <= 1.0f);
+    optoLed.setOn(isOptoActive());
 
     // BYPASS blinks while engaged, at 30Hz timer / 15 ticks ~ 1s full cycle,
     // so it's hard to miss that the plugin is currently doing nothing.
@@ -518,15 +599,19 @@ void NFStressorAudioProcessorEditor::layOutContent()
     // --- Top plate --------------------------------------------------
     const int topSectionTop = bounds.getY();
     auto topRow = bounds.removeFromTop(38);
-    // Reserve the slot now (so the title below still centres correctly),
-    // but BYPASS's final X position is set later, once the GR meter column
-    // is known, so the two line up vertically.
-    auto powerButtonSlot = topRow.removeFromRight(60);
-    // Mirrors BYPASS's slot on the right, so the title still centres — the
-    // preset menu button (hamburger icon) sits centred in this same space.
+    // BYPASS now lives above NUKE, not up here — but the title still needs
+    // matching clearance on both sides to stay centred, so the trim stays
+    // even though nothing occupies the right-hand slot any more.
+    topRow.removeFromRight(60);
+    // Mirrors that empty slot on the right, so the title still centres —
+    // the preset menu button (hamburger icon) sits centred in this same
+    // space on the left.
     auto menuButtonSlot = topRow.removeFromLeft(60);
     menuButton.setBounds(juce::Rectangle<int>(32, 24).withCentre(menuButtonSlot.getCentre()));
     titleLabel.setBounds(topRow);
+    // Double-clicking the "NF - STRESSOR" logo itself also resets the
+    // window to its default size (see BackgroundPanel::mouseDoubleClick).
+    panel.setLogoHotZone(topRow);
 
     // Tagline gets the full row width, centred the same way the title is —
     // nothing else shares this row now.
@@ -554,16 +639,6 @@ void NFStressorAudioProcessorEditor::layOutContent()
                                                        // so the top 4 knobs line up with it
     auto meterColumn = mainArea.removeFromRight((int) (mainArea.getWidth() * 0.26f));
 
-    // Now that the meter column's span is known, line BYPASS up with the
-    // actual LED lights' horizontal centre (not the whole column, which is
-    // biased left by the dB number labels) — matches GRLadderMeter's own
-    // internal split: 55% numbers, then the LED sits centred in the
-    // remaining 45%, i.e. at 0.775 of the column's width.
-    auto grMeterBounds = meterColumn.reduced(3, 8);
-    const int ledCentreX = grMeterBounds.getX() + (int) (grMeterBounds.getWidth() * 0.775f);
-    powerButton.setBounds(juce::Rectangle<int>(powerButtonSlot.getWidth(), powerButtonSlot.getHeight())
-                              .withCentre({ ledCentreX, powerButtonSlot.getCentreY() }));
-
     juce::Slider* knobs[] { &inputKnob, &attackKnob, &releaseKnob, &outputKnob };
     juce::Label* knobCaptions[] { &inputCaption, &attackCaption, &releaseCaption, &outputCaption };
     const int knobGap = 16;
@@ -577,6 +652,8 @@ void NFStressorAudioProcessorEditor::layOutContent()
         const float value = (float) knob.valueToProportionOfLength(knob.getValue());
         knobGlowSpots.push_back({ kb.getCentre(), r, value });
     };
+
+    int optoLedX = 0;
 
     for (int i = 0; i < 4; ++i)
     {
@@ -594,28 +671,82 @@ void NFStressorAudioProcessorEditor::layOutContent()
         knobs[i]->setBounds(row.reduced(row.getWidth() / 22, -7).translated(shiftX, 0));
         addKnobGlow(*knobs[i]);
 
-        // OPTO indicator LED, with its label below it (shifted a touch left),
-        // on the left side of the ATTACK/RELEASE captions.
         if (i == 1)
-        {
-            const int ledX = captionRow.getCentreX() + shiftX - captionRow.getWidth() * 2 / 5 - 4;
-            const int ledCentreY = captionRow.getCentreY();
-            attackOptoLed.setBounds(juce::Rectangle<int>(36, 36).withCentre({ ledX, ledCentreY }));
-            attackOptoLabel.setBounds(juce::Rectangle<int>(54, 15).withCentre({ ledX, ledCentreY + 22 }));
-        }
-        else if (i == 2)
-        {
-            const int ledX = captionRow.getCentreX() + shiftX - captionRow.getWidth() * 2 / 5 - 4;
-            const int ledCentreY = captionRow.getCentreY();
-            releaseOptoLed.setBounds(juce::Rectangle<int>(36, 36).withCentre({ ledX, ledCentreY }));
-            releaseOptoLabel.setBounds(juce::Rectangle<int>(54, 15).withCentre({ ledX, ledCentreY + 22 }));
-        }
+            optoLedX = captionRow.getCentreX() + shiftX - captionRow.getWidth() * 2 / 5 - 14;
 
         if (i < 3)
             mainArea.removeFromTop(knobGap);
     }
 
-    grMeter.setBounds(meterColumn.reduced(3, 8));
+    // OPTO indicator, beside the word ATTACK — lit (and clickable) when
+    // RATIO is at 10:1 and ATTACK/RELEASE are still sitting at their OPTO
+    // detent (see isOptoActive()).
+    {
+        const int ledCentreY = attackCaption.getBounds().getCentreY();
+        optoLed.setBounds(juce::Rectangle<int>(36, 36).withCentre({ optoLedX, ledCentreY }));
+        optoLabel.setBounds(juce::Rectangle<int>(54, 15).withCentre({ optoLedX, ledCentreY + 24 }));
+    }
+
+    // SLOW/FAST tick marks — each knob gets one at "0" (the rotary's start
+    // angle) and one at "10" (its end angle), labelled according to which
+    // end is actually slow/fast for that parameter (see mapAttackMs/
+    // mapReleaseMs in StressorEngine.cpp): ATTACK is slow at 0 / fast at 10;
+    // RELEASE is fast at 0 / slow at 10.
+    {
+        constexpr float zeroAngle = juce::MathConstants<float>::pi * 1.25f;
+        constexpr float tenAngle = juce::MathConstants<float>::pi * 2.75f;
+        auto pointAtAngle = [](juce::Rectangle<int> knobBounds, float angleRad, float distFromCentre)
+        {
+            const auto c = knobBounds.toFloat().getCentre();
+            return juce::Point<float>(c.x + distFromCentre * std::sin(angleRad),
+                                      c.y - distFromCentre * std::cos(angleRad));
+        };
+
+        // `onLeft` picks which edge of the label box sits at the tick (right
+        // edge for the "0" side, which reads leftward off the knob; left
+        // edge for the "10" side, which reads rightward off it).
+        auto makeTickAndLabel = [&](juce::Slider& knob, juce::Label& label, float angleRad, bool onLeft)
+        {
+            const auto kb = knob.getBounds();
+            const float radius = juce::jmin(kb.getWidth(), kb.getHeight()) * 0.5f;
+            const auto tickStart = pointAtAngle(kb, angleRad, radius + 2.0f);
+            const auto tickEnd = pointAtAngle(kb, angleRad, radius + 11.0f);
+            const auto labelPos = pointAtAngle(kb, angleRad, radius + 15.0f);
+            auto labelBounds = juce::Rectangle<int>(64, 19).withY((int) labelPos.y - 9);
+            label.setBounds(onLeft ? labelBounds.withRightX((int) labelPos.x)
+                                   : labelBounds.withX((int) labelPos.x));
+            return juce::Line<float>(tickStart, tickEnd);
+        };
+
+        panel.setIndicatorTicks({
+            makeTickAndLabel(attackKnob, attackSlowLabel, zeroAngle, true),
+            makeTickAndLabel(attackKnob, attackFastLabel, tenAngle, false),
+            makeTickAndLabel(releaseKnob, releaseFastLabel, zeroAngle, true),
+            makeTickAndLabel(releaseKnob, releaseSlowLabel, tenAngle, false)
+        });
+    }
+
+    // The GR caption sits in a fixed-height band directly above the meter;
+    // the whole (caption + meter) block is then shifted down within the
+    // available column so the 4th LED (GRLadderMeter's steps[3] == 4 dB)
+    // lands on the same horizontal line as the OPTO indicator.
+    auto meterPadded = meterColumn.reduced(3, 8);
+    constexpr int grCaptionHeight = 20;
+    constexpr int numGrSteps = 16; // must match GRLadderMeter::steps.size()
+    const int meterHeight = meterPadded.getHeight() - grCaptionHeight;
+    const float grRowHeight = (float) meterHeight / (float) numGrSteps;
+    const int optoLedCentreY = optoLed.getBounds().getCentreY();
+    int meterTopY = (int) std::lround(optoLedCentreY - grRowHeight * 3.5f);
+    // Never push it above the column's own top (would overlap INPUT's row).
+    meterTopY = juce::jmax(meterTopY, meterPadded.getY() + grCaptionHeight);
+
+    // Centred directly over the first LED itself (GRLadderMeter's number
+    // column is the left 55% of its width, the LED centred in the middle
+    // 60% of the remaining 45% — see GRLadderMeter::paint).
+    const int grCentreX = meterPadded.getX() + (int) (meterPadded.getWidth() * 0.775f);
+    grCaption.setBounds(juce::Rectangle<int>(60, grCaptionHeight)
+                             .withCentre({ grCentreX, meterTopY - grCaptionHeight / 2 }));
+    grMeter.setBounds(meterPadded.getX(), meterTopY, meterPadded.getWidth(), meterHeight);
 
     bounds.removeFromTop(12); // a little more room, so the knob tray's extra bottom stretch (for OUTPUT's bleed) has space to sit in without touching the RATIO tray below
 
@@ -636,6 +767,9 @@ void NFStressorAudioProcessorEditor::layOutContent()
     detectorCaption.setBounds(captionRow.removeFromLeft(captionRow.getWidth() / 2));
     audioCaption.setBounds(captionRow);
 
+    // HP/DIST2 and LINK/DIST3 at their normal, full-row-width size — BYPASS
+    // no longer carves a column out of this grid (see the NUKE column
+    // below, where it now lives instead).
     auto charRow1 = bounds.removeFromTop(38);
     hpButton.setBounds(charRow1.removeFromLeft(charRow1.getWidth() / 2).reduced(3, 2));
     dist2Button.setBounds(charRow1.reduced(3, 2));
@@ -658,18 +792,25 @@ void NFStressorAudioProcessorEditor::layOutContent()
     bounds.removeFromTop(10);
     mixCaption.setBounds(bounds.removeFromTop(12).translated(0, -5));
     auto mixArea = bounds.removeFromTop(knobRowHeight - 12);
-    auto nukeArea = mixArea.removeFromRight(70);
+    auto nukeColumn = mixArea.removeFromRight(70);
     auto brandArea = mixArea.removeFromLeft(70);
     mixKnob.setBounds(mixArea.reduced(mixArea.getWidth() / 10, -7).translated(0, 4));
     addKnobGlow(mixKnob);
-    const int nukeSize = 60;
-    // +4 to match the same downward nudge applied to mixKnob above, so the
-    // two stay vertically aligned with each other.
-    nukeButton.setBounds(juce::Rectangle<int>(nukeSize, nukeSize).withCentre(nukeArea.getCentre().translated(0, 4)));
+
+    // BYPASS lives in the same column as NUKE, directly below it — same
+    // size, same style, both centred on that column's width so they line
+    // up with each other.
+    constexpr int nukeBypassSize = 50;
+    auto nukeSlot = nukeColumn.removeFromTop(nukeColumn.getHeight() / 2);
+    auto bypassSlot = nukeColumn;
+    // +4 to match the same downward nudge applied to mixKnob above, so all
+    // three stay vertically aligned with each other.
+    nukeButton.setBounds(juce::Rectangle<int>(nukeBypassSize, nukeBypassSize).withCentre(nukeSlot.getCentre().translated(0, 4)));
+    powerButton.setBounds(juce::Rectangle<int>(nukeBypassSize, nukeBypassSize).withCentre(bypassSlot.getCentre().translated(0, 4)));
     // Matches the same +4 nudge as mixKnob/nukeButton, so all three line up
     // on the same vertical centre rather than each picking a different
     // reference point.
-    panel.setBrandLabelArea(brandArea.translated(-6, 4));
+    panel.setBrandLabelArea(brandArea.translated(-4, 4));
     // Stretched a bit further down than the raw row height, since the MIX
     // knob itself bleeds a few px past mixArea's own bottom edge (see the
     // negative vertical reduce above) — without this the tray's bottom edge

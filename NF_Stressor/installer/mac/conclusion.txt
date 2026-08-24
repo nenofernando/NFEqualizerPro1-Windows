@@ -3,7 +3,12 @@ NF - Stressor has been installed.
 Installed formats:
   VST3        /Library/Audio/Plug-Ins/VST3/NF - Stressor.vst3
   Audio Unit  /Library/Audio/Plug-Ins/Components/NF - Stressor.component
+  Manual      /Users/Shared/NF Audio Tools/NF - Stressor/Manual (English + Portugues PDFs)
+
+Version:      1.0.0
 
 If your DAW was open during installation, restart it (and rescan plug-ins if needed) before looking for NF - Stressor.
 
 Thank you for using NF Audio Tools.
+
+NENNO FERNANDO AUDIO TOOLS® — All rights reserved.

@@ -77,15 +77,16 @@ void NFStressorLookAndFeel::drawRotarySlider(juce::Graphics& g,
         g.fillEllipse(specCentre.x - specR, specCentre.y - specR, specR * 2.0f, specR * 2.0f);
     }
 
-    // 21 marks from 0 to 10 in 0.5 steps, rotating with the disc: each mark's
-    // screen angle is its own fixed angle on the dial minus the current
-    // rotation, so the mark matching the live value always lands under the
-    // fixed index at the top. Every integer 0-10 gets a printed number, bold
-    // and heavy-stroked like the numbered dial on a real Distressor knob.
-    for (int i = 0; i <= 20; ++i)
+    // 41 marks from 0 to 10 in 0.25 steps, rotating with the disc: each
+    // mark's screen angle is its own fixed angle on the dial minus the
+    // current rotation, so the mark matching the live value always lands
+    // under the fixed index at the top. Every integer 0-10 gets a printed
+    // number, bold and heavy-stroked like the numbered dial on a real
+    // Distressor knob; the finer marks in between are unlabelled ticks.
+    for (int i = 0; i <= 40; ++i)
     {
-        const float value = (float) i * 0.5f;
-        const float dialAngle = rotaryStartAngle + ((float) i / 20.0f) * (rotaryEndAngle - rotaryStartAngle);
+        const float value = (float) i * 0.25f;
+        const float dialAngle = rotaryStartAngle + ((float) i / 40.0f) * (rotaryEndAngle - rotaryStartAngle);
         const float screenAngle = dialAngle - angle;
         const bool isMajor = std::fmod(value, 1.0f) < 0.01f;
 
@@ -196,23 +197,29 @@ void NFStressorLookAndFeel::drawButtonBackground(juce::Graphics& g,
         return;
     }
 
-    // NUKE is a plain square button — no LED, the whole face lights up blue
-    // when engaged, like a hardware push switch with a lit cap.
-    if (button.getButtonText() == "NUKE")
+    // NUKE and BYPASS are both plain square buttons — no LED, the whole
+    // face lights up solid when engaged, like a hardware push switch with a
+    // lit cap. NUKE lights blue and stays solidly lit; BYPASS lights red and
+    // blinks (see PluginEditor::timerCallback) so it's impossible to miss
+    // that the plugin is doing nothing while it's on.
+    if (button.getButtonText() == "NUKE" || button.getButtonText() == "BYPASS")
     {
-        const bool hovered = shouldDrawButtonAsHighlighted && !shouldDrawButtonAsDown && !isOn;
+        const bool isBypass = button.getButtonText() == "BYPASS";
+        const bool lit = isBypass ? (isOn && button.getProperties().getWithDefault("blinkVisible", true)) : isOn;
+        const juce::Colour litColour = isBypass ? red : nukeBlue;
+        const bool hovered = shouldDrawButtonAsHighlighted && !shouldDrawButtonAsDown && !lit;
         const float corner = 6.0f;
 
-        if (isOn)
+        if (lit)
         {
             for (float grow = 6.0f; grow > 0.0f; grow -= 2.0f)
             {
-                g.setColour(nukeBlue.withAlpha(0.06f));
+                g.setColour(litColour.withAlpha(0.06f));
                 g.fillRoundedRectangle(bounds.expanded(grow), corner + grow * 0.5f);
             }
 
-            juce::ColourGradient onGradient(nukeBlue.brighter(0.3f), bounds.getX(), bounds.getY(),
-                                            nukeBlue.darker(0.2f), bounds.getX(), bounds.getBottom(), false);
+            juce::ColourGradient onGradient(litColour.brighter(0.3f), bounds.getX(), bounds.getY(),
+                                            litColour.darker(0.2f), bounds.getX(), bounds.getBottom(), false);
             g.setGradientFill(onGradient);
             g.fillRoundedRectangle(bounds, corner);
 
@@ -244,66 +251,6 @@ void NFStressorLookAndFeel::drawButtonBackground(juce::Graphics& g,
         g.drawRoundedRectangle(bounds, corner, 1.0f);
         g.setColour(juce::Colours::white.withAlpha(hovered ? 0.55f : 0.3f));
         g.drawRoundedRectangle(bounds.reduced(0.75f), corner - 0.75f, hovered ? 1.5f : 1.1f);
-        return;
-    }
-
-    // BYPASS is a compact standalone unit — LED circle above the word,
-    // blinking while engaged (see PluginEditor::timerCallback) — drawn
-    // entirely separately from the horizontal character switches below.
-    if (button.getButtonText() == "BYPASS")
-    {
-        const bool lit = isOn && button.getProperties().getWithDefault("blinkVisible", true);
-        const float corner = 6.0f;
-
-        const bool hovered = shouldDrawButtonAsHighlighted && !shouldDrawButtonAsDown;
-
-        juce::Colour top = panelDark.darker(shouldDrawButtonAsDown ? 0.15f : 0.0f);
-        juce::Colour bottom = panelDarker.darker(0.25f);
-        if (hovered)
-        {
-            top = top.brighter(0.4f);
-            bottom = bottom.brighter(0.15f);
-        }
-
-        juce::ColourGradient bg(top, bounds.getX(), bounds.getY(), bottom, bounds.getX(), bounds.getBottom(), false);
-        g.setGradientFill(bg);
-        g.fillRoundedRectangle(bounds, corner);
-        g.setColour(juce::Colours::black.withAlpha(0.7f));
-        g.drawRoundedRectangle(bounds, corner, 1.0f);
-        if (hovered)
-        {
-            g.setColour(juce::Colours::white.withAlpha(0.5f));
-            g.drawRoundedRectangle(bounds.reduced(0.75f), corner - 0.75f, 1.4f);
-        }
-
-        const float ledDiameter = juce::jmin(bounds.getWidth() * 0.4f, bounds.getHeight() * 0.42f);
-        auto led = juce::Rectangle<float>(ledDiameter, ledDiameter)
-                       .withCentre({ bounds.getCentreX(), bounds.getY() + bounds.getHeight() * 0.32f });
-
-        g.setColour(juce::Colours::black.withAlpha(0.6f));
-        g.fillEllipse(led.expanded(ledDiameter * 0.22f));
-
-        if (lit)
-        {
-            g.setColour(red.withAlpha(0.35f));
-            g.fillEllipse(led.expanded(ledDiameter * 0.55f));
-        }
-
-        juce::ColourGradient ledGradient(lit ? red.brighter(0.3f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
-                                         lit ? red.darker(0.3f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
-        g.setGradientFill(ledGradient);
-        g.fillEllipse(led);
-        g.setColour(juce::Colours::black.withAlpha(0.5f));
-        g.drawEllipse(led, 0.7f);
-
-        if (lit)
-        {
-            g.setColour(juce::Colours::white.withAlpha(0.5f));
-            g.fillEllipse(led.reduced(ledDiameter * 0.62f).translated(-ledDiameter * 0.08f, -ledDiameter * 0.1f));
-        }
-
-        g.setColour(juce::Colours::white.withAlpha(0.85f));
-        g.drawEllipse(led.expanded(1.5f), 1.6f);
         return;
     }
 
@@ -435,32 +382,18 @@ void NFStressorLookAndFeel::drawButtonText(juce::Graphics& g, juce::TextButton& 
 
     auto bounds = button.getLocalBounds().toFloat();
 
-    if (button.getButtonText() == "NUKE")
+    if (button.getButtonText() == "NUKE" || button.getButtonText() == "BYPASS")
     {
         // Centred in the plain square face — the whole button lights up
-        // blue when engaged, so the text just needs enough contrast to
-        // read against either state.
-        const bool isOn = button.getToggleState();
+        // solid when engaged, so the text just needs enough contrast to
+        // read against either state. BYPASS blinks in sync with its fill.
+        const bool isBypass = button.getButtonText() == "BYPASS";
+        const bool lit = isBypass
+                             ? (button.getToggleState() && button.getProperties().getWithDefault("blinkVisible", true))
+                             : button.getToggleState();
         g.setFont(getTextButtonFont(button, button.getHeight()));
-        g.setColour(isOn ? panelDarker.darker(0.3f) : textLight.withAlpha(0.75f));
-        g.drawFittedText("NUKE", bounds.toNearestInt(), juce::Justification::centred, 1);
-
-        if (!button.isEnabled())
-            g.endTransparencyLayer();
-        return;
-    }
-
-    if (button.getButtonText() == "BYPASS")
-    {
-        // Text sits below the LED circle, blinking in sync with it.
-        const bool lit = button.getToggleState() && button.getProperties().getWithDefault("blinkVisible", true);
-        const float ledDiameter = juce::jmin(bounds.getWidth() * 0.4f, bounds.getHeight() * 0.42f);
-        const float ledBottom = bounds.getY() + bounds.getHeight() * 0.32f + ledDiameter * 0.5f;
-        auto textArea = juce::Rectangle<float>(bounds.getX(), ledBottom + 1.0f, bounds.getWidth(), bounds.getBottom() - ledBottom - 1.0f);
-
-        g.setFont(getTextButtonFont(button, button.getHeight()));
-        g.setColour(lit ? textLight : textLight.withAlpha(0.75f));
-        g.drawFittedText("BYPASS", textArea.toNearestInt(), juce::Justification::centred, 1);
+        g.setColour(lit ? panelDarker.darker(0.3f) : textLight.withAlpha(0.75f));
+        g.drawFittedText(button.getButtonText(), bounds.toNearestInt(), juce::Justification::centred, 1);
 
         if (!button.isEnabled())
             g.endTransparencyLayer();

@@ -112,7 +112,7 @@ float StressorEngine::computeGainReductionDb(float levelDb, float ratio, bool nu
     return juce::jmax(0.0f, grDb);
 }
 
-float StressorEngine::detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged, bool bigNuke,
+float StressorEngine::detectAndFollow(ChannelState& state, float absLevel, float ratio, bool nukeEngaged, bool bigNuke, bool optoEngaged,
                                       float attackAmount, float releaseAmount)
 {
     const float levelCoeff = calcOnePoleCoeff(kLevelSmoothMs, sampleRate);
@@ -121,35 +121,44 @@ float StressorEngine::detectAndFollow(ChannelState& state, float absLevel, float
     const float levelDb = juce::Decibels::gainToDecibels(state.levelSmoothed, -100.0f);
     const float grTargetDb = computeGainReductionDb(levelDb, ratio, nukeEngaged, bigNuke);
 
-    // OPTO ATTACK: past the "10" detent, the fixed FET attack time blends
-    // into a program-dependent one — bigger transients (bigger GR jumps) get
-    // a slower, gentler attack instead of slamming instantly, the classic
-    // opto-cell softening. Below the detent it's the plain FET time.
-    constexpr float kOptoAttackStart = 9.0f;
-    const float attackOptoBlend = juce::jlimit(0.0f, 1.0f,
-        (attackAmount - kOptoAttackStart) / (10.0f - kOptoAttackStart));
-    const float normalAttackMs = mapAttackMs(attackAmount);
-    const float optoAttackMs = juce::jmap(juce::jlimit(0.0f, 24.0f, grTargetDb), 0.0f, 24.0f, 8.0f, 60.0f);
-    float attackMsUsed = juce::jmap(attackOptoBlend, normalAttackMs, optoAttackMs);
+    // OPTO mode (RATIO = 10:1, the hardware's dedicated "Opto" position):
+    // swaps in a program-dependent detector entirely, ignoring the ATTACK/
+    // RELEASE knobs — bigger transients get a slower, gentler attack instead
+    // of slamming instantly, and release is driven by a slow (~1.5 s) memory
+    // of recent gain reduction, so it takes longer to let go the harder it's
+    // been hit. Any other ratio uses the plain fixed FET attack/release time
+    // set by the knobs.
+    float attackMsUsed;
+    if (optoEngaged)
+    {
+        attackMsUsed = juce::jmap(juce::jlimit(0.0f, 24.0f, grTargetDb), 0.0f, 24.0f, 8.0f, 60.0f);
+    }
+    else
+    {
+        attackMsUsed = mapAttackMs(attackAmount);
+    }
     // A brick-wall limiter can't leak transients while it waits on the
     // ATTACK knob — NUKE forces a near-instant catch regardless of that
-    // knob's setting.
+    // knob's setting (or of OPTO mode).
     if (bigNuke)
         attackMsUsed = juce::jmin(attackMsUsed, 0.3f);
     const float attackCoeff = calcOnePoleCoeff(attackMsUsed, sampleRate);
 
-    // OPTO RELEASE: past the "0" detent, release becomes a program-dependent
-    // auto-release driven by a slow (~1.5 s) memory of recent gain reduction
-    // — the harder/longer the signal has been compressing, the longer it
-    // takes to let go afterward, mimicking a real opto cell's "fatigue".
-    // Above the detent it's the plain fixed FET release time.
-    constexpr float kOptoReleaseEnd = 1.0f;
-    const float releaseOptoBlend = juce::jlimit(0.0f, 1.0f, (kOptoReleaseEnd - releaseAmount) / kOptoReleaseEnd);
-    const float memoryCoeff = calcOnePoleCoeff(1500.0, sampleRate);
-    state.releaseMemory += (grTargetDb - state.releaseMemory) * (1.0f - memoryCoeff);
-    const float normalReleaseMs = mapReleaseMs(releaseAmount);
-    const float optoReleaseMs = juce::jmap(juce::jlimit(0.0f, 20.0f, state.releaseMemory), 0.0f, 20.0f, 300.0f, 3000.0f);
-    const float releaseMsUsed = juce::jmap(releaseOptoBlend, normalReleaseMs, optoReleaseMs);
+    float releaseMsUsed;
+    if (optoEngaged)
+    {
+        const float memoryCoeff = calcOnePoleCoeff(1500.0, sampleRate);
+        state.releaseMemory += (grTargetDb - state.releaseMemory) * (1.0f - memoryCoeff);
+        releaseMsUsed = juce::jmap(juce::jlimit(0.0f, 20.0f, state.releaseMemory), 0.0f, 20.0f, 300.0f, 3000.0f);
+    }
+    else
+    {
+        // Keep the memory primed with the live GR while OPTO isn't engaged,
+        // so re-entering 10:1 later starts from a sensible value instead of
+        // whatever was left over from the last time it was active.
+        state.releaseMemory = grTargetDb;
+        releaseMsUsed = mapReleaseMs(releaseAmount);
+    }
     const float releaseCoeff = calcOnePoleCoeff(releaseMsUsed, sampleRate);
 
     const float coeff = grTargetDb > state.grDb ? attackCoeff : releaseCoeff;
@@ -207,6 +216,14 @@ void StressorEngine::process(juce::AudioBuffer<float>& buffer)
     const float ratio = kRatioTable[(size_t) juce::jlimit(0, (int) kRatioTable.size() - 1, params.ratioIndex)];
     const bool nukeEngaged = params.ratioIndex >= kNukeStartIndex;
     const bool bigNuke = params.nukeMode;
+    // OPTO is only really engaged while ATTACK/RELEASE are still sitting at
+    // their panel "OPTO" detent (10 / 0) — the knobs stay fully draggable,
+    // so moving either one away leaves OPTO (and the panel's single LED,
+    // driven by the same condition — see isOptoActive() in the editor)
+    // even though RATIO itself can stay at 10:1.
+    const bool optoEngaged = params.ratioIndex == kOptoRatioIndex
+                            && params.attackAmount >= 9.95f
+                            && params.releaseAmount <= 0.05f;
     const float attackAmount = params.attackAmount;
     const float releaseAmount = params.releaseAmount;
 
@@ -233,14 +250,14 @@ void StressorEngine::process(juce::AudioBuffer<float>& buffer)
             for (int ch = 0; ch < numChannels; ++ch)
                 linkedLevel = juce::jmax(linkedLevel, std::abs(scSamples[ch]));
 
-            linkedGrDb = detectAndFollow(*channels[0], linkedLevel, ratio, nukeEngaged, bigNuke,
+            linkedGrDb = detectAndFollow(*channels[0], linkedLevel, ratio, nukeEngaged, bigNuke, optoEngaged,
                                         attackAmount, releaseAmount);
         }
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
             const float chGrDb = linked ? linkedGrDb
-                                        : detectAndFollow(*channels[ch], std::abs(scSamples[ch]), ratio, nukeEngaged, bigNuke,
+                                        : detectAndFollow(*channels[ch], std::abs(scSamples[ch]), ratio, nukeEngaged, bigNuke, optoEngaged,
                                                           attackAmount, releaseAmount);
 
             maxGrDb = juce::jmax(maxGrDb, chGrDb);
