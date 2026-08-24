@@ -144,6 +144,9 @@ def build(lang: str) -> str:
         <p>{t['tour_p']}</p>
         <div class="section-img top"><img src="data:image/png;base64,{IMAGES['top']}" /></div>
         <p>{t['tour_top']}</p>
+        <div class="control"><div class="name">BYPASS</div><p>{t['c_bypass']}</p></div>
+        <div class="section-img inline"><img src="data:image/png;base64,{IMAGES['bypass_on']}" /></div>
+        <div class="img-caption">{t['cap_bypass']}</div>
         <div class="section-img knobs"><img src="data:image/png;base64,{IMAGES['knobs']}" /></div>
         <p>{t['tour_knobs']}</p>
     """, footer=t['footer'], pagenum="4")
@@ -168,7 +171,7 @@ def build(lang: str) -> str:
             <tr><td colspan="5">{t['ratio_soft']}</td><td colspan="2">{t['ratio_redline']}</td></tr>
         </table>
         <div class="callout red">{t['c_nuke']}</div>
-        <div class="section-img inline wide"><img src="data:image/png;base64,{IMAGES['nuke_on']}" /></div>
+        <div class="section-img inline"><img src="data:image/png;base64,{IMAGES['nuke_on']}" /></div>
         <div class="img-caption">{t['cap_nuke']}</div>
     """, footer=t['footer'], pagenum="6")
 
@@ -188,9 +191,6 @@ def build(lang: str) -> str:
         <h2>{t['mix_h']}</h2>
         <div class="section-img mix"><img src="data:image/png;base64,{IMAGES['mix']}" /></div>
         <div class="control"><div class="name">MIX</div><p>{t['c_mix']}</p></div>
-        <div class="control"><div class="name">BYPASS</div><p>{t['c_bypass']}</p></div>
-        <div class="section-img inline"><img src="data:image/png;base64,{IMAGES['bypass_on']}" /></div>
-        <div class="img-caption">{t['cap_bypass']}</div>
     """, footer=t['footer'], pagenum="8")
 
     ctrl5 = page(t['c_meter_name'], f"""
@@ -258,7 +258,7 @@ TEXT = {
     install_win_p="Run the NF - Stressor installer and follow the wizard. It installs the VST3 into the standard system-wide folder:",
     install_rescan="After installing, rescan plug-ins in your DAW if it doesn't pick up NF &ndash; Stressor automatically.",
     tour_h="Interface Tour",
-    tour_p="The panel is a single vertical strip, read top to bottom: brand plate at the top, the four main knobs with the OPTO light and gain-reduction ladder meter beside them, the RATIO row, the DETECTOR/AUDIO character switches, and finally MIX with the NUKE and BYPASS buttons stacked in the same column.",
+    tour_p="The panel is a single vertical strip, read top to bottom: brand plate at the top with the BYPASS switch in its top-right corner, the four main knobs with the OPTO light and gain-reduction ladder meter beside them, the RATIO row, the DETECTOR/AUDIO character switches, and finally MIX with the NUKE button beside it.",
     tour_top="The hamburger icon (top-left) opens the preset menu. Double-clicking the brand plate itself, or the bare top-left corner of the chassis, snaps the window back to its default size &mdash; handy after resizing it larger for detail work.",
     tour_knobs="INPUT, ATTACK, RELEASE and OUTPUT, each with a rotating numbered dial (0&ndash;10) and a fixed red index mark at the top. The ladder of LEDs on the right shows live gain reduction in dB.",
     controls_h="Main Controls",
@@ -271,14 +271,14 @@ TEXT = {
     c_ratio="Selects the compression ratio. 1:1 through 6:1 behave as classic soft-knee compression. 10:1 and 20:1 engage an extra \u201credline\u201d stage: a harder knee and a touch more drive into the character stage, matching the tagline lighting up amber. 10:1 is also the panel's dedicated OPTO position &mdash; see OPTO mode above.",
     ratio_soft="Soft-knee compression",
     ratio_redline="Redline / harder knee",
-    c_nuke="NUKE: a dedicated button, independent of RATIO, sharing NUKE/BYPASS's column above MIX. Engaging it layers a true brick-wall limiter on top of whatever ratio is dialled in &mdash; an effectively infinite ratio, a razor-thin knee, a near-instant catch regardless of the ATTACK knob, and extra harmonic bite. Use it when you need a hard ceiling, not just more compression.",
+    c_nuke="NUKE: a dedicated button, independent of RATIO, sitting beside MIX. Engaging it layers a true brick-wall limiter on top of whatever ratio is dialled in &mdash; an effectively infinite ratio, a razor-thin knee, a near-instant catch regardless of the ATTACK knob, and extra harmonic bite. Use it when you need a hard ceiling, not just more compression.",
     character_h="DETECTOR & AUDIO",
     c_hp="Engages a fixed high-pass filter in the sidechain, so low end doesn't dominate the detector's decisions &mdash; useful on bass-heavy sources.",
     c_link="Links the detector across both channels of a stereo signal so gain reduction tracks together, avoiding image shift on stereo material.",
     c_dist="Two independent character switches shaping the tone of the compressed signal: DIST 2 alone gives an FET-ish, asymmetric edge; DIST 3 alone gives a smoother, more opto-ish drive; engaging both together gives a coloured, more aggressive \u201cBritish\u201d character.",
-    mix_h="MIX, BYPASS & NUKE",
+    mix_h="MIX & NUKE",
     c_mix="Blends dry and compressed (wet) signal, for parallel compression &mdash; keep the punch of the uncompressed signal while still catching peaks.",
-    c_bypass="Disengages all processing. Sized and styled exactly like NUKE, sitting directly below it in the same column beside MIX. The LED and the word BYPASS blink together while engaged, so it's never ambiguous that the plugin is doing nothing.",
+    c_bypass="Disengages all processing. Sits in the top-right corner of the brand plate, matching the hamburger menu button's slot on the opposite side. The whole button blinks while engaged, so it's never ambiguous that the plugin is doing nothing.",
     c_meter_name="Gain Reduction Ladder",
     c_meter="A vertical LED ladder marked in dB (1 through 26) shows live gain reduction: green for light reduction, amber from 6 dB, red from 12 dB up &mdash; matching the NUKE/redline territory. The \u201cGR\u201d label sits directly above the first LED, and the whole ladder is positioned so its 4 dB step lines up with the OPTO light beside ATTACK.",
     shortcuts_h="Window & Shortcuts",
@@ -304,7 +304,7 @@ TEXT = {
     cap_opto="OPTO engaged: RATIO at 10:1, ATTACK snapped to 10, RELEASE snapped to 0, the light lit beside ATTACK.",
     cap_nuke="NUKE engaged (blue) beside a driven MIX knob.",
     cap_dist="DIST 2 and DIST 3 both engaged &mdash; the coloured “British” character.",
-    cap_bypass="NUKE and BYPASS, same size and style, stacked in the same column.",
+    cap_bypass="BYPASS engaged (blinking red), top-right corner of the brand plate.",
     cap_meter="\u201cGR\u201d directly over the first LED; the ladder shifted so its 4 dB step lines up with the OPTO light.",
     cap_presets="The preset menu, with a saved preset ready to recall.",
     credits_h="Credits & Version",
@@ -325,7 +325,7 @@ TEXT = {
     install_win_p="Execute o instalador do NF - Stressor e siga o assistente. Ele instala o VST3 na pasta padr\u00e3o do sistema:",
     install_rescan="Depois de instalar, refa\u00e7a a busca de plugins na sua DAW caso ela n\u00e3o reconhe\u00e7a o NF &ndash; Stressor automaticamente.",
     tour_h="Tour pela Interface",
-    tour_p="O painel \u00e9 uma \u00fanica tira vertical, lida de cima para baixo: placa de marca no topo, os quatro knobs principais com a luz OPTO e o medidor de redu\u00e7\u00e3o de ganho ao lado, a fileira de RATIO, as chaves de car\u00e1ter DETECTOR/AUDIO, e por fim o MIX com os bot\u00f5es NUKE e BYPASS empilhados na mesma coluna.",
+    tour_p="O painel \u00e9 uma \u00fanica tira vertical, lida de cima para baixo: placa de marca no topo com o bot\u00e3o BYPASS no canto superior direito, os quatro knobs principais com a luz OPTO e o medidor de redu\u00e7\u00e3o de ganho ao lado, a fileira de RATIO, as chaves de car\u00e1ter DETECTOR/AUDIO, e por fim o MIX com o bot\u00e3o NUKE ao lado.",
     tour_top="O \u00edcone de menu (canto superior esquerdo) abre o menu de presets. Dar duplo clique na pr\u00f3pria placa de marca, ou no canto superior esquerdo vazio do chassi, faz a janela voltar ao tamanho padr\u00e3o &mdash; \u00fatil depois de deix\u00e1-la maior pra um trabalho de detalhe.",
     tour_knobs="INPUT, ATTACK, RELEASE e OUTPUT, cada um com um disco numerado giratório (0&ndash;10) e uma marca vermelha fixa no topo. A escada de LEDs \u00e0 direita mostra a redu\u00e7\u00e3o de ganho em tempo real, em dB.",
     controls_h="Controles Principais",
@@ -338,14 +338,14 @@ TEXT = {
     c_ratio="Seleciona a raz\u00e3o de compress\u00e3o. De 1:1 a 6:1 o comportamento \u00e9 de compress\u00e3o soft-knee cl\u00e1ssica. Em 10:1 e 20:1 um est\u00e1gio extra \u201credline\u201d \u00e9 ativado: um joelho mais duro e um toque a mais de satura\u00e7\u00e3o no est\u00e1gio de car\u00e1ter, com a etiqueta do painel acendendo em \u00e2mbar. O 10:1 tamb\u00e9m \u00e9 a posi\u00e7\u00e3o dedicada de OPTO do painel &mdash; veja o modo OPTO acima.",
     ratio_soft="Compress\u00e3o soft-knee",
     ratio_redline="Redline / joelho mais duro",
-    c_nuke="NUKE: um bot\u00e3o dedicado, independente do RATIO, dividindo a coluna com o BYPASS acima do MIX. Ao ativ\u00e1-lo, um limitador brick-wall de verdade \u00e9 somado por cima do que estiver selecionado no RATIO &mdash; uma raz\u00e3o efetivamente infinita, um joelho fin\u00edssimo, captura quase instant\u00e2nea (ignorando o knob ATTACK) e uma mordida harm\u00f4nica extra. Use quando precisar de um teto r\u00edgido, n\u00e3o s\u00f3 de mais compress\u00e3o.",
+    c_nuke="NUKE: um bot\u00e3o dedicado, independente do RATIO, ao lado do MIX. Ao ativ\u00e1-lo, um limitador brick-wall de verdade \u00e9 somado por cima do que estiver selecionado no RATIO &mdash; uma raz\u00e3o efetivamente infinita, um joelho fin\u00edssimo, captura quase instant\u00e2nea (ignorando o knob ATTACK) e uma mordida harm\u00f4nica extra. Use quando precisar de um teto r\u00edgido, n\u00e3o s\u00f3 de mais compress\u00e3o.",
     character_h="DETECTOR & AUDIO",
     c_hp="Ativa um filtro passa-altas fixo no sidechain, para que os graves n\u00e3o dominem as decis\u00f5es do detector &mdash; \u00fatil em fontes com muito grave.",
     c_link="Liga a detec\u00e7\u00e3o entre os dois canais de um sinal est\u00e9reo, para que a redu\u00e7\u00e3o de ganho acompanhe junto, evitando deslocamento de imagem em material est\u00e9reo.",
     c_dist="Duas chaves de car\u00e1ter independentes que moldam o timbre do sinal comprimido: DIST 2 sozinho d\u00e1 um ar tipo FET, assim\u00e9trico; DIST 3 sozinho d\u00e1 uma satura\u00e7\u00e3o mais suave, tipo opto; ativando os dois juntos d\u00e1 um car\u00e1ter colorido, mais agressivo, \u201cBritish\u201d.",
-    mix_h="MIX, BYPASS e NUKE",
+    mix_h="MIX e NUKE",
     c_mix="Mistura o sinal seco (dry) com o comprimido (wet), para compress\u00e3o paralela &mdash; mant\u00e9m o impacto do sinal n\u00e3o comprimido enquanto ainda captura os picos.",
-    c_bypass="Desliga todo o processamento. Tem exatamente o mesmo tamanho e estilo do NUKE, ficando bem abaixo dele na mesma coluna, ao lado do MIX. O LED e a palavra BYPASS piscam juntos enquanto ativado, deixando bem claro que o plugin n\u00e3o est\u00e1 fazendo nada.",
+    c_bypass="Desliga todo o processamento. Fica no canto superior direito da placa de marca, espelhando o bot\u00e3o de menu (hamb\u00farguer) do lado oposto. O bot\u00e3o inteiro pisca enquanto ativado, deixando bem claro que o plugin n\u00e3o est\u00e1 fazendo nada.",
     c_meter_name="Escada de Redu\u00e7\u00e3o de Ganho",
     c_meter="Uma escada vertical de LEDs marcada em dB (de 1 a 26) mostra a redu\u00e7\u00e3o de ganho em tempo real: verde para redu\u00e7\u00e3o leve, \u00e2mbar a partir de 6 dB, vermelho a partir de 12 dB &mdash; coincidindo com o território do NUKE/redline. A etiqueta \u201cGR\u201d fica bem em cima do primeiro LED, e a escada inteira \u00e9 posicionada de forma que o degrau de 4 dB fique alinhado com a luz OPTO ao lado do ATTACK.",
     shortcuts_h="Janela e Atalhos",
@@ -371,7 +371,7 @@ TEXT = {
     cap_opto="OPTO ativado: RATIO em 10:1, ATTACK saltando pra 10, RELEASE saltando pra 0, luz acesa ao lado do ATTACK.",
     cap_nuke="NUKE ativado (azul) ao lado de um MIX puxado.",
     cap_dist="DIST 2 e DIST 3 ativados juntos &mdash; o car\u00e1ter colorido \u201cBritish\u201d.",
-    cap_bypass="NUKE e BYPASS, mesmo tamanho e estilo, empilhados na mesma coluna.",
+    cap_bypass="BYPASS ativado (piscando em vermelho), no canto superior direito da placa de marca.",
     cap_meter="\u201cGR\u201d bem em cima do primeiro LED; a escada deslocada pra o degrau de 4 dB alinhar com a luz OPTO.",
     cap_presets="O menu de presets, com um preset salvo pronto para carregar.",
     credits_h="Cr\u00e9ditos e Vers\u00e3o",

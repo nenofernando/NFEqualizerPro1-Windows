@@ -599,13 +599,15 @@ void NFStressorAudioProcessorEditor::layOutContent()
     // --- Top plate --------------------------------------------------
     const int topSectionTop = bounds.getY();
     auto topRow = bounds.removeFromTop(38);
-    // BYPASS now lives above NUKE, not up here — but the title still needs
-    // matching clearance on both sides to stay centred, so the trim stays
-    // even though nothing occupies the right-hand slot any more.
-    topRow.removeFromRight(60);
-    // Mirrors that empty slot on the right, so the title still centres —
-    // the preset menu button (hamburger icon) sits centred in this same
-    // space on the left.
+    // BYPASS sits centred in its own slot on the right, sized to fit inside
+    // the row's own height rather than overflowing it (a taller square here
+    // used to poke past the panel's top inset and clip against its rounded
+    // corner).
+    auto powerButtonSlot = topRow.removeFromRight(60);
+    constexpr int bypassWidth = 54, bypassHeight = 26;
+    powerButton.setBounds(juce::Rectangle<int>(bypassWidth, bypassHeight).withCentre(powerButtonSlot.getCentre()));
+    // Mirrors BYPASS's slot on the right, so the title still centres — the
+    // preset menu button (hamburger icon) sits centred in this same space.
     auto menuButtonSlot = topRow.removeFromLeft(60);
     menuButton.setBounds(juce::Rectangle<int>(32, 24).withCentre(menuButtonSlot.getCentre()));
     titleLabel.setBounds(topRow);
@@ -767,9 +769,6 @@ void NFStressorAudioProcessorEditor::layOutContent()
     detectorCaption.setBounds(captionRow.removeFromLeft(captionRow.getWidth() / 2));
     audioCaption.setBounds(captionRow);
 
-    // HP/DIST2 and LINK/DIST3 at their normal, full-row-width size — BYPASS
-    // no longer carves a column out of this grid (see the NUKE column
-    // below, where it now lives instead).
     auto charRow1 = bounds.removeFromTop(38);
     hpButton.setBounds(charRow1.removeFromLeft(charRow1.getWidth() / 2).reduced(3, 2));
     dist2Button.setBounds(charRow1.reduced(3, 2));
@@ -792,24 +791,15 @@ void NFStressorAudioProcessorEditor::layOutContent()
     bounds.removeFromTop(10);
     mixCaption.setBounds(bounds.removeFromTop(12).translated(0, -5));
     auto mixArea = bounds.removeFromTop(knobRowHeight - 12);
-    auto nukeColumn = mixArea.removeFromRight(70);
+    auto nukeArea = mixArea.removeFromRight(70);
     auto brandArea = mixArea.removeFromLeft(70);
     mixKnob.setBounds(mixArea.reduced(mixArea.getWidth() / 10, -7).translated(0, 4));
     addKnobGlow(mixKnob);
-
-    // BYPASS lives in the same column as NUKE, directly below it — same
-    // size, same style, both centred on that column's width so they line
-    // up with each other.
-    constexpr int nukeBypassSize = 50;
-    auto nukeSlot = nukeColumn.removeFromTop(nukeColumn.getHeight() / 2);
-    auto bypassSlot = nukeColumn;
-    // +4 to match the same downward nudge applied to mixKnob above, so all
-    // three stay vertically aligned with each other.
-    nukeButton.setBounds(juce::Rectangle<int>(nukeBypassSize, nukeBypassSize).withCentre(nukeSlot.getCentre().translated(0, 4)));
-    powerButton.setBounds(juce::Rectangle<int>(nukeBypassSize, nukeBypassSize).withCentre(bypassSlot.getCentre().translated(0, 4)));
-    // Matches the same +4 nudge as mixKnob/nukeButton, so all three line up
-    // on the same vertical centre rather than each picking a different
-    // reference point.
+    // Same size as BYPASS (50, see the top-right corner above) — +4 to
+    // match the same downward nudge applied to mixKnob, so NUKE stays
+    // vertically aligned with it.
+    constexpr int nukeSize = 50;
+    nukeButton.setBounds(juce::Rectangle<int>(nukeSize, nukeSize).withCentre(nukeArea.getCentre().translated(0, 4)));
     panel.setBrandLabelArea(brandArea.translated(-4, 4));
     // Stretched a bit further down than the raw row height, since the MIX
     // knob itself bleeds a few px past mixArea's own bottom edge (see the
