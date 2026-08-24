@@ -2804,7 +2804,7 @@ showManualMenu()
     menu.showMenuAsync (
         juce::PopupMenu::Options(),
 
-        [] (int result)
+        [manualEnId, manualPtId] (int result)
         {
             if (result == manualEnId)
             {
