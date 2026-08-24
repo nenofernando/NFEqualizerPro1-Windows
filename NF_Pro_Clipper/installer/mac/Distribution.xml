@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>NF Pro Clipper</title>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <conclusion file="conclusion.html" mime-type="text/html"/>
+    <pkg-ref id="com.nenofernando.nfproclipper.vst3"/>
+    <pkg-ref id="com.nenofernando.nfproclipper.au"/>
+    <pkg-ref id="com.nenofernando.nfproclipper.docs"/>
+    <options customize="allow" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.nenofernando.nfproclipper.vst3"/>
+            <line choice="com.nenofernando.nfproclipper.au"/>
+            <line choice="com.nenofernando.nfproclipper.docs"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.nenofernando.nfproclipper.vst3" title="VST3 Plug-in" description="Installs the VST3 format into /Library/Audio/Plug-Ins/VST3.">
+        <pkg-ref id="com.nenofernando.nfproclipper.vst3"/>
+    </choice>
+    <pkg-ref id="com.nenofernando.nfproclipper.vst3" version="1.0.0" onConclusion="none">NFProClipper-VST3.pkg</pkg-ref>
+    <choice id="com.nenofernando.nfproclipper.au" title="Audio Unit (AU)" description="Installs the AU format into /Library/Audio/Plug-Ins/Components.">
+        <pkg-ref id="com.nenofernando.nfproclipper.au"/>
+    </choice>
+    <pkg-ref id="com.nenofernando.nfproclipper.au" version="1.0.0" onConclusion="none">NFProClipper-AU.pkg</pkg-ref>
+    <choice id="com.nenofernando.nfproclipper.docs" title="Manual (English + Portugues)" description="Installs the PDF manual, in English and Portugues, into /Users/Shared/NF Audio Tools/NF Pro Clipper/Manual." selected="true" enabled="false">
+        <pkg-ref id="com.nenofernando.nfproclipper.docs"/>
+    </choice>
+    <pkg-ref id="com.nenofernando.nfproclipper.docs" version="1.0.0" onConclusion="none">NFProClipper-Docs.pkg</pkg-ref>
+</installer-gui-script>
