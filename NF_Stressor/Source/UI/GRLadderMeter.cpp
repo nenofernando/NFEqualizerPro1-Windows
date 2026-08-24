@@ -61,15 +61,15 @@ void GRLadderMeter::paint(juce::Graphics& g)
 
         if (lit)
         {
-            g.setColour(onColour.withAlpha(0.30f));
-            g.fillEllipse(led.expanded(diameter * 0.45f));
-            g.setColour(onColour.withAlpha(0.55f));
-            g.fillEllipse(led.expanded(diameter * 0.2f));
+            // Tight rim glow only, hugging the LED edge — no soft bloom
+            // spreading out into the bezel around it.
+            g.setColour(onColour.withAlpha(0.4f));
+            g.fillEllipse(led.expanded(diameter * 0.08f));
         }
 
-        juce::ColourGradient ledGradient(lit ? onColour.brighter(0.4f) : ledOff.brighter(0.15f),
+        juce::ColourGradient ledGradient(lit ? onColour.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.15f),
                                         led.getX(), led.getY(),
-                                        lit ? onColour.darker(0.3f) : ledOff.darker(0.2f),
+                                        lit ? onColour.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f),
                                         led.getX(), led.getBottom(), false);
         g.setGradientFill(ledGradient);
         g.fillEllipse(led);

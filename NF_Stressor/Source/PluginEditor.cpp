@@ -148,16 +148,14 @@ void NFStressorAudioProcessorEditor::OptoLed::paint(juce::Graphics& g)
 
     if (isOn)
     {
-        // Layered glow — bigger and brighter so the lit state reads as
-        // vivid, not just a dim colour change.
-        g.setColour(amber.withAlpha(0.22f));
-        g.fillEllipse(led.expanded(margin));
-        g.setColour(amber.withAlpha(0.4f));
-        g.fillEllipse(led.expanded(margin * 0.55f));
+        // Tight rim glow only, hugging the lamp edge — no soft bloom
+        // spreading out into the bezel around it.
+        g.setColour(amber.withAlpha(0.45f));
+        g.fillEllipse(led.expanded(margin * 0.18f));
     }
 
-    juce::ColourGradient ledGradient(isOn ? amber.brighter(0.6f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
-                                     isOn ? amber.darker(0.1f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
+    juce::ColourGradient ledGradient(isOn ? amber.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
+                                     isOn ? amber.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
     g.setGradientFill(ledGradient);
     g.fillEllipse(led);
 

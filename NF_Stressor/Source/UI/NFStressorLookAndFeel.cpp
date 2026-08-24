@@ -350,12 +350,14 @@ void NFStressorLookAndFeel::drawButtonBackground(juce::Graphics& g,
 
     if (isOn)
     {
-        g.setColour(red.withAlpha(0.35f));
-        g.fillEllipse(led.expanded(ledDiameter * 0.55f));
+        // Tight rim glow only, hugging the LED edge — no soft bloom
+        // spreading out into the switch body around it.
+        g.setColour(red.withAlpha(0.45f));
+        g.fillEllipse(led.expanded(ledDiameter * 0.1f));
     }
 
-    juce::ColourGradient ledGradient(isOn ? red.brighter(0.3f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
-                                     isOn ? red.darker(0.3f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
+    juce::ColourGradient ledGradient(isOn ? red.withMultipliedSaturation(1.25f).withMultipliedBrightness(1.4f) : ledOff.brighter(0.1f), led.getX(), led.getY(),
+                                     isOn ? red.withMultipliedSaturation(1.15f) : ledOff.darker(0.2f), led.getX(), led.getBottom(), false);
     g.setGradientFill(ledGradient);
     g.fillEllipse(led);
     g.setColour(juce::Colours::black.withAlpha(0.5f));
