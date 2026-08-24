@@ -2,6 +2,26 @@
 
 using namespace NFStressorColours;
 
+namespace
+{
+    // Where each installer actually drops the bilingual PDF manual — see
+    // NF_Stressor/installer/mac/build_installer.sh (docs .pkg root) and
+    // installer/windows-installer.nsi (Manual folder next to the VST3).
+    juce::File getManualFile(bool english)
+    {
+       #if JUCE_MAC
+        juce::File dir("/Users/Shared/NF Audio Tools/NF - Stressor/Manual");
+        return dir.getChildFile(english ? "NF_Stressor_Manual_EN.pdf" : "NF_Stressor_Manual_PT.pdf");
+       #elif JUCE_WINDOWS
+        juce::File dir = juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
+                             .getChildFile("NF Audio Tools").getChildFile("NF - Stressor").getChildFile("Manual");
+        return dir.getChildFile(english ? "NF - Stressor Manual (English).pdf" : "NF - Stressor Manual (Portugues).pdf");
+       #else
+        return {};
+       #endif
+    }
+}
+
 void NFStressorAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
@@ -402,6 +422,9 @@ void NFStressorAudioProcessorEditor::showPresetMenu()
     menu.addSeparator();
     menu.addItem(2, "Save Preset...");
     menu.addItem(3, "Load Preset...");
+    menu.addSeparator();
+    menu.addItem(4, "Manual (English)", getManualFile(true).existsAsFile());
+    menu.addItem(5, "Manual (Portugues)", getManualFile(false).existsAsFile());
 
     // List whatever's already saved in the presets folder directly in the
     // menu, so picking one is a single click instead of a file dialog trip
@@ -426,6 +449,10 @@ void NFStressorAudioProcessorEditor::showPresetMenu()
                     savePresetAs();
                 else if (result == 3)
                     loadPresetFrom();
+                else if (result == 4)
+                    getManualFile(true).startAsProcess();
+                else if (result == 5)
+                    getManualFile(false).startAsProcess();
                 else if (result >= 100 && result - 100 < presetFiles.size())
                     loadPresetFile(presetFiles.getReference(result - 100));
             });
@@ -441,6 +468,10 @@ void NFStressorAudioProcessorEditor::showPresetMenu()
                 savePresetAs();
             else if (result == 3)
                 loadPresetFrom();
+            else if (result == 4)
+                getManualFile(true).startAsProcess();
+            else if (result == 5)
+                getManualFile(false).startAsProcess();
         });
 }
 
