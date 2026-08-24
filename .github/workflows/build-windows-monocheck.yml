@@ -1,0 +1,49 @@
+name: Build Windows Mono Check Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+    paths:
+      - 'NF_Mono_Check/**'
+      - '.github/workflows/build-windows-monocheck.yml'
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout plugin source
+        uses: actions/checkout@v4
+
+      - name: Checkout JUCE
+        uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.1
+          path: JUCE
+
+      - name: Configure CMake
+        working-directory: NF_Mono_Check
+        run: cmake -B build -DJUCE_DIR="${{ github.workspace }}\JUCE" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3
+        working-directory: NF_Mono_Check
+        run: cmake --build build --config Release --target NFMonoCheck_VST3
+
+      - name: Make sure NSIS is available
+        run: |
+          choco install nsis -y --no-progress
+          echo "C:\Program Files (x86)\NSIS" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        shell: pwsh
+
+      - name: Build installer (NSIS)
+        working-directory: NF_Mono_Check/installer
+        run: makensis windows-installer.nsi
+        shell: cmd
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NF-Mono-Check-Windows-Installer
+          path: NF_Mono_Check/installer/*.exe

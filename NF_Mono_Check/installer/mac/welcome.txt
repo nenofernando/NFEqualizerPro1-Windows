@@ -1,0 +1,12 @@
+NF Mono Check v1.0.0
+by NF Audio Tools
+
+This installer places NF Mono Check into the standard system-wide plug-in folders so it's available to every audio application on this Mac.
+
+You can choose to install the VST3 format, the Audio Unit (AU) format, or both.
+
+NF Mono Check is a monitoring utility for your master bus: switch between Left, Mono, Right, and Stereo to check mono compatibility, phase cancellation, and stereo width, with a live correlation meter and goniometer.
+
+A PDF manual (English and Portuguese) is also installed by this package, into /Users/Shared/NF Audio Tools/NF Mono Check/Manual.
+
+NENNO FERNANDO AUDIO TOOLS® — All rights reserved.

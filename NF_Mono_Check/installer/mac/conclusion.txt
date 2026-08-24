@@ -1,0 +1,14 @@
+NF Mono Check has been installed.
+
+Installed formats:
+  VST3        /Library/Audio/Plug-Ins/VST3/NF Mono Check.vst3
+  Audio Unit  /Library/Audio/Plug-Ins/Components/NF Mono Check.component
+  Manual      /Users/Shared/NF Audio Tools/NF Mono Check/Manual (English + Portugues PDFs)
+
+Version:      1.0.0
+
+If your DAW was open during installation, restart it (and rescan plug-ins if needed) before looking for NF Mono Check.
+
+Thank you for using NF Audio Tools.
+
+NENNO FERNANDO AUDIO TOOLS® — All rights reserved.

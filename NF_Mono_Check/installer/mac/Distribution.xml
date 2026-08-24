@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="1">
+    <title>NF Mono Check</title>
+    <welcome file="welcome.txt" mime-type="text/plain"/>
+    <conclusion file="conclusion.txt" mime-type="text/plain"/>
+    <pkg-ref id="com.nfaudiotools.monocheck.vst3"/>
+    <pkg-ref id="com.nfaudiotools.monocheck.au"/>
+    <pkg-ref id="com.nfaudiotools.monocheck.docs"/>
+    <options customize="allow" require-scripts="false" hostArchitectures="x86_64,arm64"/>
+    <choices-outline>
+        <line choice="default">
+            <line choice="com.nfaudiotools.monocheck.vst3"/>
+            <line choice="com.nfaudiotools.monocheck.au"/>
+            <line choice="com.nfaudiotools.monocheck.docs"/>
+        </line>
+    </choices-outline>
+    <choice id="default"/>
+    <choice id="com.nfaudiotools.monocheck.vst3" title="VST3 Plug-in" description="Installs the VST3 format into /Library/Audio/Plug-Ins/VST3.">
+        <pkg-ref id="com.nfaudiotools.monocheck.vst3"/>
+    </choice>
+    <pkg-ref id="com.nfaudiotools.monocheck.vst3" version="1.0.0" onConclusion="none">NFMonoCheck-VST3.pkg</pkg-ref>
+    <choice id="com.nfaudiotools.monocheck.au" title="Audio Unit (AU)" description="Installs the AU format into /Library/Audio/Plug-Ins/Components.">
+        <pkg-ref id="com.nfaudiotools.monocheck.au"/>
+    </choice>
+    <pkg-ref id="com.nfaudiotools.monocheck.au" version="1.0.0" onConclusion="none">NFMonoCheck-AU.pkg</pkg-ref>
+    <choice id="com.nfaudiotools.monocheck.docs" title="Manual (English + Portugues)" description="Installs the PDF manual, in English and Portugues, into /Users/Shared/NF Audio Tools/NF Mono Check/Manual." selected="true" enabled="false">
+        <pkg-ref id="com.nfaudiotools.monocheck.docs"/>
+    </choice>
+    <pkg-ref id="com.nfaudiotools.monocheck.docs" version="1.0.0" onConclusion="none">NFMonoCheck-Docs.pkg</pkg-ref>
+</installer-gui-script>
