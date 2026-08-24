@@ -69,6 +69,12 @@ private:
     struct BackgroundPanel : public juce::Component
     {
         void paint(juce::Graphics& g) override;
+        void mouseDoubleClick(const juce::MouseEvent&) override;
+
+        // Fired when the user double-clicks the "NF TAPE MACHINE" logo at
+        // the top of the panel; the editor uses this to snap back to its
+        // default window size.
+        std::function<void()> onLogoDoubleClicked;
 
         // Set from resized() so the plate always tracks the VU meter's
         // position instead of duplicating its layout math here.
@@ -178,6 +184,10 @@ private:
     OutputMeterBar outputMeterBar;
 
     juce::OwnedArray<juce::Label> captions;
+
+    // The actual (possibly screen-clamped) startup size — what double-
+    // clicking the logo restores, so it's always guaranteed to fit.
+    int defaultWidth = 0, defaultHeight = 0;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFTapeMachineAudioProcessorEditor)
 };

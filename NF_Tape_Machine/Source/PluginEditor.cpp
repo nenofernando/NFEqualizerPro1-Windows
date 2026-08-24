@@ -169,6 +169,17 @@ namespace
     }
 }
 
+void NFTapeMachineAudioProcessorEditor::BackgroundPanel::mouseDoubleClick(const juce::MouseEvent& e)
+{
+    // Hand-measured bounding box around the "NF TAPE MACHINE / ANALOG TAPE
+    // EMULATOR" title lockup at the top of the panel (titleLabel is at
+    // 488,20,560,42 and subtitleLabel at 488,64,560,20) — double-clicking
+    // here resets the window to its default size.
+    const juce::Rectangle<int> logoBounds { 470, 12, 596, 80 };
+    if (logoBounds.contains(e.getPosition()) && onLogoDoubleClicked != nullptr)
+        onLogoDoubleClicked();
+}
+
 void NFTapeMachineAudioProcessorEditor::BackgroundPanel::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
@@ -419,6 +430,9 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
         titleLabel.setFont(titleFont);
     }
     titleLabel.getProperties().set(NFTapeProps::goldTitle, true);
+    // Let double-clicks fall through to the panel underneath instead of
+    // being swallowed by the label (see BackgroundPanel::mouseDoubleClick).
+    titleLabel.setInterceptsMouseClicks(false, false);
     panel.addAndMakeVisible(titleLabel);
 
     subtitleLabel.setText("ANALOG TAPE EMULATOR", juce::dontSendNotification);
@@ -430,6 +444,7 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     }
     subtitleLabel.getProperties().set(NFTapeProps::customFont, true);
     subtitleLabel.setColour(juce::Label::textColourId, NFTapeColours::amber.brighter(0.35f));
+    subtitleLabel.setInterceptsMouseClicks(false, false);
     panel.addAndMakeVisible(subtitleLabel);
 
     prevPresetButton.setButtonText("<");
@@ -664,7 +679,16 @@ NFTapeMachineAudioProcessorEditor::NFTapeMachineAudioProcessorEditor(NFTapeMachi
     // title bar can otherwise push the resize handle off-screen) — the
     // aspect-locked resizer above still lets it grow back up to designWidth
     // x designHeight or beyond.
-    setSize(designWidth * 3 / 4, designHeight * 3 / 4);
+    defaultWidth = designWidth * 3 / 4;
+    defaultHeight = designHeight * 3 / 4;
+
+    panel.onLogoDoubleClicked = [this]
+    {
+        if (getWidth() > defaultWidth || getHeight() > defaultHeight)
+            setSize(defaultWidth, defaultHeight);
+    };
+
+    setSize(defaultWidth, defaultHeight);
 
     startTimerHz(30);
 }
