@@ -36,12 +36,6 @@ NFMonoCheckAudioProcessorEditor::NFMonoCheckAudioProcessorEditor (NFMonoCheckAud
         button->setColour (juce::TextButton::textColourOffId, juce::Colours::transparentBlack);
     }
 
-    addAndMakeVisible (aboutButton);
-
-    aboutButton.setButtonText ("ABOUT");
-    aboutButton.setColour (juce::TextButton::buttonColourId, juce::Colour (0xff101216));
-    aboutButton.setColour (juce::TextButton::textColourOffId, juce::Colour (0xffdddddd));
-
     leftButton.onClick  = [this] { selectMode (0); };
     rightButton.onClick = [this] { selectMode (2); };
 
@@ -57,17 +51,17 @@ NFMonoCheckAudioProcessorEditor::NFMonoCheckAudioProcessorEditor (NFMonoCheckAud
         selectMode (currentMode == 1 ? 3 : 1);
     };
 
-    aboutButton.onClick = [this]
-    {
-        juce::AlertWindow::showMessageBoxAsync (
-            juce::MessageBoxIconType::InfoIcon,
-            "NF Mono Check",
-            "NF Mono Check v1.0.0\n\n"
-            "NF Audio Tools\n\n"
-            "Stereo / Mono / Channel monitoring utility.");
-    };
-
     startTimerHz (30);
+}
+
+void NFMonoCheckAudioProcessorEditor::showAboutDialog()
+{
+    juce::AlertWindow::showMessageBoxAsync (
+        juce::MessageBoxIconType::InfoIcon,
+        "NF Mono Check",
+        "NF Mono Check v1.0.0\n\n"
+        "NF Audio Tools\n\n"
+        "Stereo / Mono / Channel monitoring utility.");
 }
 
 void NFMonoCheckAudioProcessorEditor::selectMode (int mode)
@@ -87,6 +81,21 @@ void NFMonoCheckAudioProcessorEditor::selectMode (int mode)
 void NFMonoCheckAudioProcessorEditor::timerCallback()
 {
     repaint();
+}
+
+void NFMonoCheckAudioProcessorEditor::mouseUp (const juce::MouseEvent& event)
+{
+    // Clicking the "MONO CHECK" title (replaces the old ABOUT button) opens
+    // the about dialog. Matches the title's drawn position in paint(): centred
+    // on titleCentreX (755), y 55-115 in the 1500x1000 design canvas.
+    const float sx = getWidth()  / 1500.0f;
+    const float sy = getHeight() / 1000.0f;
+
+    const juce::Rectangle<float> titleBounds (500.0f, 50.0f, 510.0f, 68.0f);
+    const juce::Point<float> local (event.position.x / sx, event.position.y / sy);
+
+    if (titleBounds.contains (local))
+        showAboutDialog();
 }
 
 void NFMonoCheckAudioProcessorEditor::mouseDoubleClick (const juce::MouseEvent& event)
@@ -142,8 +151,8 @@ void NFMonoCheckAudioProcessorEditor::paint (juce::Graphics& g)
     g.setColour (juce::Colour (0xff777b80));
     g.drawLine (190.0f, 65.0f, 190.0f, 135.0f, 1.0f);
 
-    // Centre "MONO CHECK" as one unit in the space between the logo divider
-    // and the ABOUT button, using measured glyph widths rather than fixed boxes.
+    // Centre "MONO CHECK" as one unit above the mode buttons, using measured
+    // glyph widths rather than fixed boxes. Clickable -- see mouseUp().
     g.setFont (juce::FontOptions (48.0f).withStyle ("Bold"));
     const juce::Font titleFont = g.getCurrentFont();
 
@@ -527,7 +536,6 @@ void NFMonoCheckAudioProcessorEditor::resized()
     leftButton.setBounds  (scaleRect (330, 220, 230, 210));
     monoButton.setBounds  (scaleRect (635, 210, 240, 225));
     rightButton.setBounds (scaleRect (960, 220, 230, 210));
-    aboutButton.setBounds (scaleRect (1190, 70, 150, 60));
 
     constexpr int handleSize = 18;
     resizer->setBounds (getWidth() - handleSize, getHeight() - handleSize, handleSize, handleSize);

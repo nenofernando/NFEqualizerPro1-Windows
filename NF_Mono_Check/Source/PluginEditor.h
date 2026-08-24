@@ -13,6 +13,7 @@ public:
 
     void paint (juce::Graphics&) override;
     void resized() override;
+    void mouseUp (const juce::MouseEvent& event) override;
     void mouseDoubleClick (const juce::MouseEvent& event) override;
 
 private:
@@ -26,14 +27,14 @@ private:
     juce::TextButton monoButton;
     juce::TextButton rightButton;
 
-    juce::TextButton aboutButton;
-
     juce::ComponentBoundsConstrainer resizeConstrainer;
     std::unique_ptr<juce::ResizableCornerComponent> resizer;
 
     void timerCallback() override;
 
     void selectMode (int mode);
+
+    void showAboutDialog();
 
     void drawModeButton (juce::Graphics& g,
                          juce::Rectangle<float> bounds,
