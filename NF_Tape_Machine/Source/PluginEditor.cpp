@@ -2,6 +2,23 @@
 
 namespace
 {
+    // Where each installer actually drops the bilingual PDF manual — see
+    // NF_Tape_Machine/installer/mac/build_installer.sh (docs .pkg root) and
+    // installer/windows-installer.nsi (Manual folder next to the VST3).
+    juce::File getManualFile(bool english)
+    {
+       #if JUCE_MAC
+        juce::File dir("/Users/Shared/NF Audio Tools/NF Tape Machine/Manual");
+        return dir.getChildFile(english ? "NF_Tape_Machine_Manual_EN.pdf" : "NF_Tape_Machine_Manual_PT.pdf");
+       #elif JUCE_WINDOWS
+        juce::File dir = juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
+                             .getChildFile("NF Audio Tools").getChildFile("NF Tape Machine").getChildFile("Manual");
+        return dir.getChildFile(english ? "NF Tape Machine Manual (English).pdf" : "NF Tape Machine Manual (Portugues).pdf");
+       #else
+        return {};
+       #endif
+    }
+
     void drawScrew(juce::Graphics& g, juce::Point<float> centre, float radius, bool dark = false)
     {
         // Recessed socket the screw head sits in.
@@ -787,9 +804,21 @@ void NFTapeMachineAudioProcessorEditor::showPresetMenu()
         menu.addItem(i + 1, NFTapeMachineAudioProcessor::getFactoryPresetName(i),
                     true, i == audioProcessor.getCurrentPresetIndex());
 
-    menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result)
+    const int numPresets = NFTapeMachineAudioProcessor::getNumFactoryPresets();
+    constexpr int manualEnId = 10000;
+    constexpr int manualPtId = 10001;
+
+    menu.addSeparator();
+    menu.addItem(manualEnId, "Manual (English)", getManualFile(true).existsAsFile());
+    menu.addItem(manualPtId, "Manual (Portugues)", getManualFile(false).existsAsFile());
+
+    menu.showMenuAsync(juce::PopupMenu::Options(), [this, numPresets](int result)
     {
-        if (result > 0)
+        if (result == manualEnId)
+            getManualFile(true).startAsProcess();
+        else if (result == manualPtId)
+            getManualFile(false).startAsProcess();
+        else if (result > 0 && result <= numPresets)
         {
             audioProcessor.loadPreset(result - 1);
             refreshPresetLabel();
