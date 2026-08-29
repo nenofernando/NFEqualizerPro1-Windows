@@ -69,6 +69,9 @@ juce_add_binary_data(NFWhiteDelayAssets
         Assets/ui/bypass_on.png
         Assets/ui/icon_save.png
         Assets/ui/icon_menu.png
+        Assets/ui/neon_bar.png
+        Assets/ui/logo_nf.png
+        Assets/ui/power_on.png
 )
 
 target_sources(NFWhiteDelay PRIVATE

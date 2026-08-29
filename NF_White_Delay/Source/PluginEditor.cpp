@@ -23,123 +23,212 @@ namespace
 
 void NFWhiteDelayAudioProcessorEditor::ValueChip::paint(juce::Graphics& g)
 {
-    auto b = getLocalBounds().toFloat().reduced(1.0f, 0.5f);
-    g.setColour(LNF::kKnobLight);
-    g.fillRoundedRectangle(b, 5.0f);
-    g.setColour(LNF::kKnobOutline);
-    g.drawRoundedRectangle(b, 5.0f, 1.0f);
+    // Reference crop (TIME): dark pill + cyan value text.
+    auto b = getLocalBounds().toFloat().reduced(0.5f);
+    constexpr float corner = 5.0f;
+
+    {
+        juce::Path chipPath;
+        chipPath.addRoundedRectangle(b, corner);
+        juce::DropShadow(juce::Colours::black.withAlpha(0.16f), 3, { 0, 1 }).drawForPath(g, chipPath);
+    }
+
+    juce::ColourGradient fill(juce::Colour(0xff1a2230), b.getCentreX(), b.getY(),
+                               juce::Colour(0xff0b1018), b.getCentreX(), b.getBottom(), false);
+    g.setGradientFill(fill);
+    g.fillRoundedRectangle(b, corner);
+    g.setColour(LNF::kDisplayAccent.withAlpha(0.28f));
+    g.drawRoundedRectangle(b.reduced(0.6f), juce::jmax(0.0f, corner - 0.6f), 0.9f);
+    g.setColour(juce::Colour(0xff3a4558).withAlpha(0.95f));
+    g.drawRoundedRectangle(b, corner, 1.0f);
 
     g.setColour(findColour(juce::Label::textColourId));
     g.setFont(getFont());
-    g.drawFittedText(getText(), getLocalBounds().reduced(3, 0), juce::Justification::centred, 1);
+    g.drawFittedText(getText(), getLocalBounds().reduced(4, 0), juce::Justification::centred, 1);
 }
 
 void NFWhiteDelayAudioProcessorEditor::ThinLine::paint(juce::Graphics& g)
 {
+    auto b = getLocalBounds().toFloat();
+    if (neonGlow)
+    {
+        const auto bar = juce::ImageCache::getFromMemory(BinaryData::neon_bar_png, BinaryData::neon_bar_pngSize);
+        for (int i = 3; i >= 1; --i)
+        {
+            g.setColour(LNF::kNeonGlow.withAlpha(0.18f / (float) i));
+            g.fillRoundedRectangle(b.expanded(0.0f, (float) i * 2.0f), 2.0f);
+        }
+        if (bar.isValid())
+        {
+            g.setOpacity(1.0f);
+            g.drawImage(bar, b, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+        }
+        else
+        {
+            g.setColour(colour.brighter(0.35f));
+            g.fillRoundedRectangle(b.withSizeKeepingCentre(b.getWidth(), juce::jmax(1.5f, b.getHeight() * 0.45f)), 1.0f);
+        }
+        return;
+    }
+
     g.setColour(colour);
     g.fillRect(getLocalBounds());
 }
 
 void NFWhiteDelayAudioProcessorEditor::NfLogoBadge::paint(juce::Graphics& g)
 {
-    // Selo/chip metálico -- FASE 7.3: identidade "NF" com peso e
-    // profundidade próprios (sombra + gradiente + aro), em vez de duas
-    // letras soltas sobre o chassis.
+    // Official metal NF badge — full opacity, crisp on the light chassis.
     auto bounds = getLocalBounds().toFloat();
-    const float side = juce::jmin(bounds.getWidth(), bounds.getHeight());
-    auto badge = bounds.withSizeKeepingCentre(side, side);
-    const float corner = side * 0.24f;
+    const auto badge = juce::ImageCache::getFromMemory(BinaryData::logo_nf_png, BinaryData::logo_nf_pngSize);
+    if (badge.isValid())
+    {
+        {
+            juce::Path shadowPath;
+            shadowPath.addRoundedRectangle(bounds.reduced(1.5f), bounds.getWidth() * 0.22f);
+            juce::DropShadow(juce::Colours::black.withAlpha(0.22f), 5, { 0, 1 }).drawForPath(g, shadowPath);
+        }
+        g.setOpacity(1.0f);
+        g.drawImage(badge, bounds.reduced(0.5f),
+                     juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+        return;
+    }
 
-    juce::Path badgePath;
-    badgePath.addRoundedRectangle(badge, corner);
-    juce::DropShadow badgeShadow(juce::Colours::black.withAlpha(0.20f), (int) (side * 0.10f), juce::Point<int>(0, (int) (side * 0.035f)));
-    badgeShadow.drawForPath(g, badgePath);
+    g.setColour(juce::Colour(0xff121318));
+    g.setFont(juce::FontOptions(juce::jmin(bounds.getHeight() * 0.72f, 34.0f), juce::Font::bold));
+    g.drawFittedText("NF", bounds.toNearestInt(), juce::Justification::centred, 1);
+}
 
-    juce::ColourGradient badgeGradient(LNF::kKnobLight, badge.getCentreX(), badge.getY(),
-                                        LNF::kKnobDark, badge.getCentreX(), badge.getBottom(), false);
-    badgeGradient.addColour(0.5, LNF::kKnobLight.interpolatedWith(LNF::kKnobDark, 0.20f));
-    g.setGradientFill(badgeGradient);
-    g.fillRoundedRectangle(badge, corner);
+namespace
+{
+    // Machined chassis bay — thick rounded lip + recessed floor (fit modules into).
+    void paintChassisBayFrame(juce::Graphics& g, juce::Rectangle<float> bay, float corner)
+    {
+        const float lip = juce::jmin(8.5f, bay.getWidth() * 0.040f, bay.getHeight() * 0.09f);
+        auto floor = bay.reduced(lip);
+        const float floorCorner = juce::jmax(4.0f, corner - lip * 0.65f);
 
-    // Realce superior (bisel de luz).
-    auto topHalf = badge.reduced(1.2f).withHeight(badge.getHeight() * 0.48f);
-    juce::ColourGradient topHighlight(juce::Colours::white.withAlpha(0.55f), topHalf.getCentreX(), topHalf.getY(),
-                                       juce::Colours::white.withAlpha(0.0f), topHalf.getCentreX(), topHalf.getBottom(), false);
-    g.setGradientFill(topHighlight);
-    g.fillRoundedRectangle(topHalf, corner);
+        // Raised lip body (chassis metal).
+        {
+            juce::ColourGradient lipGrad(LNF::kBackground.brighter(0.04f), bay.getCentreX(), bay.getY(),
+                                         LNF::kBackground.darker(0.03f), bay.getCentreX(), bay.getBottom(), false);
+            g.setGradientFill(lipGrad);
+            g.fillRoundedRectangle(bay, corner);
+        }
 
-    g.setColour(LNF::kKnobOutline.darker(0.15f));
-    g.drawRoundedRectangle(badge, corner, 1.2f);
-    g.setColour(juce::Colours::white.withAlpha(0.5f));
-    g.drawRoundedRectangle(badge.reduced(1.6f), juce::jmax(0.0f, corner - 1.2f), 0.8f);
+        // Recessed floor.
+        {
+            juce::ColourGradient floorGrad(LNF::kBackground.darker(0.055f), floor.getCentreX(), floor.getY(),
+                                           LNF::kBackground.darker(0.085f), floor.getCentreX(), floor.getBottom(), false);
+            g.setGradientFill(floorGrad);
+            g.fillRoundedRectangle(floor, floorCorner);
+        }
 
-    g.setColour(LNF::kText);
-    g.setFont(juce::FontOptions(side * 0.44f, juce::Font::bold));
-    g.drawFittedText("NF", badge.toNearestInt(), juce::Justification::centred, 1);
+        // Inner shade (top / sides of the recess).
+        {
+            juce::ColourGradient topShade(juce::Colours::black.withAlpha(0.14f), floor.getCentreX(), floor.getY(),
+                                          juce::Colours::transparentBlack, floor.getCentreX(), floor.getY() + floor.getHeight() * 0.35f, false);
+            g.setGradientFill(topShade);
+            g.fillRoundedRectangle(floor, floorCorner);
+
+            juce::ColourGradient leftShade(juce::Colours::black.withAlpha(0.08f), floor.getX(), floor.getCentreY(),
+                                            juce::Colours::transparentBlack, floor.getX() + lip * 1.4f, floor.getCentreY(), false);
+            g.setGradientFill(leftShade);
+            g.fillRoundedRectangle(floor, floorCorner);
+
+            juce::ColourGradient rightShade(juce::Colours::black.withAlpha(0.08f), floor.getRight(), floor.getCentreY(),
+                                             juce::Colours::transparentBlack, floor.getRight() - lip * 1.4f, floor.getCentreY(), false);
+            g.setGradientFill(rightShade);
+            g.fillRoundedRectangle(floor, floorCorner);
+        }
+
+        // Lip outer edge + top highlight (caught light on the molded rim).
+        g.setColour(juce::Colour(0xff8e9098).withAlpha(0.70f));
+        g.drawRoundedRectangle(bay.reduced(0.4f), corner, 1.15f);
+        g.setColour(juce::Colours::white.withAlpha(0.55f));
+        g.drawLine(bay.getX() + corner * 0.55f, bay.getY() + 1.0f,
+                   bay.getRight() - corner * 0.55f, bay.getY() + 1.0f, 1.15f);
+
+        // Inner lip edge (where the module seats).
+        g.setColour(juce::Colours::black.withAlpha(0.16f));
+        g.drawRoundedRectangle(floor.expanded(0.3f), floorCorner + 0.3f, 1.0f);
+        g.setColour(juce::Colours::white.withAlpha(0.22f));
+        g.drawRoundedRectangle(floor.reduced(0.8f), juce::jmax(2.0f, floorCorner - 0.8f), 0.7f);
+    }
+}
+
+void NFWhiteDelayAudioProcessorEditor::ContentRoot::paint(juce::Graphics& g)
+{
+    for (const auto& bay : chassisBays)
+        paintChassisBayFrame(g, bay, bay.getHeight() < 90.0f ? 11.0f : 14.0f);
 }
 
 void NFWhiteDelayAudioProcessorEditor::SectionPanel::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
-    constexpr float corner = 10.0f;
+    const bool isButtonWell = title.isEmpty();
+    const float corner = isButtonWell ? 9.0f : 10.0f;
 
-    // Sombra projetada por baixo do painel inteiro -- lê como uma
-    // placa física separada, pousada sobre o chassis, não uma área
-    // pintada no mesmo plano (FASE 7.3, item 8).
+    // Insert plate seated in the chassis bay — clear metal border.
+    const auto face = isButtonWell ? LNF::kBackground.darker(0.015f)
+                                   : LNF::kPanelBackground.brighter(0.02f);
+
     {
-        juce::Path shadowPath;
-        shadowPath.addRoundedRectangle(bounds, corner);
-        juce::DropShadow panelShadow(juce::Colours::black.withAlpha(0.10f), 6, juce::Point<int>(0, 2));
-        panelShadow.drawForPath(g, shadowPath);
+        juce::ColourGradient fill(face.brighter(0.04f), bounds.getCentreX(), bounds.getY(),
+                                  face.darker(0.03f), bounds.getCentreX(), bounds.getBottom(), false);
+        g.setGradientFill(fill);
+        g.fillRoundedRectangle(bounds, corner);
     }
 
-    g.setColour(LNF::kPanelBackground);
-    g.fillRoundedRectangle(bounds, corner);
-
-    // Sombra interna quase imperceptível no topo -- sensação de painel
-    // levemente rebaixado no chassis, não colado por cima (FASE 7.2B).
     {
-        auto topShadowArea = bounds.reduced(1.5f).withHeight(bounds.getHeight() * 0.22f);
-        juce::ColourGradient innerShadow(juce::Colours::black.withAlpha(0.05f), topShadowArea.getCentreX(), topShadowArea.getY(),
-                                          juce::Colours::black.withAlpha(0.0f), topShadowArea.getCentreX(), topShadowArea.getBottom(), false);
-        g.setGradientFill(innerShadow);
-        g.fillRoundedRectangle(bounds.reduced(1.5f), corner - 1.5f);
+        auto top = bounds.reduced(1.0f).withHeight(juce::jmax(8.0f, bounds.getHeight() * 0.22f));
+        juce::ColourGradient shade(juce::Colours::black.withAlpha(0.05f), top.getCentreX(), top.getY(),
+                                    juce::Colours::transparentBlack, top.getCentreX(), top.getBottom(), false);
+        g.setGradientFill(shade);
+        g.fillRoundedRectangle(bounds.reduced(1.0f), corner - 1.0f);
     }
 
-    g.setColour(LNF::kKnobOutline.withAlpha(0.6f));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), corner, 1.0f);
-    g.setColour(juce::Colours::white.withAlpha(0.5f));
-    g.drawRoundedRectangle(bounds.reduced(1.6f), corner - 1.0f, 0.7f);
+    // Outer metal border around the module plate.
+    g.setColour(juce::Colour(0xff8a8c94).withAlpha(0.75f));
+    g.drawRoundedRectangle(bounds.reduced(0.4f), corner, 1.35f);
+    g.setColour(juce::Colours::white.withAlpha(0.55f));
+    g.drawRoundedRectangle(bounds.reduced(1.6f), juce::jmax(0.0f, corner - 1.2f), 0.9f);
+    g.setColour(juce::Colours::black.withAlpha(0.10f));
+    g.drawRoundedRectangle(bounds.reduced(2.6f), juce::jmax(0.0f, corner - 2.0f), 0.8f);
+    g.setColour(juce::Colours::white.withAlpha(0.40f));
+    g.drawLine(bounds.getX() + corner * 0.5f, bounds.getY() + 1.1f,
+               bounds.getRight() - corner * 0.5f, bounds.getY() + 1.1f, 1.0f);
 
     if (title.isNotEmpty())
     {
-        juce::Font font(juce::FontOptions(12.0f, juce::Font::bold));
+        const float dividerY = bounds.getY() + 22.0f;
+        juce::ColourGradient dividerShade(juce::Colours::black.withAlpha(0.05f), bounds.getCentreX(), dividerY,
+                                           juce::Colours::transparentBlack, bounds.getCentreX(), dividerY + 8.0f, false);
+        g.setGradientFill(dividerShade);
+        g.fillRect(juce::Rectangle<float>(bounds.getX() + 10.0f, dividerY, bounds.getWidth() - 20.0f, 8.0f));
+
+        juce::Font font(juce::FontOptions(11.0f, juce::Font::bold));
         g.setFont(font);
         const float textWidth = juce::GlyphArrangement::getStringWidth(font, title);
-        const float pad = 10.0f;
+        const float pad = 8.0f;
         const float centreX = bounds.getCentreX();
-        const float titleY = bounds.getY() + 2.0f;
-        const float titleH = 18.0f;
+        const float titleY = bounds.getY() + 5.0f;
+        const float titleH = 16.0f;
 
-        g.setColour(LNF::kTextMuted.darker(0.25f));
+        g.setColour(LNF::kTextMuted.darker(0.40f));
         g.drawText(title, juce::Rectangle<float>(centreX - textWidth * 0.5f - pad, titleY,
                                                    textWidth + pad * 2.0f, titleH),
                    juce::Justification::centred);
 
-        // Pequeno ponto de acento à esquerda do título -- toque de
-        // identidade, sem pesar a composição.
-        g.setColour(LNF::kAccent.withAlpha(0.55f));
-        g.fillEllipse(juce::Rectangle<float>(3.0f, 3.0f)
-                           .withCentre({ centreX - textWidth * 0.5f - pad - 4.0f, titleY + titleH * 0.5f }));
+        g.setColour(LNF::kAccent.withAlpha(0.45f));
+        g.fillEllipse(juce::Rectangle<float>(2.5f, 2.5f)
+                           .withCentre({ centreX - textWidth * 0.5f - pad - 5.0f, titleY + titleH * 0.5f }));
 
-        // Tracinhos finos ladeando o título -- "MODULATION" ladeado
-        // por linhas curtas, não uma caixa pesada.
         const float lineY = titleY + titleH * 0.5f;
-        const float lineMarginFromEdge = 16.0f;
-        const float gapFromText = textWidth * 0.5f + pad + 8.0f;
-        g.setColour(LNF::kKnobOutline);
-        g.drawLine(bounds.getX() + lineMarginFromEdge, lineY, centreX - gapFromText, lineY, 1.0f);
-        g.drawLine(centreX + gapFromText, lineY, bounds.getRight() - lineMarginFromEdge, lineY, 1.0f);
+        const float lineMarginFromEdge = 14.0f;
+        const float gapFromText = textWidth * 0.5f + pad + 10.0f;
+        g.setColour(LNF::kKnobOutline.withAlpha(0.55f));
+        g.drawLine(bounds.getX() + lineMarginFromEdge, lineY, centreX - gapFromText, lineY, 0.85f);
+        g.drawLine(centreX + gapFromText, lineY, bounds.getRight() - lineMarginFromEdge, lineY, 0.85f);
     }
 }
 
@@ -155,21 +244,25 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::renderStaticLayerToCache()
     g.addTransform(juce::AffineTransform::scale(scaleFactor));
 
     auto bounds = juce::Rectangle<float>(0.0f, 0.0f, (float) w, (float) h);
-    constexpr float corner = 12.0f;
+    constexpr float corner = 14.0f;
 
-    // Moldura metálica escura ao redor do vidro -- sensação de display
-    // de hardware encaixado no chassis, não um retângulo preto boiando.
-    g.setColour(juce::Colour(0xff3a3d45));
-    g.fillRoundedRectangle(bounds, corner);
-    juce::ColourGradient bezelGradient(juce::Colour(0xff55585f), bounds.getCentreX(), bounds.getY(),
-                                        juce::Colour(0xff222327), bounds.getCentreX(), bounds.getBottom(), false);
-    g.setGradientFill(bezelGradient);
-    g.drawRoundedRectangle(bounds.reduced(1.0f), corner - 1.0f, 2.0f);
+    // Silver chrome bezel (reference crop) — thick metal rim around the glass.
+    {
+        juce::ColourGradient bezel(juce::Colour(0xfff0f1f4), bounds.getCentreX(), bounds.getY(),
+                                   juce::Colour(0xff9a9ca4), bounds.getCentreX(), bounds.getBottom(), false);
+        g.setGradientFill(bezel);
+        g.fillRoundedRectangle(bounds, corner);
+    }
+    g.setColour(juce::Colour(0xffc8cad0));
+    g.drawRoundedRectangle(bounds.reduced(0.6f), corner - 0.4f, 1.4f);
+    g.setColour(juce::Colours::white.withAlpha(0.70f));
+    g.drawRoundedRectangle(bounds.reduced(1.8f), corner - 1.4f, 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.18f));
+    g.drawRoundedRectangle(bounds.reduced(3.2f), corner - 2.4f, 1.1f);
 
-    // Vidro -- preto/navy bem profundo, mais navy ainda nas bordas
-    // (item 4: "black/very dark navy background").
-    auto glass = bounds.reduced(3.0f);
-    const float glassCorner = corner - 3.0f;
+    // Glass inset behind the chrome lip.
+    auto glass = bounds.reduced(5.5f);
+    const float glassCorner = corner - 4.0f;
     juce::ColourGradient bgGradient(LNF::kDisplayBackground, glass.getCentreX(), glass.getCentreY(),
                                      LNF::kDisplayBackgroundEdge, glass.getX(), glass.getY(), true);
     g.setGradientFill(bgGradient);
@@ -222,14 +315,21 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::renderStaticLayerToCache()
     g.setColour(juce::Colours::white.withAlpha(0.035f));
     g.fillPath(reflection);
 
-    // FASE 2: official display_frame.png over the procedural glass
-    // (transparent centre of the asset keeps the neon glass visible).
+    // Optional frame asset (glass only) — chrome rim is re-asserted below.
     {
         const auto frame = juce::ImageCache::getFromMemory (BinaryData::display_frame_png,
                                                             BinaryData::display_frame_pngSize);
         if (frame.isValid())
-            g.drawImage (frame, bounds, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+            g.drawImage (frame, glass, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
     }
+
+    // Re-assert silver chrome bezel on top (matches left reference crop).
+    g.setColour(juce::Colour(0xffb8bac0).withAlpha(0.95f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), corner, 2.4f);
+    g.setColour(juce::Colours::white.withAlpha(0.75f));
+    g.drawRoundedRectangle(bounds.reduced(2.0f), corner - 1.4f, 1.2f);
+    g.setColour(juce::Colour(0xff6e7078).withAlpha(0.45f));
+    g.drawRoundedRectangle(bounds.reduced(3.8f), corner - 2.6f, 1.0f);
 
     cachedStaticW = w;
     cachedStaticH = h;
@@ -307,127 +407,227 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::paint(juce::Graphics& g)
         g.fillRoundedRectangle(bounds, corner);
     }
 
-    // Representação gráfica decorativa de "echo estéreo/waveform" no
-    // fundo do display -- uma curva contínua e suave (não barras soltas
-    // como na FASE 7.2), estática, NÃO é um medidor de nível real (o
-    // motor não expõe metering de sinal pro editor ainda -- seção
-    // "informações inexistentes podem ser omitidas"). Puramente
-    // ornamental, calculada a partir de uma soma fixa de senoides, não
-    // de dado de áudio algum -- desenhada BEM discreta, por trás do
-    // valor grande (glow + texto são pintados por cima depois).
+    // Stereo Delay Activity Visualizer — real wet L/R history (FIFO).
+    // Drawn behind child text labels; side meters stay independent.
+    paintActivityVisualizer(g, glass);
+
+    // Side L/R meters — embedded in the glass, outside the central text.
+    paintSideMeter(g, glass, 0.08f, meterL, "L");
+    paintSideMeter(g, glass, 0.92f, meterR, "R");
+}
+
+void NFWhiteDelayAudioProcessorEditor::DisplayPanel::consumeWetActivity(NFWhiteDelayAudioProcessor& processor)
+{
+    float tmpL[48];
+    float tmpR[48];
+    const int n = processor.pullWetActivitySamples(tmpL, tmpR, 48);
+
+    for (int i = 0; i < n; ++i)
     {
-        const float waveY = glass.getY() + glass.getHeight() * 0.30f;
-        const float waveWidth = glass.getWidth() * 0.86f;
-        const float waveX0 = glass.getCentreX() - waveWidth * 0.5f;
-        constexpr int numPoints = 64;
-
-        // Amplitude e velocidade ligadas à activity real (bypass +
-        // Dry/Wet, ver updateDisplay()) -- quase parada quando o delay
-        // não está presente, mais viva quando está.
-        const float amp = 3.0f + 7.0f * activity;
-        const float phase = animPhase;
-
-        // t em 0..1, soma de 3 senoides com deriva lenta e independente
-        // por termo (phase*multiplicador diferente) -- textura de "eco"
-        // que evolui organicamente com o tempo, não um scroll uniforme.
-        auto sampleWave = [phase](float t)
-        {
-            return 0.5f * std::sin(t * juce::MathConstants<float>::twoPi * 2.3f + phase * 1.7f)
-                 + 0.3f * std::sin(t * juce::MathConstants<float>::twoPi * 5.1f + 1.3f + phase * 2.3f)
-                 + 0.2f * std::sin(t * juce::MathConstants<float>::twoPi * 9.7f + 0.6f + phase * 3.1f);
-        };
-
-        juce::Path wave;
-        for (int i = 0; i < numPoints; ++i)
-        {
-            const float t = (float) i / (float) (numPoints - 1);
-            const float x = waveX0 + t * waveWidth;
-            // Envelope suave (sobe e desce nas pontas) pra a curva
-            // nascer/morrer discretamente dentro do vidro, sem cortar
-            // seca nas bordas.
-            const float envelope = std::sin(t * juce::MathConstants<float>::pi);
-            const float y = waveY + sampleWave(t) * amp * envelope;
-            if (i == 0) wave.startNewSubPath(x, y);
-            else        wave.lineTo(x, y);
-        }
-
-        g.setColour(LNF::kDisplayAccent.withAlpha(0.14f + 0.10f * activity));
-        g.strokePath(wave, juce::PathStrokeType(1.4f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
-
-        // Espelho vertical, mais fraco ainda -- sugere "eco estéreo"
-        // (duas passagens levemente diferentes), sem parecer um
-        // segundo canal de dado real.
-        juce::Path waveMirror;
-        for (int i = 0; i < numPoints; ++i)
-        {
-            const float t = (float) i / (float) (numPoints - 1);
-            const float x = waveX0 + t * waveWidth;
-            const float envelope = std::sin(t * juce::MathConstants<float>::pi);
-            const float y = waveY - sampleWave(t) * amp * 0.66f * envelope;
-            if (i == 0) waveMirror.startNewSubPath(x, y);
-            else        waveMirror.lineTo(x, y);
-        }
-        g.setColour(LNF::kDisplayAccent.withAlpha(0.08f));
-        g.strokePath(waveMirror, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // Soft curve: quiet wet repeats stay readable; peaks stay controlled.
+        const float inL = juce::jlimit(0.0f, 1.4f, std::sqrt(juce::jmax(0.0f, tmpL[i])) * 1.55f);
+        const float inR = juce::jlimit(0.0f, 1.4f, std::sqrt(juce::jmax(0.0f, tmpR[i])) * 1.55f);
+        vizHistL[vizWrite] = juce::jmax(vizHistL[vizWrite] * 0.32f, inL);
+        vizHistR[vizWrite] = juce::jmax(vizHistR[vizWrite] * 0.32f, inR);
+        vizWrite = (vizWrite + 1) % kVizHistory;
+        vizFilled = juce::jmin(kVizHistory, vizFilled + 1);
     }
 
-    // A linha neon divisória, a segunda linha, a borda do vidro e o
-    // reflexo já foram desenhados no cache estático (ver
-    // renderStaticLayerToCache()) -- só recalculamos lineY aqui (não
-    // desenhamos de novo) porque o ícone de "eco" dinâmico abaixo
-    // precisa da mesma posição de referência.
-    const float lineY = glass.getY() + glass.getHeight() * 0.56f;
-
-    // Pequeno elemento decorativo circular ("eco") -- reposicionado pra
-    // junto da linha neon superior (não mais no canto inferior direito,
-    // onde disputava espaço com o valor "MODE" da fileira de status --
-    // problema identificado na FASE 7.2, corrigido na FASE 7.2B).
-    auto decoArea = juce::Rectangle<float>(26.0f, 26.0f)
-                         .withCentre({ glass.getRight() - 22.0f, lineY });
-    const auto centre = decoArea.getCentre();
-    // Anéis do "eco" respiram levemente em fase com o resto do display
-    // -- só quando o delay está de fato ativo (activity), sugerindo
-    // repetições se propagando, sem virar um medidor de nível.
-    const float ringPulse = 1.0f + 0.10f * activity * breathe;
-    g.setColour(LNF::kDisplayAccent.withAlpha(0.28f));
-    for (int i = 0; i < 3; ++i)
+    // Temporal fade — older echoes linger then die (feedback feel).
+    for (int i = 0; i < kVizHistory; ++i)
     {
-        const float r = (3.5f + (float) i * 3.6f) * ringPulse;
-        g.drawEllipse(juce::Rectangle<float>(r * 2.0f, r * 2.0f).withCentre(centre), 1.0f);
+        vizHistL[i] *= 0.982f;
+        vizHistR[i] *= 0.982f;
     }
-    g.setColour(LNF::kDisplayAccent);
-    g.fillEllipse(juce::Rectangle<float>(3.0f, 3.0f).withCentre(centre));
+
+    // Side L/R meters track the same wet L/R tap as the visualizer (UI-only).
+    float peakL = 0.0f, peakR = 0.0f;
+    for (int i = 0; i < vizFilled; ++i)
+    {
+        peakL = juce::jmax(peakL, vizHistL[i]);
+        peakR = juce::jmax(peakR, vizHistR[i]);
+    }
+    const float targetL = juce::jlimit(0.0f, 1.0f, peakL * 0.95f);
+    const float targetR = juce::jlimit(0.0f, 1.0f, peakR * 0.95f);
+    meterL += (targetL - meterL) * 0.42f;
+    meterR += (targetR - meterR) * 0.42f;
+}
+
+void NFWhiteDelayAudioProcessorEditor::DisplayPanel::paintActivityVisualizer(juce::Graphics& g,
+                                                                              juce::Rectangle<float> glass) const
+{
+    if (vizFilled < 2)
+        return;
+
+    const float gw = glass.getWidth();
+    const float gh = glass.getHeight();
+    const float zeroY = glass.getY() + gh * 0.32f;
+    const float amp = gh * 0.16f;
+
+    auto paintChannel = [&](float x0Norm, float x1Norm, const float* hist)
+    {
+        const float x0 = glass.getX() + gw * x0Norm;
+        const float x1 = glass.getX() + gw * x1Norm;
+
+        g.setColour(LNF::kDisplayAccent.withAlpha(0.18f));
+        g.drawLine(x0, zeroY, x1, zeroY, 0.85f);
+
+        juce::Path upper, lower;
+        bool started = false;
+        for (int i = 0; i < vizFilled; ++i)
+        {
+            const int idx = (vizWrite - vizFilled + i + kVizHistory) % kVizHistory;
+            const float t = (float) i / (float) (vizFilled - 1); // oldest→newest L→R
+            const float fade = 0.35f + 0.65f * t;
+            const float x = x0 + t * (x1 - x0);
+            const float v = hist[idx] * fade;
+            const float yUp = zeroY - v * amp;
+            const float yDn = zeroY + v * amp * 0.45f;
+
+            if (! started)
+            {
+                upper.startNewSubPath(x, yUp);
+                lower.startNewSubPath(x, yDn);
+                started = true;
+            }
+            else
+            {
+                upper.lineTo(x, yUp);
+                lower.lineTo(x, yDn);
+            }
+        }
+
+        g.setColour(LNF::kNeonGlow.withAlpha(0.22f + 0.14f * activity));
+        g.strokePath(upper, juce::PathStrokeType(3.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(LNF::kDisplayAccent.withAlpha(0.42f + 0.28f * activity));
+        g.strokePath(upper, juce::PathStrokeType(1.45f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.setColour(LNF::kKnobValueArcCore.withAlpha(0.55f));
+        g.strokePath(upper, juce::PathStrokeType(0.70f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+
+        g.setColour(LNF::kDisplayAccent.withAlpha(0.20f + 0.12f * activity));
+        g.strokePath(lower, juce::PathStrokeType(1.05f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    };
+
+    // Keep clear of side meters (~8% / ~92%) and central text (38–62%).
+    paintChannel(0.10f, 0.38f, vizHistL);
+    paintChannel(0.62f, 0.90f, vizHistR);
+}
+
+void NFWhiteDelayAudioProcessorEditor::DisplayPanel::paintSideMeter(juce::Graphics& g,
+                                                                     juce::Rectangle<float> glass,
+                                                                     float centreXNorm,
+                                                                     float level,
+                                                                     const char* label) const
+{
+    const float w = glass.getWidth();
+    const float h = glass.getHeight();
+    const float centreX = glass.getX() + w * centreXNorm;
+    const float topY = glass.getY() + h * 0.25f;
+    const float bottomY = glass.getY() + h * 0.72f;
+    const float meterH = bottomY - topY;
+    const float meterW = juce::jlimit(5.0f, 14.0f, w * 0.036f);
+    auto meterBounds = juce::Rectangle<float>(meterW, meterH).withCentre({ centreX, (topY + bottomY) * 0.5f });
+
+    constexpr int numSegments = 16;
+    const float gap = juce::jmax(1.0f, meterH * 0.035f);
+    const float segH = (meterH - gap * (float) (numSegments - 1)) / (float) numSegments;
+    const float lit = juce::jlimit(0.0f, 1.0f, level);
+    const int litCount = juce::jlimit(0, numSegments, (int) std::ceil(lit * (float) numSegments));
+
+    // Soft outer glow of the column (controlled, not neon blowout).
+    g.setColour(LNF::kNeonGlow.withAlpha(0.16f + 0.14f * lit));
+    g.fillRoundedRectangle(meterBounds.expanded(2.6f), 2.0f);
+
+    for (int i = 0; i < numSegments; ++i)
+    {
+        // Bottom segment = index 0 (fills upward with level).
+        const int fromBottom = i;
+        const float y = bottomY - (float) (fromBottom + 1) * segH - (float) fromBottom * gap;
+        auto seg = juce::Rectangle<float>(meterW, segH).withX(meterBounds.getX()).withY(y);
+        const bool on = fromBottom < litCount;
+
+        if (on)
+        {
+            juce::ColourGradient segGrad(LNF::kKnobValueArcCore.withAlpha(1.0f), seg.getCentreX(), seg.getCentreY(),
+                                          LNF::kDisplayAccent.withAlpha(0.90f), seg.getX(), seg.getCentreY(), true);
+            g.setGradientFill(segGrad);
+            g.fillRoundedRectangle(seg, 1.0f);
+            g.setColour(LNF::kNeonGlow.withAlpha(0.35f));
+            g.drawRoundedRectangle(seg.expanded(0.7f), 1.2f, 0.9f);
+        }
+        else
+        {
+            g.setColour(LNF::kDisplayAccent.withAlpha(0.22f));
+            g.fillRoundedRectangle(seg, 1.0f);
+            g.setColour(LNF::kDisplayAccent.withAlpha(0.12f));
+            g.drawRoundedRectangle(seg, 1.0f, 0.6f);
+        }
+    }
+
+    g.setColour(LNF::kDisplayAccent.withAlpha(0.92f));
+    g.setFont(juce::FontOptions(10.0f, juce::Font::bold));
+    auto labelArea = juce::Rectangle<float>(18.0f, 12.0f).withCentre({ centreX, bottomY + 11.0f });
+    g.drawFittedText(label, labelArea.toNearestInt(), juce::Justification::centred, 1);
+}
+
+namespace
+{
+    // Shared header-icon finish — same shadow / press / cyan rim language as BYPASS.
+    void paintPremiumHeaderIcon(juce::Graphics& g, juce::Rectangle<float> bounds,
+                                 const juce::Image& asset, bool hover, bool down)
+    {
+        if (! asset.isValid())
+            return;
+
+        auto draw = down ? bounds.reduced(0.6f).translated(0.0f, 0.6f) : bounds;
+        if (hover && ! down)
+            draw = draw.expanded(0.5f);
+
+        const float corner = draw.getWidth() * 0.28f;
+
+        {
+            juce::Path shadowPath;
+            shadowPath.addRoundedRectangle(draw.reduced(0.5f), corner);
+            juce::DropShadow(juce::Colours::black.withAlpha(down ? 0.08f : 0.14f),
+                             down ? 2 : 3, { 0, down ? 0 : 1 }).drawForPath(g, shadowPath);
+        }
+
+        // Soft cyan rim — ties SAVE/MENU to the BYPASS neon edge without competing.
+        if (! down)
+        {
+            g.setColour(LNF::kNeonGlow.withAlpha(hover ? 0.20f : 0.12f));
+            g.drawRoundedRectangle(draw.expanded(0.9f), corner + 0.6f, 1.1f);
+            g.setColour(LNF::kDisplayAccent.withAlpha(hover ? 0.16f : 0.09f));
+            g.drawRoundedRectangle(draw.expanded(0.15f), corner, 0.8f);
+        }
+
+        g.setOpacity(1.0f);
+        g.drawImage(asset, draw, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+
+        // Tiny top specular so icons sit in the same metal plane as BYPASS.
+        auto top = draw.reduced(2.2f).withHeight(draw.getHeight() * 0.36f);
+        juce::ColourGradient gloss(juce::Colours::white.withAlpha(0.09f), top.getCentreX(), top.getY(),
+                                   juce::Colours::transparentWhite, top.getCentreX(), top.getBottom(), false);
+        g.setGradientFill(gloss);
+        g.fillRoundedRectangle(top, juce::jmax(1.0f, corner - 1.2f));
+    }
 }
 
 void NFWhiteDelayAudioProcessorEditor::SaveIconButton::paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown)
 {
-    auto bounds = getLocalBounds().toFloat();
     const auto asset = juce::ImageCache::getFromMemory(BinaryData::icon_save_png, BinaryData::icon_save_pngSize);
-    if (! asset.isValid())
-        return;
-
-    auto draw = isButtonDown ? bounds.reduced(1.0f).translated(0.0f, 0.5f) : bounds;
-    g.setOpacity(isMouseOverButton && ! isButtonDown ? 1.0f : (isButtonDown ? 0.90f : 0.96f));
-    g.drawImage(asset, draw, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
-    g.setOpacity(1.0f);
+    paintPremiumHeaderIcon(g, getLocalBounds().toFloat(), asset, isMouseOverButton, isButtonDown);
 }
 
 void NFWhiteDelayAudioProcessorEditor::MenuIconButton::paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown)
 {
-    auto bounds = getLocalBounds().toFloat();
     const auto asset = juce::ImageCache::getFromMemory(BinaryData::icon_menu_png, BinaryData::icon_menu_pngSize);
-    if (! asset.isValid())
-        return;
-
-    auto draw = isButtonDown ? bounds.reduced(1.0f).translated(0.0f, 0.5f) : bounds;
-    g.setOpacity(isMouseOverButton && ! isButtonDown ? 1.0f : (isButtonDown ? 0.90f : 0.96f));
-    g.drawImage(asset, draw, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
-    g.setOpacity(1.0f);
+    paintPremiumHeaderIcon(g, getLocalBounds().toFloat(), asset, isMouseOverButton, isButtonDown);
 }
 
 void NFWhiteDelayAudioProcessorEditor::BypassButton::paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown)
 {
-    // Reference: glowing cyan = processing (bypass OFF). Dull = bypassed.
+    // Official assets: bypass_on (neon+glyph) when processing; silver shell when bypassed.
     auto bounds = getLocalBounds().toFloat();
     const bool bypassed = getToggleState();
     const auto* data = bypassed ? BinaryData::bypass_off_png : BinaryData::bypass_on_png;
@@ -439,8 +639,89 @@ void NFWhiteDelayAudioProcessorEditor::BypassButton::paintButton(juce::Graphics&
     auto draw = isButtonDown ? bounds.reduced(0.6f).translated(0.0f, 0.6f) : bounds;
     if (isMouseOverButton && ! isButtonDown)
         draw = draw.expanded(0.5f);
+
+    const float corner = draw.getHeight() * 0.5f;
+
+    {
+        juce::Path shadowPath;
+        shadowPath.addRoundedRectangle(draw.reduced(1.0f), corner);
+        juce::DropShadow(juce::Colours::black.withAlpha(isButtonDown ? 0.08f : 0.16f),
+                         isButtonDown ? 2 : 4, { 0, isButtonDown ? 0 : 1 }).drawForPath(g, shadowPath);
+    }
+
+    if (! bypassed)
+    {
+        for (int i = 3; i >= 1; --i)
+        {
+            const float expand = (float) i * 1.6f;
+            g.setColour(LNF::kNeonGlow.withAlpha(0.10f / (float) i));
+            g.fillRoundedRectangle(draw.expanded(expand), corner + expand * 0.4f);
+        }
+    }
+
     g.setOpacity(1.0f);
     g.drawImage(asset, draw, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+
+    // OFF shell is textless — draw muted BYPASS label.
+    if (bypassed)
+    {
+        g.setColour(LNF::kText.withAlpha(0.78f));
+        g.setFont(juce::FontOptions(juce::jmin(13.0f, draw.getHeight() * 0.42f), juce::Font::bold));
+        g.drawFittedText("BYPASS", draw.toNearestInt(), juce::Justification::centred, 1);
+    }
+}
+
+void NFWhiteDelayAudioProcessorEditor::PowerButton::paint(juce::Graphics& g)
+{
+    auto bounds = getLocalBounds().toFloat();
+    const auto asset = juce::ImageCache::getFromMemory(BinaryData::power_on_png, BinaryData::power_on_pngSize);
+
+    auto draw = pressed ? bounds.reduced(0.8f).translated(0.0f, 0.5f) : bounds;
+    if (isMouseOver(false) && ! pressed)
+        draw = draw.expanded(0.5f);
+
+    {
+        juce::Path shadowPath;
+        shadowPath.addEllipse(draw.reduced(1.0f));
+        juce::DropShadow(juce::Colours::black.withAlpha(pressed ? 0.08f : 0.18f),
+                         pressed ? 2 : 4, { 0, pressed ? 0 : 1 }).drawForPath(g, shadowPath);
+    }
+
+    if (lit)
+    {
+        for (int i = 3; i >= 1; --i)
+        {
+            const float expand = (float) i * 1.8f;
+            g.setColour(LNF::kNeonGlow.withAlpha(0.16f / (float) i));
+            g.fillEllipse(draw.expanded(expand));
+        }
+    }
+
+    if (asset.isValid())
+    {
+        g.setOpacity(lit ? 1.0f : 0.40f);
+        g.drawImage(asset, draw, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+        g.setOpacity(1.0f);
+    }
+    else
+    {
+        g.setColour(lit ? LNF::kNeonGlow : LNF::kKnobDark);
+        g.fillEllipse(draw.reduced(2.0f));
+    }
+}
+
+void NFWhiteDelayAudioProcessorEditor::PowerButton::mouseDown(const juce::MouseEvent&)
+{
+    pressed = true;
+    repaint();
+}
+
+void NFWhiteDelayAudioProcessorEditor::PowerButton::mouseUp(const juce::MouseEvent& e)
+{
+    pressed = false;
+    repaint();
+    if (e.mouseWasClicked() && onClick)
+        onClick();
 }
 
 NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayAudioProcessor& p)
@@ -455,26 +736,27 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     nfLogoLabel.addMouseListener(this, false); // double-click -> reset UI size
     content.addAndMakeVisible(nfLogoLabel);
 
-    headerDivider.colour = LNF::kKnobOutline;
-    content.addAndMakeVisible(headerDivider);
+    // Neon underline — editor child (not under content AffineTransform).
+    headerDivider.colour = LNF::kDisplayAccent;
+    headerDivider.neonGlow = true;
+    addAndMakeVisible(headerDivider);
 
-    // "AUDIO TOOLS" com tracking largo (espaço entre letras) + peso
-    // maior + contraste mais forte -- identidade "NF Audio Tools" lida
-    // como uma unidade só, não uma legenda apagada (FASE 7.3, item 1).
-    audioToolsLabel.setText(juce::String::fromUTF8("A U D I O   T O O L S"), juce::dontSendNotification);
-    audioToolsLabel.setFont(juce::FontOptions(12.5f, juce::Font::bold));
-    audioToolsLabel.setColour(juce::Label::textColourId, LNF::kTextMuted.darker(0.55f));
+    // Header hierarchy (reference): Audio Tools / WHITE DELAY / Professional Delay.
+    audioToolsLabel.setText("Audio Tools", juce::dontSendNotification);
+    audioToolsLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+    audioToolsLabel.setColour(juce::Label::textColourId, juce::Colour(0xff3a3c44));
     audioToolsLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(audioToolsLabel);
 
     whiteDelayLabel.setText("WHITE DELAY", juce::dontSendNotification);
-    whiteDelayLabel.setFont(juce::FontOptions(23.0f, juce::Font::bold));
+    whiteDelayLabel.setFont(juce::FontOptions(28.0f, juce::Font::bold));
+    whiteDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff1a1b20));
     whiteDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(whiteDelayLabel);
 
     professionalDelayLabel.setText("Professional Delay", juce::dontSendNotification);
-    professionalDelayLabel.setFont(juce::FontOptions(11.0f, juce::Font::italic));
-    professionalDelayLabel.setColour(juce::Label::textColourId, LNF::kTextMuted);
+    professionalDelayLabel.setFont(juce::FontOptions(13.0f));
+    professionalDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff5a5c64));
     professionalDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(professionalDelayLabel);
 
@@ -484,26 +766,39 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     hamburgerButton.onClick = [this] { showHamburgerMenu(); };
     content.addAndMakeVisible(hamburgerButton);
 
+    // POWER — editor child (not under content AffineTransform).
+    addAndMakeVisible(powerButton);
+
     bypassButton.setClickingTogglesState(true);
     content.addAndMakeVisible(bypassButton);
     bypassAttachment = std::make_unique<ButtonAttachment>(audioProcessor.apvts, ParamIDs::bypass, bypassButton);
+    powerButton.onClick = [this]
+    {
+        if (auto* bypassParam = audioProcessor.apvts.getParameter(ParamIDs::bypass))
+        {
+            const bool next = ! (bypassParam->getValue() > 0.5f);
+            bypassParam->beginChangeGesture();
+            bypassParam->setValueNotifyingHost(next ? 1.0f : 0.0f);
+            bypassParam->endChangeGesture();
+        }
+    };
 
     // ---- Display central ----
     content.addAndMakeVisible(displayPanel);
 
     displayLine1.setJustificationType(juce::Justification::centred);
-    displayLine1.setFont(juce::FontOptions(58.0f, juce::Font::bold));
+    displayLine1.setFont(juce::FontOptions(56.0f, juce::Font::bold));
     displayLine1.setColour(juce::Label::textColourId, LNF::kDisplayText);
     displayPanel.addAndMakeVisible(displayLine1);
 
     displayLine2.setJustificationType(juce::Justification::centred);
-    displayLine2.setFont(juce::FontOptions(17.0f, juce::Font::bold));
-    displayLine2.setColour(juce::Label::textColourId, LNF::kDisplayAccent);
+    displayLine2.setFont(juce::FontOptions(16.5f, juce::Font::bold));
+    displayLine2.setColour(juce::Label::textColourId, LNF::kDisplayAccent.brighter(0.05f));
     displayPanel.addAndMakeVisible(displayLine2);
 
     displayLine3.setJustificationType(juce::Justification::centred);
-    displayLine3.setFont(juce::FontOptions(13.0f));
-    displayLine3.setColour(juce::Label::textColourId, LNF::kDisplayAccent.withAlpha(0.85f));
+    displayLine3.setFont(juce::FontOptions(12.5f));
+    displayLine3.setColour(juce::Label::textColourId, LNF::kDisplayAccent.withAlpha(0.90f));
     displayPanel.addAndMakeVisible(displayLine3);
 
     static const char* const statusTitles[4] { "DELAY", "PING PONG", "LO-FI", "MODE" };
@@ -511,13 +806,13 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     {
         displayStatusTitle[i].setText(statusTitles[i], juce::dontSendNotification);
         displayStatusTitle[i].setJustificationType(juce::Justification::centred);
-        displayStatusTitle[i].setFont(juce::FontOptions(9.5f));
-        displayStatusTitle[i].setColour(juce::Label::textColourId, LNF::kDisplayText.withAlpha(0.45f));
+        displayStatusTitle[i].setFont(juce::FontOptions(9.0f));
+        displayStatusTitle[i].setColour(juce::Label::textColourId, LNF::kDisplayText.withAlpha(0.52f));
         displayPanel.addAndMakeVisible(displayStatusTitle[i]);
 
         displayStatusValue[i].setJustificationType(juce::Justification::centred);
-        displayStatusValue[i].setFont(juce::FontOptions(12.5f, juce::Font::bold));
-        displayStatusValue[i].setColour(juce::Label::textColourId, LNF::kDisplayAccent);
+        displayStatusValue[i].setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        displayStatusValue[i].setColour(juce::Label::textColourId, LNF::kDisplayAccent.brighter(0.04f));
         displayPanel.addAndMakeVisible(displayStatusValue[i]);
     }
 
@@ -534,7 +829,6 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     content.addAndMakeVisible(modeGroup);
 
     setupToggle(syncControl, ParamIDs::syncEnabled, "SYNC");
-    syncControl.button.setLookAndFeel(&premiumLookAndFeel);
     setupChoice(divisionControl, ParamIDs::syncDivision, "DIVISION",
                 juce::StringArray { "1/64", "1/32", "1/16", "1/8", "1/4", "1/2", "1 Bar", "2 Bars" });
     setupChoice(modifierControl, ParamIDs::syncModifier, "MODIFIER",
@@ -542,6 +836,13 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     setupToggle(pingPongControl, ParamIDs::pingPong, "PING PONG");
     setupToggle(loFiControl, ParamIDs::loFiEnabled, "LO-FI");
     setupSegmented(modeControl, ParamIDs::delayMode, juce::StringArray { "DIGITAL", "ANALOG", "TAPE" });
+
+    // FASE 2 -- official button_on / button_off assets (same as SYNC).
+    // Attachments / setValueNotifyingHost / DSP untouched.
+    for (auto* button : { &syncControl.button, &pingPongControl.button, &loFiControl.button })
+        button->setLookAndFeel(&premiumLookAndFeel);
+    for (auto* btn : modeControl.buttons)
+        btn->setLookAndFeel(&premiumLookAndFeel);
 
     // ---- Avançado: Modulation ----
     modulationPanel.title = "MODULATION";
@@ -610,12 +911,13 @@ void NFWhiteDelayAudioProcessorEditor::setupRotary(RotaryControl& c, const juce:
 
     c.titleLabel.setText(title, juce::dontSendNotification);
     c.titleLabel.setJustificationType(juce::Justification::centred);
-    c.titleLabel.setFont(juce::FontOptions(12.0f));
+    c.titleLabel.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    c.titleLabel.setColour(juce::Label::textColourId, LNF::kTextMuted.darker(0.35f));
 
     c.valueLabel.setLookAndFeel(&nfLookAndFeel);
     c.valueLabel.setJustificationType(juce::Justification::centred);
-    c.valueLabel.setFont(juce::FontOptions(12.0f));
-    c.valueLabel.setColour(juce::Label::textColourId, LNF::kText);
+    c.valueLabel.setFont(juce::FontOptions(11.0f, juce::Font::bold));
+    c.valueLabel.setColour(juce::Label::textColourId, LNF::kDisplayAccent.brighter(0.15f));
     c.valueLabel.setInterceptsMouseClicks(false, false);
 
     content.addAndMakeVisible(c.slider);
@@ -706,11 +1008,12 @@ void NFWhiteDelayAudioProcessorEditor::setupSegmented(SegmentedControl& c, const
 
 void NFWhiteDelayAudioProcessorEditor::positionRotary(RotaryControl& c, juce::Rectangle<int> area)
 {
-    auto titleArea = area.removeFromTop(16);
+    auto titleArea = area.removeFromTop(18);
     c.titleLabel.setBounds(titleArea);
-    auto valueArea = area.removeFromBottom(20);
+    auto valueArea = area.removeFromBottom(22);
     c.slider.setBounds(area);
-    c.valueLabel.setBounds(valueArea.withSizeKeepingCentre(juce::jmin(valueArea.getWidth(), 74), 18));
+    // Fixed chip footprint for every rotary (hero + lower panels).
+    c.valueLabel.setBounds(valueArea.withSizeKeepingCentre(72, 18));
 }
 
 void NFWhiteDelayAudioProcessorEditor::positionToggle(ToggleControl& c, juce::Rectangle<int> area)
@@ -749,47 +1052,88 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
 {
     auto bounds = content.getLocalBounds(); // sempre defaultWidth x defaultHeight
 
-    // ---- Header ----
-    auto header = bounds.removeFromTop(74).reduced(20, 10);
+    // Keep logo / chrome / modules / neon inside the rounded chassis lips.
+    // Neon X inset matches content inset so ends align with brand & chrome.
+    constexpr int chassisInsetX = 64;
+    constexpr int chassisInsetY = 14;
+    constexpr int neonInsetX = 64;
 
-    auto logoArea = header.removeFromLeft(50);
-    nfLogoLabel.setBounds(logoArea);
-    header.removeFromLeft(4);
-    headerDivider.setBounds(header.removeFromLeft(1).reduced(0, 4));
-    header.removeFromLeft(14);
+    // ---- Header — brand + chrome vertically centred; neon stays bottom divider ----
+    auto headerBand = bounds.removeFromTop(118);
+    auto header = headerBand.reduced(chassisInsetX, chassisInsetY);
 
-    auto textArea = header.removeFromLeft(240);
-    audioToolsLabel.setBounds(textArea.removeFromTop(16));
-    whiteDelayLabel.setBounds(textArea.removeFromTop(24));
-    professionalDelayLabel.setBounds(textArea);
-
+    // Right chrome — slightly larger, vertically centred in header.
     auto bypassArea = header.removeFromRight(120);
-    bypassButton.setBounds(bypassArea.withSizeKeepingCentre(112, 36));
+    bypassButton.setBounds(bypassArea.withSizeKeepingCentre(114, 36));
 
-    header.removeFromRight(10);
-    auto hamburgerArea = header.removeFromRight(38);
-    hamburgerButton.setBounds(hamburgerArea.withSizeKeepingCentre(32, 32));
+    header.removeFromRight(12);
+    auto hamburgerArea = header.removeFromRight(42);
+    hamburgerButton.setBounds(hamburgerArea.withSizeKeepingCentre(36, 36));
 
-    header.removeFromRight(6);
-    auto saveArea = header.removeFromRight(38);
-    saveButton.setBounds(saveArea.withSizeKeepingCentre(32, 32));
+    header.removeFromRight(8);
+    auto saveArea = header.removeFromRight(42);
+    saveButton.setBounds(saveArea.withSizeKeepingCentre(36, 36));
 
-    // ---- Avançado (rodapé): Modulation | Filters | Character ----
-    auto bottomRow = bounds.removeFromBottom(258).reduced(20, 8);
+    header.removeFromRight(12);
+    auto powerArea = header.removeFromRight(42);
+    powerButton.setBounds(powerArea.withSizeKeepingCentre(38, 38));
 
-    auto modulationColumn = bottomRow.removeFromLeft(380);
-    bottomRow.removeFromLeft(16);
-    auto filtersColumn = bottomRow.removeFromLeft(360);
-    bottomRow.removeFromLeft(16);
-    auto characterColumn = bottomRow;
+    // Brand — discreetly larger NF + titles, centred in header height.
+    auto brand = header.removeFromLeft(430);
+    constexpr int logoSize = 56;
+    constexpr int textStackH = 64;
+    constexpr int brandBlockH = 68;
+    auto brandInner = brand.withSizeKeepingCentre(brand.getWidth(), brandBlockH);
+    auto logoCol = brandInner.removeFromLeft(logoSize + 2);
+    nfLogoLabel.setBounds(logoCol.withSizeKeepingCentre(logoSize, logoSize));
+    brandInner.removeFromLeft(14);
+    auto textCol = brandInner.withSizeKeepingCentre(brandInner.getWidth(), textStackH);
+    audioToolsLabel.setBounds(textCol.removeFromTop(15));
+    textCol.removeFromTop(2);
+    whiteDelayLabel.setBounds(textCol.removeFromTop(30));
+    textCol.removeFromTop(2);
+    professionalDelayLabel.setBounds(textCol.removeFromTop(15));
+
+    // Neon under header (unchanged as lower divider).
+    neonBarLogical = { headerBand.getX() + neonInsetX, headerBand.getBottom() - 7,
+                       headerBand.getWidth() - neonInsetX * 2, 6 };
+    powerLogical = powerArea.withSizeKeepingCentre(38, 38);
+
+    // ---- Avançado (rodapé) — raised inside chassis, clear of bottom lip ----
+    content.chassisBays.clearQuick();
+    constexpr int chassisBottomPad = 42; // lifts modules above the rounded bevel
+    constexpr int bottomModuleH = 285;
+    auto bottomStrip = bounds.removeFromBottom(chassisBottomPad + bottomModuleH);
+    bottomStrip.removeFromBottom(chassisBottomPad);
+    auto bottomRow = bottomStrip.reduced(chassisInsetX, 0);
+
+    const int bottomGap = 14;
+    const int bottomInnerW = bottomRow.getWidth() - bottomGap * 2;
+    const int modW = (bottomInnerW * 380) / (380 + 360 + 320);
+    const int filtW = (bottomInnerW * 360) / (380 + 360 + 320);
+    constexpr int bayLip = 8;
+
+    auto modulationBay = bottomRow.removeFromLeft(modW);
+    bottomRow.removeFromLeft(bottomGap);
+    auto filtersBay = bottomRow.removeFromLeft(filtW);
+    bottomRow.removeFromLeft(bottomGap);
+    auto characterBay = bottomRow;
+
+    content.chassisBays.add(modulationBay.toFloat());
+    content.chassisBays.add(filtersBay.toFloat());
+    content.chassisBays.add(characterBay.toFloat());
+
+    auto modulationColumn = modulationBay.reduced(bayLip);
+    auto filtersColumn = filtersBay.reduced(bayLip);
+    auto characterColumn = characterBay.reduced(bayLip);
 
     modulationPanel.setBounds(modulationColumn);
     filtersPanel.setBounds(filtersColumn);
     characterPanel.setBounds(characterColumn);
 
-    modulationColumn.removeFromTop(26);
-    filtersColumn.removeFromTop(26);
-    characterColumn.removeFromTop(26);
+    modulationColumn.removeFromTop(28);
+    filtersColumn.removeFromTop(28);
+    characterColumn.removeFromTop(28);
 
     constexpr int bottomKnobAreaHeight = 168;
     auto modulationKnobs = modulationColumn.removeFromTop(bottomKnobAreaHeight);
@@ -816,7 +1160,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     }
 
     // ---- Controles rápidos (linha logo abaixo do centro principal) ----
-    auto quickRow = bounds.removeFromBottom(68).reduced(20, 8);
+    auto quickRow = bounds.removeFromBottom(68).reduced(chassisInsetX, 8);
 
     constexpr int syncW = 100, comboW = 118, pingLofiGroupW = 214, modeGroupW = 222, gapW = 16;
     const int quickTotalWidth = syncW + comboW + comboW + pingLofiGroupW + modeGroupW + gapW * 4;
@@ -829,31 +1173,37 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     positionChoice(modifierControl, quickBlock.removeFromLeft(comboW));
     quickBlock.removeFromLeft(gapW);
 
-    auto pingLofiArea = quickBlock.removeFromLeft(pingLofiGroupW);
+    auto pingLofiBay = quickBlock.removeFromLeft(pingLofiGroupW);
+    content.chassisBays.add(pingLofiBay.toFloat());
+    auto pingLofiArea = pingLofiBay.reduced(6);
     pingPongLoFiGroup.setBounds(pingLofiArea);
     auto pingLofiInner = pingLofiArea.reduced(8, 8);
-    const int halfW = (pingLofiInner.getWidth() - 4) / 2;
+    const int halfW = (pingLofiInner.getWidth() - 6) / 2;
     positionToggle(pingPongControl, pingLofiInner.removeFromLeft(halfW));
-    pingLofiInner.removeFromLeft(4);
+    pingLofiInner.removeFromLeft(6);
     positionToggle(loFiControl, pingLofiInner);
 
     quickBlock.removeFromLeft(gapW);
-    auto modeArea = quickBlock.removeFromLeft(modeGroupW);
+    auto modeBay = quickBlock.removeFromLeft(modeGroupW);
+    content.chassisBays.add(modeBay.toFloat());
+    auto modeArea = modeBay.reduced(6);
     modeGroup.setBounds(modeArea);
     positionSegmented(modeControl, modeArea.reduced(8, 8));
 
     // ---- Centro principal: TIME | DISPLAY | FEEDBACK | DRY/WET | OUTPUT ----
-    auto mainRow = bounds.reduced(20, 8);
+    auto mainRow = bounds.reduced(chassisInsetX, 6);
 
-    auto timeColumn = mainRow.removeFromLeft(205);
-    mainRow.removeFromLeft(14);
-    auto outputColumn = mainRow.removeFromRight(145);
-    mainRow.removeFromRight(14);
-    auto dryWetColumn = mainRow.removeFromRight(175);
-    mainRow.removeFromRight(14);
-    auto feedbackColumn = mainRow.removeFromRight(205);
-    mainRow.removeFromRight(14);
-    auto displayColumn = mainRow; // resto -- o maior bloco, centro visual
+    constexpr int heroKnobW = 168;
+    constexpr int heroGap = 12;
+    auto timeColumn = mainRow.removeFromLeft(heroKnobW);
+    mainRow.removeFromLeft(heroGap);
+    auto outputColumn = mainRow.removeFromRight(heroKnobW);
+    mainRow.removeFromRight(heroGap);
+    auto dryWetColumn = mainRow.removeFromRight(heroKnobW);
+    mainRow.removeFromRight(heroGap);
+    auto feedbackColumn = mainRow.removeFromRight(heroKnobW);
+    mainRow.removeFromRight(heroGap);
+    auto displayColumn = mainRow;
 
     positionRotary(timeControl, timeColumn);
     positionRotary(feedbackControl, feedbackColumn);
@@ -861,20 +1211,26 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     positionRotary(outputControl, outputColumn);
 
     {
-        displayPanel.setBounds(displayColumn);
+        // Compact display matching reference aspect (not stretched tall).
+        constexpr int displayH = 208;
+        const int displayW = juce::jmin(displayColumn.getWidth(), 420);
+        auto displayArea = juce::Rectangle<int>(displayW, displayH)
+                               .withCentre(displayColumn.getCentre());
+        displayPanel.setBounds(displayArea);
 
-        auto displayLocal = displayPanel.getLocalBounds().reduced(20, 14);
-        displayLine1.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.40f)));
+        auto displayLocal = displayPanel.getLocalBounds().reduced(16, 14);
+        auto statusBand = displayLocal.removeFromBottom(36);
+        displayLocal.removeFromBottom(4);
+
+        displayLine1.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.42f)));
         displayLine2.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.30f)));
-        displayLine3.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.34f)));
+        displayLine3.setBounds(displayLocal);
 
-        displayLocal.removeFromTop(8); // respiro sob a segunda linha decorativa
-
-        const int colW = displayLocal.getWidth() / 4;
+        const int colW = statusBand.getWidth() / 4;
         for (int i = 0; i < 4; ++i)
         {
-            auto col = displayLocal.removeFromLeft(colW);
-            displayStatusTitle[i].setBounds(col.removeFromTop(14));
+            auto col = statusBand.removeFromLeft(colW);
+            displayStatusTitle[i].setBounds(col.removeFromTop(12));
             displayStatusValue[i].setBounds(col);
         }
     }
@@ -883,40 +1239,105 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
 void NFWhiteDelayAudioProcessorEditor::paint(juce::Graphics& g)
 {
     auto bounds = getLocalBounds().toFloat();
+    const auto base = LNF::kBackground; // exact brand colour; depth via luminosity only
 
-    // Chassis metálico -- gradiente vertical sutil (off-white/prata
-    // muito claro, ligeiramente mais escuro na base) em vez de uma cor
-    // chapada, dando volume físico ao painel como um todo (FASE 7.2B).
-    // Preenchimento SEMPRE retangular e opaco (cobre 100% da janela) --
-    // cantos "arredondados" do chassis são sugeridos por uma moldura
-    // decorativa por cima, não por um recorte real da janela (evita
-    // deixar pixels de canto sem pintura).
-    juce::ColourGradient chassisGradient(LNF::kBackground.brighter(0.02f), bounds.getCentreX(), bounds.getY(),
-                                          LNF::kBackground.darker(0.025f), bounds.getCentreX(), bounds.getBottom(), false);
+    // Official silver chassis plate as the panel body (bezel drawn after).
+    {
+        const auto plate = juce::ImageCache::getFromMemory(BinaryData::chassis_png, BinaryData::chassis_pngSize);
+        if (plate.isValid())
+        {
+            g.setOpacity(1.0f);
+            g.drawImage(plate, bounds, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+        }
+        else
+        {
+            g.setColour(base);
+            g.fillRect(bounds);
+        }
+    }
+
+    // 1) Very light luminosity grade on top of the plate (same hue family).
+    juce::ColourGradient chassisGradient(base.brighter(0.015f).withAlpha(0.18f), bounds.getCentreX(), bounds.getY(),
+                                          base.darker(0.020f).withAlpha(0.22f), bounds.getCentreX(), bounds.getBottom(), false);
     g.setGradientFill(chassisGradient);
     g.fillRect(bounds);
 
-    // Moldura decorativa arredondada, ligeiramente encolhida da borda
-    // real da janela -- sugere um chassis com cantos chanfrados sem
-    // recortar a janela de verdade.
-    constexpr float inset = 2.5f;
-    constexpr float chassisCorner = 14.0f;
+    // 2) Soft centre lift — discreet illumination, not a hot spot.
+    {
+        const float rx = bounds.getWidth() * 0.55f;
+        const float ry = bounds.getHeight() * 0.48f;
+        juce::ColourGradient centreLift(base.brighter(0.04f).withAlpha(0.14f),
+                                         bounds.getCentreX(), bounds.getCentreY() * 0.92f,
+                                         juce::Colours::transparentWhite,
+                                         bounds.getCentreX() + rx, bounds.getCentreY(), true);
+        g.setGradientFill(centreLift);
+        g.fillEllipse(juce::Rectangle<float>(rx * 2.0f, ry * 2.0f).withCentre(bounds.getCentre().translated(0.0f, -bounds.getHeight() * 0.04f)));
+    }
+
+    // 3) Edge / corner vignette — very soft darkening only.
+    {
+        juce::ColourGradient vignette(juce::Colours::transparentBlack, bounds.getCentreX(), bounds.getCentreY(),
+                                       juce::Colours::black.withAlpha(0.055f), bounds.getX(), bounds.getY(), true);
+        g.setGradientFill(vignette);
+        g.fillRect(bounds);
+    }
+
+    // 4) Soft internal shadows near natural dividers (header / quick / bottom).
+    {
+        auto dividerShade = [&g, &bounds](float yNorm, float thickness)
+        {
+            const float y = bounds.getY() + bounds.getHeight() * yNorm;
+            juce::ColourGradient shade(juce::Colours::black.withAlpha(0.030f), bounds.getCentreX(), y,
+                                        juce::Colours::transparentBlack, bounds.getCentreX(), y + thickness, false);
+            g.setGradientFill(shade);
+            g.fillRect(juce::Rectangle<float>(bounds.getX() + 18.0f, y, bounds.getWidth() - 36.0f, thickness));
+        };
+        dividerShade(0.137f, 9.0f); // under header (~118/860)
+        dividerShade(0.575f, 7.0f);
+        dividerShade(0.715f, 8.0f);
+    }
+
+    // 5) Very subtle hero-band lift — depth only, no layout change.
+    {
+        auto heroBand = juce::Rectangle<float>(bounds.getWidth() * 0.78f, bounds.getHeight() * 0.34f)
+                            .withCentre({ bounds.getCentreX(), bounds.getY() + bounds.getHeight() * 0.36f });
+        juce::ColourGradient heroLift(juce::Colours::white.withAlpha(0.022f), heroBand.getCentreX(), heroBand.getY(),
+                                       juce::Colours::transparentWhite, heroBand.getCentreX(), heroBand.getBottom(), false);
+        g.setGradientFill(heroLift);
+        g.fillRoundedRectangle(heroBand, 18.0f);
+    }
+
+    // Chassis frame — reference corner crop: soft chrome bevel + depth.
+    constexpr float inset = 3.0f;
+    constexpr float chassisCorner = 16.0f;
     auto chassisRect = bounds.reduced(inset);
 
-    g.setColour(juce::Colour(0xffaeb0b8).withAlpha(0.75f));
-    g.drawRoundedRectangle(chassisRect, chassisCorner, 1.2f);
-    g.setColour(juce::Colours::white.withAlpha(0.6f));
-    g.drawRoundedRectangle(chassisRect.reduced(1.4f), chassisCorner - 1.0f, 0.8f);
+    // Outer soft shadow / rim darkening into the rounded corners.
+    {
+        juce::Path framePath;
+        framePath.addRoundedRectangle(chassisRect, chassisCorner);
+        juce::DropShadow(juce::Colours::black.withAlpha(0.10f), 6, { 0, 1 }).drawForPath(g, framePath);
+    }
 
-    // Realce superior (luz batendo no topo do chassis) + sombra
-    // inferior (base ligeiramente recuada) -- bevel discreto.
-    g.setColour(juce::Colours::white.withAlpha(0.5f));
-    g.drawLine(bounds.getX() + inset, bounds.getY() + inset, bounds.getRight() - inset, bounds.getY() + inset, 1.0f);
-    g.setColour(juce::Colours::black.withAlpha(0.07f));
-    g.drawLine(bounds.getX() + inset, bounds.getBottom() - inset, bounds.getRight() - inset, bounds.getBottom() - inset, 1.0f);
+    // Thick chrome-ish outer stroke (multi-layer).
+    g.setColour(juce::Colour(0xff9a9ca4).withAlpha(0.55f));
+    g.drawRoundedRectangle(chassisRect.expanded(0.8f), chassisCorner + 0.5f, 2.2f);
+    g.setColour(juce::Colour(0xffc8cad1).withAlpha(0.90f));
+    g.drawRoundedRectangle(chassisRect, chassisCorner, 1.35f);
+    g.setColour(juce::Colours::white.withAlpha(0.62f));
+    g.drawRoundedRectangle(chassisRect.reduced(1.6f), chassisCorner - 1.2f, 1.0f);
+    g.setColour(juce::Colours::black.withAlpha(0.06f));
+    g.drawRoundedRectangle(chassisRect.reduced(3.0f), chassisCorner - 2.2f, 0.9f);
 
-    // Contorno externo fino, na borda exata da janela.
-    g.setColour(juce::Colour(0xffb7b9c0).withAlpha(0.7f));
+    // Top lip highlight / bottom lip shade (physical plate edge).
+    g.setColour(juce::Colours::white.withAlpha(0.50f));
+    g.drawLine(bounds.getX() + inset + 8.0f, bounds.getY() + inset,
+               bounds.getRight() - inset - 8.0f, bounds.getY() + inset, 1.1f);
+    g.setColour(juce::Colours::black.withAlpha(0.10f));
+    g.drawLine(bounds.getX() + inset + 8.0f, bounds.getBottom() - inset,
+               bounds.getRight() - inset - 8.0f, bounds.getBottom() - inset, 1.1f);
+
+    g.setColour(juce::Colour(0xffb0b2ba).withAlpha(0.55f));
     g.drawRect(bounds, 1.0f);
 }
 
@@ -927,6 +1348,19 @@ void NFWhiteDelayAudioProcessorEditor::resized()
     const float scale = juce::jmin((float) getWidth() / (float) defaultWidth,
                                     (float) getHeight() / (float) defaultHeight);
     content.setTransform(juce::AffineTransform::scale(scale));
+
+    // Scale chrome into editor pixels (siblings of content, no transform).
+    auto mapRect = [scale] (juce::Rectangle<int> r)
+    {
+        return juce::Rectangle<int> (juce::roundToInt ((float) r.getX() * scale),
+                                     juce::roundToInt ((float) r.getY() * scale),
+                                     juce::jmax (1, juce::roundToInt ((float) r.getWidth() * scale)),
+                                     juce::jmax (1, juce::roundToInt ((float) r.getHeight() * scale)));
+    };
+    headerDivider.setBounds (mapRect (neonBarLogical));
+    powerButton.setBounds (mapRect (powerLogical));
+    headerDivider.toFront (false);
+    powerButton.toFront (false);
 }
 
 void NFWhiteDelayAudioProcessorEditor::mouseDoubleClick(const juce::MouseEvent& e)
@@ -999,6 +1433,13 @@ void NFWhiteDelayAudioProcessorEditor::updateDisplay()
     // ainda mais macia a 30fps.
     const float wetActivityNow = juce::jlimit(0.0f, 1.0f, audioProcessor.wetActivity.load(std::memory_order_relaxed));
     displayPanel.activity += (wetActivityNow - displayPanel.activity) * 0.12f;
+
+    // Stereo Delay Activity Visualizer + wet L/R meters (same observe-only FIFO).
+    displayPanel.consumeWetActivity(audioProcessor);
+
+    // Keep POWER LED in sync with bypass (shared param, no 2nd Attachment).
+    powerButton.lit = ! bypassed;
+    powerButton.repaint();
 
     // A fase avança sempre (nunca para de vez -- "quase parada", não
     // "parada"), mais rápido quanto mais ativo o delay estiver.

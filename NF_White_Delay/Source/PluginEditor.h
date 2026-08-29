@@ -108,18 +108,24 @@ private:
     {
         float animPhase = 0.0f;
         float activity = 0.0f;
+        float meterL = 0.0f; // 0..1 smoothed UI readout of wet L (viz tap)
+        float meterR = 0.0f; // 0..1 smoothed UI readout of wet R (viz tap)
         void paint(juce::Graphics&) override;
+        void consumeWetActivity(NFWhiteDelayAudioProcessor&);
 
     private:
-        // Camadas ESTÁTICAS (moldura/bezel, fundo em gradiente do
-        // vidro, linhas divisórias, borda, reflexo) pré-renderizadas
-        // num Image e só reblitadas a cada frame -- só o glow/halo/
-        // waveform/anéis do "eco" (que respiram com animPhase/activity)
-        // são desenhados direto a cada paint() (FASE 7.4, item 6: toda
-        // a animação é barata, nada caro é refeito a cada frame).
+        static constexpr int kVizHistory = 96;
+        float vizHistL[kVizHistory] {};
+        float vizHistR[kVizHistory] {};
+        int vizWrite = 0;
+        int vizFilled = 0;
+
         juce::Image cachedStaticLayer;
         int cachedStaticW = -1, cachedStaticH = -1;
         void renderStaticLayerToCache();
+        void paintSideMeter(juce::Graphics&, juce::Rectangle<float> glass,
+                             float centreXNorm, float level, const char* label) const;
+        void paintActivityVisualizer(juce::Graphics&, juce::Rectangle<float> glass) const;
     };
 
     // Selo/logo "NF" -- chip metálico com sombra própria por trás do
@@ -138,7 +144,7 @@ private:
     // título vazio nesse caso, só o agrupamento visual).
     struct SectionPanel : public juce::Component
     {
-        juce::String title;
+        juce::String title; // empty ⇒ recessed button well; non-empty ⇒ embedded module
         void paint(juce::Graphics&) override;
     };
 
@@ -163,11 +169,23 @@ private:
         void paintButton(juce::Graphics&, bool isMouseOverButton, bool isButtonDown) override;
     };
 
-    // Linha fina de 1-2px (divisor de header, linhas do display) --
-    // só preenche a própria área com uma cor.
+    // Official circular POWER — same APVTS bypass param (lit = processing).
+    // Plain Component (not Button) so paint is reliable under content transforms.
+    struct PowerButton : public juce::Component
+    {
+        bool lit = true;
+        bool pressed = false;
+        std::function<void()> onClick;
+        void paint(juce::Graphics&) override;
+        void mouseDown(const juce::MouseEvent&) override;
+        void mouseUp(const juce::MouseEvent&) override;
+    };
+
+    // Linha fina (divisor / underline neon do header).
     struct ThinLine : public juce::Component
     {
         juce::Colour colour { 0x00000000 };
+        bool neonGlow = false;
         void paint(juce::Graphics&) override;
     };
 
@@ -204,7 +222,18 @@ private:
     // todo o layout é feito em coordenadas fixas dessa escala de
     // referência (ver layoutContent()), então o alinhamento interno
     // nunca fica "torto" no resize -- só escala uniformemente.
-    juce::Component content;
+    // chassisBays = recessed fitting frames machined into the plate.
+    struct ContentRoot : public juce::Component
+    {
+        juce::Array<juce::Rectangle<float>> chassisBays;
+        void paint(juce::Graphics&) override;
+    };
+    ContentRoot content;
+
+    // Chrome fora do content transform — AffineTransform + OpaqueLayer
+    // engole paint de alguns filhos; POWER/neon ficam no editor.
+    juce::Rectangle<int> neonBarLogical;
+    juce::Rectangle<int> powerLogical;
 
     // ---- Header ----
     NfLogoBadge nfLogoLabel;
@@ -212,6 +241,7 @@ private:
     ThinLine headerDivider;
     SaveIconButton saveButton;
     MenuIconButton hamburgerButton;
+    PowerButton powerButton;
     BypassButton bypassButton;
     std::unique_ptr<ButtonAttachment> bypassAttachment;
 
@@ -247,24 +277,17 @@ private:
     // estes dois valores sozinhos, pois eles são a régua de todo o
     // layout (mudar exigiria reconferir cada offset fixo em
     // layoutContent()).
-    static constexpr int defaultWidth = 1200;
-    static constexpr int defaultHeight = 650;
+    static constexpr int defaultWidth = 1280;
+    static constexpr int defaultHeight = 860; // taller — bay lips + bottom modules clear bevel
 
-    // Tamanho de ABERTURA/reset (FASE 7.3, pedido explícito: "diminuir
-    // pouca coisa o tamanho geral do plugin quando abrir") -- um pouco
-    // menor que o canvas de referência acima, na MESMA proporção
-    // (24:13), então resized() só aplica um AffineTransform::scale()
-    // levemente < 1.0 sobre o layout já calculado -- nenhuma posição
-    // interna muda, só a escala geral inicial. Usado no setSize() do
-    // construtor e nos dois pontos de "reset" (double-click no logo,
-    // menu hambúrguer).
-    static constexpr int openWidth = 1104;
-    static constexpr int openHeight = 598;
+    // Tamanho de ABERTURA/reset — mesma proporção do canvas de referência.
+    static constexpr int openWidth = 1178;
+    static constexpr int openHeight = 791; // 1178 * 860/1280
 
-    static constexpr int minWidth = 850;
-    static constexpr int minHeight = 460;
-    static constexpr int maxWidth = 1800;
-    static constexpr int maxHeight = 975;
+    static constexpr int minWidth = 900;
+    static constexpr int minHeight = 600;
+    static constexpr int maxWidth = 1920;
+    static constexpr int maxHeight = 1290;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFWhiteDelayAudioProcessorEditor)
 };

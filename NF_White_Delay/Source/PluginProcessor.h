@@ -129,6 +129,17 @@ public:
     // ========================================================
     std::atomic<float> wetActivity { 0.0f }; // 0..~1 (pode passar de 1 com feedback alto)
 
+    // Display L/R meters — observe-only peak envelopes of the FINAL
+    // stereo output (post mix/output/bypass). Never writes audio.
+    // Same lock-free pattern as wetActivity / lastKnownHostBpm.
+    std::atomic<float> outputMeterL { 0.0f }; // 0..1 (UI scale, ~-48 dB .. 0 dB)
+    std::atomic<float> outputMeterR { 0.0f };
+
+    // Stereo Delay Activity Visualizer — lock-free FIFO of decimated
+    // WET L/R peaks (post-DelayEngine, pre-mix). Observe-only; never
+    // modifies audio. UI pulls via pullWetActivitySamples().
+    int pullWetActivitySamples(float* leftOut, float* rightOut, int maxNum) noexcept;
+
 private:
     // Ponto de entrada de migração -- não faz nada hoje (só existe a
     // v1), mas já é chamado de setStateInformation() pra não precisar
@@ -168,6 +179,22 @@ private:
     // só o audio thread toca nisto (não precisa ser atômico; só o
     // resultado final, publicado em wetActivity, é compartilhado).
     float wetEnvelopeState = 0.0f;
+
+    // Audio-thread-only envelope state for L/R output meters.
+    float meterEnvelopeL = 0.0f;
+    float meterEnvelopeR = 0.0f;
+
+    // Wet activity visualizer FIFO (audio writes, UI reads).
+    static constexpr int kWetVizFifoSize = 2048;
+    static constexpr int kWetVizDecimate = 256; // ~172 Hz @ 44.1 kHz
+    juce::AbstractFifo wetVizFifo { kWetVizFifoSize };
+    float wetVizL[kWetVizFifoSize] {};
+    float wetVizR[kWetVizFifoSize] {};
+    int wetVizDecimCounter = 0;
+    float wetVizPeakL = 0.0f;
+    float wetVizPeakR = 0.0f;
+
+    void pushWetActivitySample(float peakL, float peakR) noexcept;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFWhiteDelayAudioProcessor)
 };

@@ -6,7 +6,8 @@
 // FASE 2 -- premium LookAndFeel for official BinaryData knobs.
 // Uses knob_large / knob_small (pointer baked at 12 o'clock) plus
 // reference-matched cyan value arc, ticks and soft ground shadow.
-// SYNC still uses button_on / button_off via drawButtonBackground.
+// SYNC/DIGITAL ON = dark metal + cyan neon (reference crops);
+// OFF uses official button_off asset.
 // ============================================================
 
 class NFPremiumLookAndFeel : public NFWhiteLookAndFeel

@@ -25,19 +25,23 @@ int main (int, char**)
     const auto outDir = juce::File ("/Users/nenofernando/Desktop/NF_Equalizer_JUCE_V2/NF_White_Delay/dist");
     outDir.createDirectory();
     const auto out = outDir.getChildFile ("prototype_chassis_time_sync_display.png");
+    out.deleteFile();
 
-    juce::FileOutputStream stream (out);
-    if (! stream.openedOk())
     {
-        std::cerr << "Cannot write " << out.getFullPathName() << "\n";
-        return 2;
-    }
+        juce::FileOutputStream stream (out);
+        if (! stream.openedOk())
+        {
+            std::cerr << "Cannot write " << out.getFullPathName() << "\n";
+            return 2;
+        }
 
-    juce::PNGImageFormat png;
-    if (! png.writeImageToStream (img, stream))
-    {
-        std::cerr << "PNG write failed\n";
-        return 3;
+        juce::PNGImageFormat png;
+        if (! png.writeImageToStream (img, stream))
+        {
+            std::cerr << "PNG write failed\n";
+            return 3;
+        }
+        stream.flush();
     }
 
     editor->removeFromDesktop();

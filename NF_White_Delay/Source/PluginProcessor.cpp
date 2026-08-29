@@ -167,6 +167,61 @@ void NFWhiteDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
     delayInputBuffer.setSize(numChannels, preparedBlockSize, false, false, true);
 
     outputStage.prepare(sampleRate, preparedBlockSize);
+
+    wetEnvelopeState = 0.0f;
+    meterEnvelopeL = 0.0f;
+    meterEnvelopeR = 0.0f;
+    wetActivity.store(0.0f, std::memory_order_relaxed);
+    outputMeterL.store(0.0f, std::memory_order_relaxed);
+    outputMeterR.store(0.0f, std::memory_order_relaxed);
+
+    wetVizFifo.reset();
+    wetVizDecimCounter = 0;
+    wetVizPeakL = 0.0f;
+    wetVizPeakR = 0.0f;
+}
+
+void NFWhiteDelayAudioProcessor::pushWetActivitySample(float peakL, float peakR) noexcept
+{
+    int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
+    wetVizFifo.prepareToWrite(1, start1, size1, start2, size2);
+    if (size1 > 0)
+    {
+        wetVizL[start1] = peakL;
+        wetVizR[start1] = peakR;
+    }
+    if (size2 > 0)
+    {
+        wetVizL[start2] = peakL;
+        wetVizR[start2] = peakR;
+    }
+    wetVizFifo.finishedWrite(size1 + size2);
+}
+
+int NFWhiteDelayAudioProcessor::pullWetActivitySamples(float* leftOut, float* rightOut, int maxNum) noexcept
+{
+    if (leftOut == nullptr || rightOut == nullptr || maxNum <= 0)
+        return 0;
+
+    int start1 = 0, size1 = 0, start2 = 0, size2 = 0;
+    wetVizFifo.prepareToRead(maxNum, start1, size1, start2, size2);
+
+    int written = 0;
+    for (int i = 0; i < size1; ++i)
+    {
+        leftOut[written] = wetVizL[start1 + i];
+        rightOut[written] = wetVizR[start1 + i];
+        ++written;
+    }
+    for (int i = 0; i < size2; ++i)
+    {
+        leftOut[written] = wetVizL[start2 + i];
+        rightOut[written] = wetVizR[start2 + i];
+        ++written;
+    }
+
+    wetVizFifo.finishedRead(size1 + size2);
+    return written;
 }
 
 void NFWhiteDelayAudioProcessor::releaseResources()
@@ -364,6 +419,28 @@ void NFWhiteDelayAudioProcessor::processChunk(juce::AudioBuffer<float>& chunk)
     }
 
     // ------------------------------------------------------------
+    // Stereo Delay Activity Visualizer — observe-only tap of WET L/R
+    // (post-DelayEngine). Decimated peak pushes into lock-free FIFO.
+    // Zero allocations / locks / UI. Does not modify delayInputView.
+    // ------------------------------------------------------------
+    {
+        const float* wetL = delayInputView.getReadPointer(0);
+        const float* wetR = numChannels > 1 ? delayInputView.getReadPointer(1) : wetL;
+        for (int i = 0; i < numSamples; ++i)
+        {
+            wetVizPeakL = juce::jmax(wetVizPeakL, std::abs(wetL[i]));
+            wetVizPeakR = juce::jmax(wetVizPeakR, std::abs(wetR[i]));
+            if (++wetVizDecimCounter >= kWetVizDecimate)
+            {
+                wetVizDecimCounter = 0;
+                pushWetActivitySample(wetVizPeakL, wetVizPeakR);
+                wetVizPeakL = 0.0f;
+                wetVizPeakR = 0.0f;
+            }
+        }
+    }
+
+    // ------------------------------------------------------------
     // 3) Dry/Wet (linear, Seção 3) + Output (Seção 4) + Bypass
     //    (Seção 5) -- ver OutputStage.h. Bypass completo: saída == dry
     //    exato, independente de Dry/Wet/Output/Ducking/Character/etc
@@ -371,6 +448,40 @@ void NFWhiteDelayAudioProcessor::processChunk(juce::AudioBuffer<float>& chunk)
     //    bypassado).
     // ------------------------------------------------------------
     outputStage.mixAndOutput(dryBuffer, delayInputBuffer, chunk, numSamples);
+
+    // ------------------------------------------------------------
+    // Display L/R meters — observe FINAL output peaks only (post
+    // mix/output/bypass). Does not modify chunk. Maps ~-48 dB..0 dB
+    // to 0..1 for the UI segment meters (same atomic pattern as wetActivity).
+    // ------------------------------------------------------------
+    {
+        auto channelPeak = [&chunk, numSamples](int ch) noexcept
+        {
+            const auto range = chunk.findMinMax(ch, 0, numSamples);
+            return juce::jmax(std::abs(range.getStart()), std::abs(range.getEnd()));
+        };
+
+        const float peakL = numChannels > 0 ? channelPeak(0) : 0.0f;
+        const float peakR = numChannels > 1 ? channelPeak(1) : peakL;
+
+        const float attackCoeff = 1.0f - std::exp(-1.0f / (0.010f * (float) currentSampleRate));
+        const float releaseCoeff = 1.0f - std::exp(-1.0f / (0.320f * (float) currentSampleRate));
+        const float step = juce::jmin(1.0f, (float) numSamples);
+
+        const float coeffL = (peakL > meterEnvelopeL) ? attackCoeff : releaseCoeff;
+        const float coeffR = (peakR > meterEnvelopeR) ? attackCoeff : releaseCoeff;
+        meterEnvelopeL += (peakL - meterEnvelopeL) * juce::jmin(1.0f, coeffL * step);
+        meterEnvelopeR += (peakR - meterEnvelopeR) * juce::jmin(1.0f, coeffR * step);
+
+        const auto toMeter = [](float peak) noexcept
+        {
+            const float db = juce::Decibels::gainToDecibels(peak, -60.0f);
+            return juce::jlimit(0.0f, 1.0f, (db + 48.0f) * (1.0f / 48.0f));
+        };
+
+        outputMeterL.store(toMeter(meterEnvelopeL), std::memory_order_relaxed);
+        outputMeterR.store(toMeter(meterEnvelopeR), std::memory_order_relaxed);
+    }
 }
 
 void NFWhiteDelayAudioProcessor::getStateInformation(juce::MemoryBlock& destData)

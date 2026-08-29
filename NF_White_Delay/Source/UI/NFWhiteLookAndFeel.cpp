@@ -60,10 +60,9 @@ void NFWhiteLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
                                            float sliderPosProportional, float rotaryStartAngle,
                                            float rotaryEndAngle, juce::Slider&)
 {
-    // FASE 2 -- official White Delay knobs (reference-matched).
-    // Body: BinaryData knob_large / knob_small (pointer at 12 o'clock).
-    // Overlay: soft ground shadow, ticks, cyan value arc just outside the rim.
-    auto bounds = juce::Rectangle<float>((float) x, (float) y, (float) width, (float) height).reduced(2.0f);
+    // Reference crop (TIME): brushed metal asset + chrome rim, soft ground
+    // shadow, outer ticks, neon blue value arc with bloom.
+    auto bounds = juce::Rectangle<float>((float) x, (float) y, (float) width, (float) height).reduced(1.5f);
     const float diameter = juce::jmin(bounds.getWidth(), bounds.getHeight());
     if (diameter < 8.0f)
         return;
@@ -74,14 +73,15 @@ void NFWhiteLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
     const float angle = rotaryStartAngle + sliderPosProportional * (rotaryEndAngle - rotaryStartAngle);
 
     const bool useLarge = diameter >= 72.0f;
-    const float knobDiameter = diameter * (useLarge ? 0.76f : 0.74f);
+    const float knobDiameter = diameter * 0.78f; // chrome rim reads like the crop
     const float knobRadius = knobDiameter * 0.5f;
     auto knobRect = juce::Rectangle<float>(knobDiameter, knobDiameter).withCentre(centre);
 
+    // Soft elliptical ground shadow (reference: soft drop under the knob).
     {
-        auto shadowEllipse = juce::Rectangle<float>(knobDiameter * 0.95f, knobDiameter * 0.22f)
-                                 .withCentre({ centre.x, centre.y + knobRadius * 0.82f });
-        juce::ColourGradient shadowGrad(juce::Colours::black.withAlpha(useLarge ? 0.20f : 0.16f),
+        auto shadowEllipse = juce::Rectangle<float>(knobDiameter * 1.05f, knobDiameter * 0.26f)
+                                 .withCentre({ centre.x, centre.y + knobRadius * 0.92f });
+        juce::ColourGradient shadowGrad(juce::Colours::black.withAlpha(0.22f),
                                          centre.x, shadowEllipse.getY(),
                                          juce::Colours::transparentBlack,
                                          centre.x, shadowEllipse.getBottom(), false);
@@ -90,53 +90,61 @@ void NFWhiteLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
     }
 
     constexpr int numTicks = 11;
-    const float tickOuter = radius * 0.985f;
-    g.setColour(kKnobOutline.darker(0.18f));
+    const float tickOuter = radius * 0.995f;
+    g.setColour(kKnobOutline.darker(0.22f).withAlpha(0.85f));
     for (int i = 0; i < numTicks; ++i)
     {
         const float t = (float) i / (float) (numTicks - 1);
         const float tickAngle = rotaryStartAngle + t * (rotaryEndAngle - rotaryStartAngle);
         const bool major = (i % 5 == 0);
-        const float tickInner = radius * (major ? 0.905f : 0.935f);
+        const float tickInner = radius * (major ? 0.900f : 0.935f);
         g.drawLine({ centre.getPointOnCircumference(tickInner, tickAngle),
                      centre.getPointOnCircumference(tickOuter, tickAngle) },
-                   major ? 1.5f : 1.0f);
+                   major ? 1.55f : 1.00f);
     }
 
-    const float trackRadius = knobRadius * 1.055f;
-    const float trackThickness = juce::jmax(2.0f, knobRadius * (useLarge ? 0.078f : 0.088f));
+    // Official knob refs: segmented neon LED arc + dark inactive track.
+    const float trackRadius = knobRadius * 1.045f;
+    const float trackThickness = juce::jmax(2.8f, knobRadius * 0.105f);
+    constexpr int numLedSegments = 28;
+    const float span = rotaryEndAngle - rotaryStartAngle;
+    const float segSpan = span / (float) numLedSegments;
+    const float gap = segSpan * 0.18f;
+    const int litSegments = juce::jlimit(0, numLedSegments,
+        (int) std::ceil(sliderPosProportional * (float) numLedSegments));
 
-    juce::Path track;
-    track.addCentredArc(centre.x, centre.y, trackRadius, trackRadius, 0.0f,
-                         rotaryStartAngle, rotaryEndAngle, true);
-    g.setColour(kTrackBackground.withAlpha(0.85f));
-    g.strokePath(track, juce::PathStrokeType(trackThickness * 0.85f,
-                                              juce::PathStrokeType::curved,
-                                              juce::PathStrokeType::rounded));
-
-    if (sliderPosProportional > 0.001f)
+    for (int i = 0; i < numLedSegments; ++i)
     {
-        juce::Path valueArc;
-        valueArc.addCentredArc(centre.x, centre.y, trackRadius, trackRadius, 0.0f,
-                                rotaryStartAngle, angle, true);
+        const float a0 = rotaryStartAngle + (float) i * segSpan + gap * 0.5f;
+        const float a1 = rotaryStartAngle + (float) (i + 1) * segSpan - gap * 0.5f;
+        if (a1 <= a0)
+            continue;
 
-        for (int i = 3; i >= 1; --i)
+        juce::Path seg;
+        seg.addCentredArc(centre.x, centre.y, trackRadius, trackRadius, 0.0f, a0, a1, true);
+
+        if (i < litSegments)
         {
-            const float expand = (float) i * (useLarge ? 1.7f : 1.35f);
-            g.setColour(kKnobValueArc.darker(0.15f).withAlpha(0.11f / (float) i));
-            g.strokePath(valueArc, juce::PathStrokeType(trackThickness + expand,
-                                                         juce::PathStrokeType::curved,
-                                                         juce::PathStrokeType::rounded));
+            g.setColour(kNeonGlow.withAlpha(0.22f));
+            g.strokePath(seg, juce::PathStrokeType(trackThickness + 3.2f,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+            g.setColour(kDisplayAccent.withAlpha(0.95f));
+            g.strokePath(seg, juce::PathStrokeType(trackThickness,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+            g.setColour(kKnobValueArcCore.withAlpha(0.95f));
+            g.strokePath(seg, juce::PathStrokeType(trackThickness * 0.35f,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
         }
-
-        g.setColour(kKnobValueArc.brighter(0.08f));
-        g.strokePath(valueArc, juce::PathStrokeType(trackThickness,
-                                                     juce::PathStrokeType::curved,
-                                                     juce::PathStrokeType::rounded));
-        g.setColour(kKnobValueArcCore.withAlpha(0.95f));
-        g.strokePath(valueArc, juce::PathStrokeType(trackThickness * 0.32f,
-                                                     juce::PathStrokeType::curved,
-                                                     juce::PathStrokeType::rounded));
+        else
+        {
+            g.setColour(juce::Colour(0xff2a3038).withAlpha(0.55f));
+            g.strokePath(seg, juce::PathStrokeType(trackThickness * 0.72f,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+        }
     }
 
     const auto* data = useLarge ? BinaryData::knob_large_png : BinaryData::knob_small_png;
@@ -145,14 +153,33 @@ void NFWhiteLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
 
     if (knobAsset.isValid())
     {
+        // Opaque metal underlay — soft PNG alpha must not wash through chassis.
+        {
+            juce::ColourGradient metal(kKnobLight, centre.x, knobRect.getY(),
+                                       kKnobDark, centre.x, knobRect.getBottom(), false);
+            g.setGradientFill(metal);
+            g.fillEllipse(knobRect);
+        }
+
         juce::Graphics::ScopedSaveState state(g);
-        // Clip to the circular body so the PNG's white square corners
-        // never flash when the asset is rotated.
         juce::Path clip;
         clip.addEllipse(knobRect.expanded(0.5f));
         g.reduceClipRegion(clip);
+        g.setOpacity(1.0f);
         g.addTransform(juce::AffineTransform::rotation(angle, centre.x, centre.y));
-        g.drawImage(knobAsset, knobRect, juce::RectanglePlacement::centred);
+        g.drawImage(knobAsset, knobRect,
+                     juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+        g.setOpacity(1.0f);
+    }
+    else
+    {
+        juce::ColourGradient metal(kKnobLight, centre.x, knobRect.getY(),
+                                   kKnobDark, centre.x, knobRect.getBottom(), false);
+        g.setGradientFill(metal);
+        g.fillEllipse(knobRect);
+        g.setColour(kText.withAlpha(0.85f));
+        g.drawLine({ centre.getPointOnCircumference(knobRadius * 0.12f, angle),
+                     centre.getPointOnCircumference(knobRadius * 0.72f, angle) }, 2.2f);
     }
 }
 
