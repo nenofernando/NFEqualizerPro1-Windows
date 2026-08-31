@@ -32,5 +32,12 @@ private:
     SpectralEngine spectral;
     juce::AudioBuffer<float> dryDelay;
     int dryWrite = 0;
+    // Bypass keeps the STFT engine running continuously (never resets it),
+    // so its internal timeline never goes stale relative to real time. What
+    // changes is only the output blend: a smoothed per-sample crossfade
+    // between processed and latency-compensated dry, avoiding both an
+    // instant-switch click and a spectral-engine restart thump.
+    float bypassMix = 0.0f; // 0 = fully processed/wet, 1 = fully dry
+    float bypassSmoothCoeff = 0.0f;
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(NFResonanceAudioProcessor)
 };

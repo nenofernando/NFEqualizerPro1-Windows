@@ -4,7 +4,10 @@
 // Not part of the plugin build itself.
 
 #include <JuceHeader.h>
+#include <functional>
+#include <cstdlib>
 #include "PluginProcessor.h"
+#include "DSP/SpectralEngine.h"
 
 using juce::AudioBuffer;
 
@@ -17,9 +20,14 @@ static void setParam(NFResonanceAudioProcessor& proc, const char* id, float valu
         p->setValueNotifyingHost(p->convertTo0to1(value));
 }
 
+// Default matches production (LeftPad/C2 with the algorithmic latency validity
+// boundary). Override with NF_WARMUP_MODE=A/B/C for historical comparison only.
+static SpectralEngine::WarmupMode gWarmupModeForThisRun = SpectralEngine::WarmupMode::LeftPad;
+
 static std::unique_ptr<NFResonanceAudioProcessor> makeProcessor(double sr, int blockSize)
 {
     auto proc = std::make_unique<NFResonanceAudioProcessor>();
+    proc->engine().setWarmupMode(gWarmupModeForThisRun);
     proc->prepareToPlay(sr, blockSize);
     return proc;
 }
@@ -224,6 +232,18 @@ static void section(const char* title)
 //==============================================================================
 int main()
 {
+    if (const char* envMode = std::getenv("NF_WARMUP_MODE"))
+    {
+        juce::String m(envMode);
+        if (m == "A" || m == "TimeGate") gWarmupModeForThisRun = SpectralEngine::WarmupMode::TimeGate;
+        else if (m == "C" || m == "PreRoll") gWarmupModeForThisRun = SpectralEngine::WarmupMode::PreRoll;
+        else if (m == "C2" || m == "LeftPad") gWarmupModeForThisRun = SpectralEngine::WarmupMode::LeftPad;
+        else gWarmupModeForThisRun = SpectralEngine::WarmupMode::NormGate;
+    }
+    std::cout << "Warmup mode for this run: " << (gWarmupModeForThisRun==SpectralEngine::WarmupMode::TimeGate?"A-TimeGate":
+                    gWarmupModeForThisRun==SpectralEngine::WarmupMode::PreRoll?"C-PreRoll":
+                    gWarmupModeForThisRun==SpectralEngine::WarmupMode::LeftPad?"C2-LeftPad":"B-NormGate") << "\n";
+
     const double sr = 48000.0;
     const int blockSize = 512;
     const int lat = [&]{ auto p = makeProcessor(sr, blockSize); return p->getLatencySamples(); }();
@@ -239,9 +259,12 @@ int main()
         runThrough(*proc, out, blockSize);
 
         bool nanInf = hasNaNOrInf(out);
-        // output[n] should equal input[n-lat]
+        // output[n] should equal input[n-lat], once the bypass crossfade has
+        // settled (bypass is a smoothed ~15ms ramp by design now, not an
+        // instant switch -- see PluginProcessor's bypassMix).
+        int settleSamples = (int)(sr * 0.15);
         double diffSum = 0, refSum = 0; int nCompared = 0;
-        for (int i = lat + 64; i < out.getNumSamples(); ++i)
+        for (int i = lat + settleSamples; i < out.getNumSamples(); ++i)
             for (int c = 0; c < 2; ++c)
             {
                 double d = out.getSample(c, i) - input.getSample(c, i - lat);
@@ -526,6 +549,7 @@ int main()
             maxRipple = juce::jmax(maxRipple, std::abs(d));
             std::cout << std::fixed << std::setprecision(2) << d << " ";
         }
+        std::cout << std::defaultfloat << std::setprecision(6);
         std::cout << "\n  max ripple: " << maxRipple << " dB\n";
         check(! nanInf, "no NaN/Inf");
         // NOTE: band-energy ripple above ~8kHz in a CONTINUOUS log sweep is a
@@ -750,6 +774,63 @@ int main()
             std::cout << "  (d) bypass off->on->off mid-stream: max sample jump near toggle edges = " << maxJumpAtToggle << "\n";
             check(! nanInf, "(d) no NaN/Inf across bypass toggling");
             check(maxJumpAtToggle < 1.0, "(d) no thump at bypass toggle edges");
+        }
+    }
+
+    //======================================================================
+    section("STAGE 1b - transient at input sample 0 (warm-up must not delay it beyond reported latency)");
+    {
+        auto testTransientAtZero = [&](const char* label, std::function<std::unique_ptr<NFResonanceAudioProcessor>()> makeFn)
+        {
+            auto proc = makeFn();
+            int reportedLat = proc->getLatencySamples();
+            auto input = genImpulse(2, (int)(sr*0.5), 0, 0.9f);
+            AudioBuffer<float> out; out.makeCopyOf(input);
+            runThrough(*proc, out, blockSize);
+            int firstNonSilent = -1;
+            for (int i = 0; i < out.getNumSamples(); ++i)
+                if (std::abs(out.getSample(0,i)) > 1e-5f) { firstNonSilent = i; break; }
+            double peakVal = peakOf(out);
+            std::cout << "  " << label << ": reportedLatency=" << reportedLat
+                       << "  firstNonSilentOutputSample=" << firstNonSilent
+                       << "  delayBeyondReportedLatency=" << (firstNonSilent - reportedLat)
+                       << "  peak=" << peakVal << "\n";
+        };
+
+        testTransientAtZero("fresh instance", [&]{ return makeProcessor(sr, blockSize); });
+        testTransientAtZero("after reset() (via re-prepareToPlay same sr)", [&]{
+            auto p = makeProcessor(sr, blockSize);
+            auto warm = genTwoTone(2,(int)(sr*0.3),sr); runThrough(*p, warm, blockSize);
+            p->prepareToPlay(sr, blockSize);
+            return p;
+        });
+        testTransientAtZero("after sample-rate change", [&]{
+            auto p = makeProcessor(44100.0, blockSize);
+            auto warm = genTwoTone(2,(int)(44100.0*0.3),44100.0); runThrough(*p, warm, blockSize);
+            p->prepareToPlay(sr, blockSize);
+            return p;
+        });
+        std::cout << "  (NOTE: fullOverlapAt warm-up gate = " << 3584 << " samples; reported latency = 2048.\n";
+        std::cout << "   Any 'delayBeyondReportedLatency' > 0 above means the deterministic silence\n";
+        std::cout << "   gate is suppressing real, valid signal beyond what the host is told to expect.)\n";
+
+        // Isolate: is this the warm-up gate, or the analysis window itself
+        // being exactly zero at its own edge (sample 0 of the whole stream
+        // lands on window[0]=0 for the one frame that ever sees it)? Test at
+        // Depth=0 (no warm-up-gate interaction with detection) and at several
+        // impulse positions near the very start.
+        std::cout << "\n  Isolation: Depth=0, impulse at various positions near stream start:\n";
+        for (int pos : { 0, 1, 2, 5, 50, 500 })
+        {
+            auto proc = makeProcessor(sr, blockSize);
+            setParam(*proc, "depth", 0.0f);
+            auto input = genImpulse(2, (int)(sr*0.3), pos, 0.9f);
+            AudioBuffer<float> out; out.makeCopyOf(input);
+            runThrough(*proc, out, blockSize);
+            double pk = peakOf(out);
+            int pkIdx=-1; double pkVal=0;
+            for (int i=0;i<out.getNumSamples();++i){ double v=std::abs(out.getSample(0,i)); if (v>pkVal){pkVal=v;pkIdx=i;} }
+            std::cout << "    impulse at sample " << pos << ": output peak=" << pk << " at sample " << pkIdx << "\n";
         }
     }
 

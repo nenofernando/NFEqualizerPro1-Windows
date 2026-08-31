@@ -33,6 +33,9 @@ void NFResonanceAudioProcessor::prepareToPlay(double sr,int spb)
     spectral.prepare(sr,getTotalNumOutputChannels());
     setLatencySamples(spectral.latencySamples());
     dryDelay.setSize(getTotalNumOutputChannels(), spectral.latencySamples()+spb+8); dryDelay.clear(); dryWrite=0;
+    bypassMix = apvts.getRawParameterValue("bypass")->load()>0.5f ? 1.0f : 0.0f;
+    const float bypassSmoothMs = 15.0f;
+    bypassSmoothCoeff = std::exp(-1.0f/(0.001f*bypassSmoothMs*(float)sr));
 }
 void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::MidiBuffer&)
 {
@@ -43,7 +46,10 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
         for(int c=0;c<ch;++c){ float x=b.getSample(c,i); dryDelay.setSample(c,dryWrite,x); int rp=(dryWrite-lat+ring)%ring; dry.setSample(c,i,dryDelay.getSample(c,rp)); }
         dryWrite=(dryWrite+1)%ring;
     }
-    if (apvts.getRawParameterValue("bypass")->load()>0.5f){ b.makeCopyOf(dry); return; }
+    // The STFT engine always runs, even while bypassed: its internal ring/
+    // history/detector timeline stays continuously synced to real time, so
+    // turning bypass off never restarts the algorithmic-latency boundary or
+    // splices stale pre-bypass history against fresh post-bypass audio.
     SpectralEngine::Params p;
     p.depth=apvts.getRawParameterValue("depth")->load(); p.sharpness=apvts.getRawParameterValue("sharpness")->load(); p.selectivity=apvts.getRawParameterValue("selectivity")->load();
     p.attackMs=apvts.getRawParameterValue("attack")->load(); p.releaseMs=apvts.getRawParameterValue("release")->load();
@@ -51,8 +57,19 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
     p.mode=(int)apvts.getRawParameterValue("mode")->load(); p.delta=apvts.getRawParameterValue("delta")->load()>0.5f;
     const char* ids[]={"c20","c100","c500","c1k","c5k","c10k","c20k"}; for(int i=0;i<7;++i)p.curveDb[i]=apvts.getRawParameterValue(ids[i])->load();
     spectral.setParams(p); spectral.process(b);
+
     const float mix=apvts.getRawParameterValue("mix")->load()/100.0f, out=juce::Decibels::decibelsToGain(apvts.getRawParameterValue("output")->load());
-    for(int c=0;c<ch;++c) for(int i=0;i<ns;++i){ float wet=b.getSample(c,i); float y=p.delta?wet:(dry.getSample(c,i)*(1.0f-mix)+wet*mix); b.setSample(c,i,y*out); }
+    const bool bypassed = apvts.getRawParameterValue("bypass")->load()>0.5f;
+    const float bypassTarget = bypassed ? 1.0f : 0.0f;
+    for(int i=0;i<ns;++i){
+        bypassMix = bypassTarget + (bypassMix-bypassTarget)*bypassSmoothCoeff;
+        for(int c=0;c<ch;++c){
+            float wet=b.getSample(c,i);
+            float processed = p.delta?wet:(dry.getSample(c,i)*(1.0f-mix)+wet*mix);
+            float y = dry.getSample(c,i)*bypassMix + processed*(1.0f-bypassMix);
+            b.setSample(c,i,y*out);
+        }
+    }
 }
 void NFResonanceAudioProcessor::getStateInformation(juce::MemoryBlock& d){ if(auto xml=apvts.copyState().createXml()) copyXmlToBinary(*xml,d); }
 void NFResonanceAudioProcessor::setStateInformation(const void* d,int s){ if(auto xml=getXmlFromBinary(d,s)) apvts.replaceState(juce::ValueTree::fromXml(*xml)); }

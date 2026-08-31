@@ -85,3 +85,91 @@ target_compile_definitions(NFResonanceSmokeTest PRIVATE
 target_link_libraries(NFResonanceSmokeTest PRIVATE
   juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Investigation-only: A/B/C comparison of the three startup/warm-up
+# strategies (time gate, norm-relative gate, virtual pre-roll).
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceWarmupCompare PRODUCT_NAME "NF Resonance Warmup Compare")
+
+juce_generate_juce_header(NFResonanceWarmupCompare)
+
+target_sources(NFResonanceWarmupCompare PRIVATE
+  Tests/WarmupCompare.cpp
+  Source/PluginProcessor.cpp Source/PluginProcessor.h
+  Source/PluginEditor.cpp Source/PluginEditor.h
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
+  Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
+
+target_include_directories(NFResonanceWarmupCompare PRIVATE Source)
+
+target_compile_definitions(NFResonanceWarmupCompare PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+
+target_link_libraries(NFResonanceWarmupCompare PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Investigation-only: deep diagnosis of the C2 (true left-pad STFT)
+# startup overshoot at Depth != 0 -- per-frame mask capture, OLA
+# decomposition, controlled mask-override experiments.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceOvershootDiagnosis PRODUCT_NAME "NF Resonance Overshoot Diagnosis")
+
+juce_generate_juce_header(NFResonanceOvershootDiagnosis)
+
+target_sources(NFResonanceOvershootDiagnosis PRIVATE
+  Tests/OvershootDiagnosis.cpp
+  Source/PluginProcessor.cpp Source/PluginProcessor.h
+  Source/PluginEditor.cpp Source/PluginEditor.h
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
+  Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
+
+target_include_directories(NFResonanceOvershootDiagnosis PRIVATE Source)
+
+target_compile_definitions(NFResonanceOvershootDiagnosis PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+
+target_link_libraries(NFResonanceOvershootDiagnosis PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Final validation of C2 (true left-pad STFT) + algorithmic latency
+# validity boundary, ahead of the production checkpoint.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceC2FinalValidation PRODUCT_NAME "NF Resonance C2 Final Validation")
+
+juce_generate_juce_header(NFResonanceC2FinalValidation)
+
+target_sources(NFResonanceC2FinalValidation PRIVATE
+  Tests/C2FinalValidation.cpp
+  Source/PluginProcessor.cpp Source/PluginProcessor.h
+  Source/PluginEditor.cpp Source/PluginEditor.h
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
+  Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
+
+target_include_directories(NFResonanceC2FinalValidation PRIVATE Source)
+
+target_compile_definitions(NFResonanceC2FinalValidation PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+
+target_link_libraries(NFResonanceC2FinalValidation PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
