@@ -43,6 +43,7 @@ target_sources(NFResonance PRIVATE
   Source/PluginEditor.cpp Source/PluginEditor.h
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h
   Source/DSP/TransientGuard.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
@@ -71,6 +72,7 @@ target_sources(NFResonanceSmokeTest PRIVATE
   Source/PluginEditor.cpp Source/PluginEditor.h
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h
   Source/DSP/TransientGuard.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
@@ -100,6 +102,7 @@ target_sources(NFResonanceWarmupCompare PRIVATE
   Source/PluginEditor.cpp Source/PluginEditor.h
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h
   Source/DSP/TransientGuard.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
@@ -130,6 +133,7 @@ target_sources(NFResonanceOvershootDiagnosis PRIVATE
   Source/PluginEditor.cpp Source/PluginEditor.h
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h
   Source/DSP/TransientGuard.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
@@ -159,6 +163,7 @@ target_sources(NFResonanceC2FinalValidation PRIVATE
   Source/PluginEditor.cpp Source/PluginEditor.h
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h
   Source/DSP/TransientGuard.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
@@ -172,4 +177,290 @@ target_compile_definitions(NFResonanceC2FinalValidation PRIVATE
 
 target_link_libraries(NFResonanceC2FinalValidation PRIVATE
   juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Detector benchmark harness: baselines the current V1 detector
+# (pink noise + injected resonances at controlled freq/level/Q)
+# ahead of the Detector V2 redesign.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorV2Validation PRODUCT_NAME "NF Resonance Detector V2 Validation")
+
+juce_generate_juce_header(NFResonanceDetectorV2Validation)
+
+target_sources(NFResonanceDetectorV2Validation PRIVATE
+  Tests/DetectorV2Validation.cpp
+  Source/PluginProcessor.cpp Source/PluginProcessor.h
+  Source/PluginEditor.cpp Source/PluginEditor.h
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h
+  Source/DSP/TransientGuard.h
+  Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
+  Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
+
+target_include_directories(NFResonanceDetectorV2Validation PRIVATE Source)
+
+target_compile_definitions(NFResonanceDetectorV2Validation PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+
+target_link_libraries(NFResonanceDetectorV2Validation PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Detector unit test: exercises ResonanceDetector::compute() directly
+# with synthetic spectral frames -- no FFT/windowing/OLA/pink-noise
+# randomness -- to isolate detector-envelope timing from STFT effects.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorUnitTest PRODUCT_NAME "NF Resonance Detector Unit Test")
+
+juce_generate_juce_header(NFResonanceDetectorUnitTest)
+
+target_sources(NFResonanceDetectorUnitTest PRIVATE
+  Tests/DetectorUnitTest.cpp
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h)
+
+target_include_directories(NFResonanceDetectorUnitTest PRIVATE Source)
+
+target_link_libraries(NFResonanceDetectorUnitTest PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A Spectral Prominence Engine benchmark: synthetic spectral frames
+# with exactly-known ground truth (no FFT/windowing/pink-noise).
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorV2ABenchmark PRODUCT_NAME "NF Resonance Detector V2A Benchmark")
+
+juce_generate_juce_header(NFResonanceDetectorV2ABenchmark)
+
+target_sources(NFResonanceDetectorV2ABenchmark PRIVATE
+  Tests/DetectorV2ABenchmark.cpp
+  Source/DSP/SpectralProminenceEngine.cpp Source/DSP/SpectralProminenceEngine.h)
+
+target_include_directories(NFResonanceDetectorV2ABenchmark PRIVATE Source)
+
+target_link_libraries(NFResonanceDetectorV2ABenchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A2 hybrid candidate-based prominence engine validation.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorV2A2Benchmark PRODUCT_NAME "NF Resonance Detector V2A2 Benchmark")
+
+juce_generate_juce_header(NFResonanceDetectorV2A2Benchmark)
+
+target_sources(NFResonanceDetectorV2A2Benchmark PRIVATE
+  Tests/DetectorV2A2Benchmark.cpp
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceDetectorV2A2Benchmark PRIVATE Source)
+
+target_link_libraries(NFResonanceDetectorV2A2Benchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Diagnose candidate counts under different content types/thresholds.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceCandidateDiagnosis PRODUCT_NAME "NF Resonance Candidate Diagnosis")
+
+juce_generate_juce_header(NFResonanceCandidateDiagnosis)
+
+target_sources(NFResonanceCandidateDiagnosis PRIVATE
+  Tests/CandidateDiagnosis.cpp
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceCandidateDiagnosis PRIVATE Source)
+
+target_link_libraries(NFResonanceCandidateDiagnosis PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Compares cheap-pass signal-smoothing variants: recall, false-candidate
+# rate, and CPU.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceCheapPassSmoothing PRODUCT_NAME "NF Resonance Cheap Pass Smoothing")
+
+juce_generate_juce_header(NFResonanceCheapPassSmoothing)
+
+target_sources(NFResonanceCheapPassSmoothing PRIVATE
+  Tests/CheapPassSmoothingBenchmark.cpp
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceCheapPassSmoothing PRIVATE Source)
+
+target_link_libraries(NFResonanceCheapPassSmoothing PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A3 scale-specific prominence engine validation.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorV2A3Benchmark PRODUCT_NAME "NF Resonance Detector V2A3 Benchmark")
+
+juce_generate_juce_header(NFResonanceDetectorV2A3Benchmark)
+
+target_sources(NFResonanceDetectorV2A3Benchmark PRIVATE
+  Tests/DetectorV2A3Benchmark.cpp
+  Source/DSP/SpectralProminenceEngineV3.cpp Source/DSP/SpectralProminenceEngineV3.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceDetectorV2A3Benchmark PRIVATE Source)
+
+target_link_libraries(NFResonanceDetectorV2A3Benchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A4 region-based NARROW refinement validation.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorV2A4Benchmark PRODUCT_NAME "NF Resonance Detector V2A4 Benchmark")
+
+juce_generate_juce_header(NFResonanceDetectorV2A4Benchmark)
+
+target_sources(NFResonanceDetectorV2A4Benchmark PRIVATE
+  Tests/DetectorV2A4Benchmark.cpp
+  Source/DSP/SpectralProminenceEngineV4.cpp Source/DSP/SpectralProminenceEngineV4.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceDetectorV2A4Benchmark PRIVATE Source)
+
+target_link_libraries(NFResonanceDetectorV2A4Benchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A4 region budget sweep on worst-case content.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceV2A4BudgetSweep PRODUCT_NAME "NF Resonance V2A4 Budget Sweep")
+
+juce_generate_juce_header(NFResonanceV2A4BudgetSweep)
+
+target_sources(NFResonanceV2A4BudgetSweep PRIVATE
+  Tests/V2A4BudgetSweep.cpp
+  Source/DSP/SpectralProminenceEngineV4.cpp Source/DSP/SpectralProminenceEngineV4.h)
+
+target_include_directories(NFResonanceV2A4BudgetSweep PRIVATE Source)
+
+target_link_libraries(NFResonanceV2A4BudgetSweep PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Final validation of budget=16 production candidacy for V2-A4.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceV2A4Budget16Validation PRODUCT_NAME "NF Resonance V2A4 Budget16 Validation")
+
+juce_generate_juce_header(NFResonanceV2A4Budget16Validation)
+
+target_sources(NFResonanceV2A4Budget16Validation PRIVATE
+  Tests/V2A4Budget16Validation.cpp
+  Source/DSP/SpectralProminenceEngineV4.cpp Source/DSP/SpectralProminenceEngineV4.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceV2A4Budget16Validation PRIVATE Source)
+
+target_link_libraries(NFResonanceV2A4Budget16Validation PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A4 tiered scheduler validation (separates candidate detection,
+# scheduling/fairness, and refinement accuracy).
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceV2A4TieredValidation PRODUCT_NAME "NF Resonance V2A4 Tiered Validation")
+
+juce_generate_juce_header(NFResonanceV2A4TieredValidation)
+
+target_sources(NFResonanceV2A4TieredValidation PRIVATE
+  Tests/V2A4TieredValidation.cpp
+  Source/DSP/SpectralProminenceEngineV4.cpp Source/DSP/SpectralProminenceEngineV4.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceV2A4TieredValidation PRIVATE Source)
+
+target_link_libraries(NFResonanceV2A4TieredValidation PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A5 deterministic fast prominence engine validation.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceDetectorV2A5Benchmark PRODUCT_NAME "NF Resonance Detector V2A5 Benchmark")
+
+juce_generate_juce_header(NFResonanceDetectorV2A5Benchmark)
+
+target_sources(NFResonanceDetectorV2A5Benchmark PRIVATE
+  Tests/DetectorV2A5Benchmark.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceDetectorV2A5Benchmark PRIVATE Source)
+
+target_link_libraries(NFResonanceDetectorV2A5Benchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A5 isolated CPU microbenchmark: SpectralProminenceEngineV5 only,
+# same-frame x10000 per scenario, per-stage timing, zero-alloc proof.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceV2A5CpuIsolationBenchmark PRODUCT_NAME "NF Resonance V2A5 CPU Isolation Benchmark")
+
+juce_generate_juce_header(NFResonanceV2A5CpuIsolationBenchmark)
+
+target_sources(NFResonanceV2A5CpuIsolationBenchmark PRIVATE
+  Tests/V2A5CpuIsolationBenchmark.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+
+target_include_directories(NFResonanceV2A5CpuIsolationBenchmark PRIVATE Source)
+
+target_link_libraries(NFResonanceV2A5CpuIsolationBenchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A5B precision comparison: Method A vs Method C vs P25 oracle,
+# corrected synthetic generator, multi-sample-rate, precision-only
+# (CPU is measured separately by V2A5CpuIsolationBenchmark).
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceV2A5BPrecisionComparison PRODUCT_NAME "NF Resonance V2A5B Precision Comparison")
+
+juce_generate_juce_header(NFResonanceV2A5BPrecisionComparison)
+
+target_sources(NFResonanceV2A5BPrecisionComparison PRIVATE
+  Tests/V2A5B_PrecisionComparison.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceV2A5BPrecisionComparison PRIVATE Source)
+
+target_link_libraries(NFResonanceV2A5BPrecisionComparison PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# V2-A5C: core/context geometry calibration sweep for Method C,
+# targeting the leakage bias found in the V2-A5B comparison.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceV2A5CGeometrySweep PRODUCT_NAME "NF Resonance V2A5C Geometry Sweep")
+
+juce_generate_juce_header(NFResonanceV2A5CGeometrySweep)
+
+target_sources(NFResonanceV2A5CGeometrySweep PRIVATE
+  Tests/V2A5C_GeometrySweep.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+
+target_include_directories(NFResonanceV2A5CGeometrySweep PRIVATE Source)
+
+target_link_libraries(NFResonanceV2A5CGeometrySweep PRIVATE
+  juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
