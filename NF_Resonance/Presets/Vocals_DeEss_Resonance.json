@@ -1,0 +1,25 @@
+{
+  "name": "Vocals - De-ess & Resonance",
+  "depth": 5.2,
+  "sharpness": 4.6,
+  "selectivity": 4.2,
+  "attackMs": 8.0,
+  "releaseMs": 90.0,
+  "lowHz": 90,
+  "highHz": 15500,
+  "transient": 6.0,
+  "biasDb": 1.0,
+  "curveDb": [
+    0,
+    0,
+    1,
+    1.5,
+    2.5,
+    4,
+    1.5
+  ],
+  "mode": "Stereo",
+  "delta": false,
+  "mix": 100,
+  "outputDb": 0
+}

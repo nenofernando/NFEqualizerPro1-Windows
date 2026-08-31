@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="34" height="34" viewBox="0 0 34 34">
+<defs>
+ <linearGradient id="metal" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#2b3036"/><stop offset="0.5" stop-color="#11151a"/><stop offset="1" stop-color="#050709"/></linearGradient>
+ <linearGradient id="purple" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#a978ff"/><stop offset="1" stop-color="#6a3ac4"/></linearGradient>
+ <radialGradient id="knob" cx="38%" cy="30%"><stop offset="0" stop-color="#3c424b"/><stop offset="0.5" stop-color="#171b20"/><stop offset="1" stop-color="#07090c"/></radialGradient>
+ <filter id="shadow"><feDropShadow dx="0" dy="3" stdDeviation="4" flood-color="#000" flood-opacity="0.8"/></filter>
+</defs>
+<circle cx="17" cy="17" r="13" fill="#10151b" stroke="#9a63eb" stroke-width="3"/>
+<circle cx="17" cy="17" r="5" fill="#c9b1ff"/>
+</svg>

@@ -1,0 +1,35 @@
+CLAUDE / CURSOR MASTER PROMPT — NF RESONANCE
+
+You are continuing the NF Resonance JUCE project. Treat the supplied project, DSP spec, parameter map, visual assets and layout spec as authoritative. Do not simplify it into a multiband dynamic EQ.
+
+GOAL
+Build a production-quality realtime dynamic spectral resonance suppressor with natural transparent reduction. The algorithm must remain an original implementation. Do not copy proprietary code, reverse-engineered source, protected assets, trademarks or pixel-identical third-party UI.
+
+NON-NEGOTIABLE DSP
+- STFT spectral analysis and resynthesis, overlap-add, phase preserving.
+- Adaptive local spectral baseline and per-bin prominence detector.
+- Per-bin dynamic gain smoothing with independent attack/release behavior.
+- Frequency sensitivity curve, Low/High working range.
+- Transient protection.
+- Delta output = removed component only.
+- Latency-correct Dry/Wet path.
+- Stereo, independent L/R and actual Mid/Side matrixing.
+- Denormal-safe and allocation-free audio callback after prepareToPlay.
+- Add parameter smoothing where automation can click.
+
+VISUALS
+Use Assets/Visual_Parts/SVG as canonical art and LAYOUT_SPEC.json as geometry reference. The reference concept PNG defines overall visual language. Do not invent extra controls. Preserve NF purple/dark styling.
+
+WORK ORDER
+1. Compile the supplied reference project first. Fix only compile/runtime errors without changing architecture.
+2. Add automated DSP tests: bypass null, latency, silence, impulse stability, mono/stereo, M/S round trip, Delta identity (dry ~= wet + delta in linear conditions).
+3. Optimize the STFT engine for realtime safety and CPU.
+4. Implement linked stereo detection for Stereo mode while keeping L/R mode independent.
+5. Add true sidechain bus and detector filters as specified in docs.
+6. Improve analyzer using lock-free snapshots.
+7. Implement preset serialization.
+8. Run the calibration protocol against legally obtained reference-plugin measurements supplied by the user; tune constants only from measured input/output behavior, never from proprietary code.
+9. Build VST3/AU; add AAX only when SDK is configured.
+
+STOP CONDITIONS
+Do not claim “perfect Soothe clone” or exact equivalence unless controlled measurements supplied by the user support a specific limited claim. Report differences honestly.

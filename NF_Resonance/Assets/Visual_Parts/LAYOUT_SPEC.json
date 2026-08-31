@@ -1,0 +1,174 @@
+{
+  "canvas": {
+    "width": 1536,
+    "height": 864,
+    "scale_policy": "preserve aspect; HiDPI vector first"
+  },
+  "zones": {
+    "header": [
+      20,
+      16,
+      1496,
+      46
+    ],
+    "leftControls": [
+      22,
+      64,
+      260,
+      345
+    ],
+    "analyzer": [
+      296,
+      64,
+      902,
+      345
+    ],
+    "rightControls": [
+      1214,
+      64,
+      304,
+      345
+    ],
+    "bottomBar": [
+      22,
+      420,
+      1496,
+      92
+    ]
+  },
+  "components": [
+    {
+      "id": "logo",
+      "asset": "logo_nf_resonance.svg",
+      "rect": [
+        28,
+        19,
+        420,
+        80
+      ]
+    },
+    {
+      "id": "depth",
+      "asset": "knob_depth_large.svg",
+      "center": [
+        102,
+        178
+      ],
+      "diameter": 150
+    },
+    {
+      "id": "sharpness",
+      "asset": "knob_small.svg",
+      "center": [
+        236,
+        126
+      ],
+      "diameter": 80
+    },
+    {
+      "id": "selectivity",
+      "asset": "knob_small.svg",
+      "center": [
+        236,
+        215
+      ],
+      "diameter": 80
+    },
+    {
+      "id": "attack",
+      "asset": "knob_small.svg",
+      "center": [
+        236,
+        302
+      ],
+      "diameter": 70
+    },
+    {
+      "id": "release",
+      "asset": "knob_small.svg",
+      "center": [
+        236,
+        385
+      ],
+      "diameter": 70
+    },
+    {
+      "id": "output",
+      "asset": "knob_output.svg",
+      "center": [
+        1270,
+        137
+      ],
+      "diameter": 104
+    },
+    {
+      "id": "mix",
+      "asset": "knob_output.svg",
+      "center": [
+        1270,
+        286
+      ],
+      "diameter": 104
+    },
+    {
+      "id": "analyzer",
+      "asset": "analyzer_frame.svg",
+      "rect": [
+        297,
+        64,
+        900,
+        330
+      ]
+    },
+    {
+      "id": "meter_inL",
+      "asset": "meter_frame.svg",
+      "rect": [
+        1355,
+        95,
+        40,
+        290
+      ]
+    },
+    {
+      "id": "meter_inR",
+      "asset": "meter_frame.svg",
+      "rect": [
+        1390,
+        95,
+        40,
+        290
+      ]
+    },
+    {
+      "id": "meter_gr",
+      "asset": "meter_frame.svg",
+      "rect": [
+        1430,
+        95,
+        40,
+        290
+      ]
+    },
+    {
+      "id": "meter_out",
+      "asset": "meter_frame.svg",
+      "rect": [
+        1470,
+        95,
+        40,
+        290
+      ]
+    },
+    {
+      "id": "bypass",
+      "asset": "bypass_button.svg",
+      "rect": [
+        1240,
+        427,
+        145,
+        46
+      ]
+    }
+  ]
+}

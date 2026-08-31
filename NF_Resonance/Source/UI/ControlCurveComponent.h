@@ -1,0 +1,3 @@
+#pragma once
+#include <JuceHeader.h>
+class ControlCurveComponent:public juce::Component{public:ControlCurveComponent(juce::AudioProcessorValueTreeState& s):state(s){}void paint(juce::Graphics&) override;void mouseDown(const juce::MouseEvent&) override;void mouseDrag(const juce::MouseEvent&) override;private:juce::AudioProcessorValueTreeState& state;int selected=-1;const char* ids[7]={"c20","c100","c500","c1k","c5k","c10k","c20k"};juce::Point<float> point(int) const;void setPoint(int,float);};

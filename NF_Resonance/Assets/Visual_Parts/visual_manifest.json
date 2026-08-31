@@ -1,0 +1,135 @@
+{
+  "design": "NF Resonance",
+  "version": "0.1 design kit",
+  "note": "All assets are original NF Resonance UI pieces. SVG is canonical; PNG is 2x preview/raster fallback.",
+  "assets": [
+    {
+      "file": "logo_nf_resonance.svg",
+      "png": "logo_nf_resonance.png",
+      "size": [
+        430,
+        82
+      ]
+    },
+    {
+      "file": "knob_depth_large.svg",
+      "png": "knob_depth_large.png",
+      "size": [
+        170,
+        170
+      ]
+    },
+    {
+      "file": "knob_small.svg",
+      "png": "knob_small.png",
+      "size": [
+        92,
+        92
+      ]
+    },
+    {
+      "file": "knob_output.svg",
+      "png": "knob_output.png",
+      "size": [
+        116,
+        116
+      ]
+    },
+    {
+      "file": "toggle_off.svg",
+      "png": "toggle_off.png",
+      "size": [
+        88,
+        34
+      ]
+    },
+    {
+      "file": "toggle_on.svg",
+      "png": "toggle_on.png",
+      "size": [
+        88,
+        34
+      ]
+    },
+    {
+      "file": "button_off.svg",
+      "png": "button_off.png",
+      "size": [
+        120,
+        38
+      ]
+    },
+    {
+      "file": "button_on.svg",
+      "png": "button_on.png",
+      "size": [
+        120,
+        38
+      ]
+    },
+    {
+      "file": "meter_frame.svg",
+      "png": "meter_frame.png",
+      "size": [
+        58,
+        330
+      ]
+    },
+    {
+      "file": "meter_led_purple.svg",
+      "png": "meter_led_purple.png",
+      "size": [
+        24,
+        300
+      ]
+    },
+    {
+      "file": "meter_led_blue.svg",
+      "png": "meter_led_blue.png",
+      "size": [
+        24,
+        300
+      ]
+    },
+    {
+      "file": "analyzer_frame.svg",
+      "png": "analyzer_frame.png",
+      "size": [
+        960,
+        330
+      ]
+    },
+    {
+      "file": "panel_texture.svg",
+      "png": "panel_texture.png",
+      "size": [
+        640,
+        360
+      ]
+    },
+    {
+      "file": "curve_node.svg",
+      "png": "curve_node.png",
+      "size": [
+        34,
+        34
+      ]
+    },
+    {
+      "file": "preset_field.svg",
+      "png": "preset_field.png",
+      "size": [
+        360,
+        44
+      ]
+    },
+    {
+      "file": "bypass_button.svg",
+      "png": "bypass_button.png",
+      "size": [
+        160,
+        52
+      ]
+    }
+  ]
+}

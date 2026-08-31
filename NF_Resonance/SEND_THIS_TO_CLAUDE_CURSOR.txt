@@ -1,0 +1,7 @@
+ENVIE A PASTA/ZIP INTEIRO AO CLAUDE CODE OU CURSOR.
+
+Cole esta mensagem junto:
+
+"Abra o projeto NF_Resonance_COMPLETE e leia PRIMEIRO CLAUDE_CURSOR_MASTER_PROMPT.txt, README_FIRST.txt, Documentation/DSP_DESIGN.md e Documentation/VISUAL_IMPLEMENTATION.md. Considere os arquivos em Assets/Visual_Parts/SVG e LAYOUT_SPEC.json como referência visual canônica. Não redesenhe, não troque proporções, não remova controles e não simplifique o DSP para um EQ dinâmico comum. Primeiro compile e valide o projeto existente; depois siga a ordem de trabalho do MASTER PROMPT. Preserve o nome NF Resonance e a identidade NF Audio Tools. O objetivo é um supressor espectral de ressonâncias original, transparente e calibrável por medições A/B. Não copie código, recursos gráficos ou algoritmos proprietários de terceiros."
+
+Para AAX: somente habilite após o AAX SDK estar corretamente configurado no JUCE.

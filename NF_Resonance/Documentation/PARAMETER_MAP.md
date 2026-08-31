@@ -1,0 +1,16 @@
+# Parameter map
+- Depth 0..10, default 5: maximum/adaptive suppression amount.
+- Sharpness 0..10, default 4: narrower/local vs broader spectral peak detection.
+- Selectivity 0..10, default 3.5: detector threshold and reduction slope.
+- Attack 0.1..200 ms, default 10.
+- Release 5..1000 ms, default 80.
+- Low 20..1000 Hz, default 20.
+- High 2..22 kHz, default 20 kHz.
+- Transient Protect 0..10, default 5.
+- Detector Bias -6..+12 dB, default +1.5.
+- Curve points 20/100/500/1k/5k/10k/20k Hz, -12..+12 sensitivity.
+- Mode Stereo / L-R / Mid-Side.
+- Delta off/on.
+- Mix 0..100%, default 100.
+- Output -12..+12 dB, default 0.
+- Quality Eco/Balanced/High.
