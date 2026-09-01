@@ -563,3 +563,79 @@ target_link_options(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE -f
 target_link_libraries(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE
   juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C Checkpoint C1: ConfidenceEngine (prominence -> evidence ->
+# confidence), diagnostic only -- no gain reduction anywhere in this target.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceConfidenceLayerCheck PRODUCT_NAME "NF Resonance Confidence Layer Check")
+juce_generate_juce_header(NFResonanceConfidenceLayerCheck)
+target_sources(NFResonanceConfidenceLayerCheck PRIVATE
+  Tests/ConfidenceLayerCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceConfidenceLayerCheck PRIVATE Source)
+target_link_libraries(NFResonanceConfidenceLayerCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C Blocker 2: LowFrequencyHarmonicAnalyzer -- auxiliary,
+# audio-path-independent low-frequency harmonic context (decimated to
+# ~44.1-48kHz regardless of host SR), tested standalone first.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceLowFreqHarmonicAnalyzerCheck PRODUCT_NAME "NF Resonance Low Freq Harmonic Analyzer Check")
+juce_generate_juce_header(NFResonanceLowFreqHarmonicAnalyzerCheck)
+target_sources(NFResonanceLowFreqHarmonicAnalyzerCheck PRIVATE
+  Tests/LowFreqHarmonicAnalyzerCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceLowFreqHarmonicAnalyzerCheck PRIVATE Source)
+target_link_libraries(NFResonanceLowFreqHarmonicAnalyzerCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceLowFreqHarmonicAnalyzerCheckASAN PRODUCT_NAME "NF Resonance Low Freq Harmonic Analyzer Check ASAN")
+juce_generate_juce_header(NFResonanceLowFreqHarmonicAnalyzerCheckASAN)
+target_sources(NFResonanceLowFreqHarmonicAnalyzerCheckASAN PRIVATE
+  Tests/LowFreqHarmonicAnalyzerCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceLowFreqHarmonicAnalyzerCheckASAN PRIVATE Source)
+target_compile_options(NFResonanceLowFreqHarmonicAnalyzerCheckASAN PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer -g)
+target_link_options(NFResonanceLowFreqHarmonicAnalyzerCheckASAN PRIVATE -fsanitize=address,undefined)
+target_link_libraries(NFResonanceLowFreqHarmonicAnalyzerCheckASAN PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C Blocker 2 -- F0 bias root-cause diagnosis (stage-by-stage:
+# pre-decimation / post-decimation magnitude / post-prominence).
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceLowFreqF0BiasDiagnosis PRODUCT_NAME "NF Resonance Low Freq F0 Bias Diagnosis")
+juce_generate_juce_header(NFResonanceLowFreqF0BiasDiagnosis)
+target_sources(NFResonanceLowFreqF0BiasDiagnosis PRIVATE
+  Tests/LowFreqF0BiasDiagnosis.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceLowFreqF0BiasDiagnosis PRIVATE Source)
+target_link_libraries(NFResonanceLowFreqF0BiasDiagnosis PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C Blocker 2 -- short characterization sweep confirming the
+# f0Reliability >= 2-matches gate doesn't break legitimate cases.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceLowFreqF0ReliabilitySweep PRODUCT_NAME "NF Resonance Low Freq F0 Reliability Sweep")
+juce_generate_juce_header(NFResonanceLowFreqF0ReliabilitySweep)
+target_sources(NFResonanceLowFreqF0ReliabilitySweep PRIVATE
+  Tests/LowFreqF0ReliabilitySweep.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceLowFreqF0ReliabilitySweep PRIVATE Source)
+target_link_libraries(NFResonanceLowFreqF0ReliabilitySweep PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
