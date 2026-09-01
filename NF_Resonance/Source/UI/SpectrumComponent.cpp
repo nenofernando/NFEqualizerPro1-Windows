@@ -27,6 +27,42 @@ float SpectrumComponent::hzForXIn(juce::Rectangle<float> plot, float x)
     return juce::jlimit(20.0f, 20000.0f, std::pow(10.0f, logHz));
 }
 
+void SpectrumComponent::resampleReductionForDisplay(const std::vector<float>& binReductionDb, double sampleRate, int fftSize, int numPts, std::vector<float>& outRedAt)
+{
+    outRedAt.assign((size_t) juce::jmax(0, numPts), 0.0f);
+    if (binReductionDb.size() < 2 || numPts < 2) return;
+    const int bins = (int) binReductionDb.size();
+    const float engineSr = (float) juce::jmax(1.0, sampleRate);
+    const float fftSizeF = (float) juce::jmax(2, fftSize);
+    auto binPosForHz = [&](float hz) { return juce::jlimit(0.0f, (float) (bins - 1), hz * fftSizeF / engineSr); };
+    auto lerpAtBinPos = [&](float binPos) {
+        size_t lo = (size_t) binPos, hi = juce::jmin((size_t) (bins - 1), lo + 1);
+        float frac = binPos - (float) lo;
+        return binReductionDb[lo] + (binReductionDb[hi] - binReductionDb[lo]) * frac;
+    };
+    const double lo20 = std::log10(20.0), hi20k = std::log10(20000.0), range = hi20k - lo20;
+    auto hzForT = [&](float t) { return (float) std::pow(10.0, lo20 + (double) t * range); };
+    const float halfCellT = 0.5f / (float) (numPts - 1);
+    for (int k = 0; k < numPts; ++k)
+    {
+        float t = (float) k / (float) (numPts - 1);
+        float tLo = juce::jmax(0.0f, t - halfCellT), tHi = juce::jmin(1.0f, t + halfCellT);
+        float binPosCenter = binPosForHz(hzForT(t));
+        float binPosLo = binPosForHz(hzForT(tLo)), binPosHi = binPosForHz(hzForT(tHi));
+        if (binPosHi - binPosLo < 1.0f)
+        {
+            outRedAt[(size_t) k] = lerpAtBinPos(binPosCenter);
+            continue;
+        }
+        int iLo = juce::jlimit(0, bins - 1, (int) std::ceil(binPosLo));
+        int iHi = juce::jlimit(0, bins - 1, (int) std::floor(binPosHi));
+        if (iLo > iHi) { outRedAt[(size_t) k] = lerpAtBinPos(binPosCenter); continue; }
+        float worst = binReductionDb[(size_t) iLo];
+        for (int b = iLo + 1; b <= iHi; ++b) worst = juce::jmin(worst, binReductionDb[(size_t) b]);
+        outRedAt[(size_t) k] = worst;
+    }
+}
+
 void SpectrumComponent::paint(juce::Graphics& g)
 {
     auto full = getLocalBounds().toFloat();
@@ -139,7 +175,7 @@ void SpectrumComponent::paint(juce::Graphics& g)
     const float gateThresholdDb = 0.15f;
 
     const int numPts = juce::jlimit(48, 220, (int) plot.getWidth() / 4);
-    std::vector<float> xAt(numPts), rawRedAt(numPts);
+    std::vector<float> xAt(numPts), rawRedAt;
     std::vector<juce::Point<float>> origPts;
     origPts.reserve((size_t) numPts);
     for (int k = 0; k < numPts; ++k)
@@ -149,9 +185,15 @@ void SpectrumComponent::paint(juce::Graphics& g)
         float hz = std::pow(10.0f, logHz);
         float binPos = binPosForHz(hz);
         xAt[(size_t) k] = xForHz(hz);
-        rawRedAt[(size_t) k] = lerpAtBinPos(smoothedRedDb, binPos);
         origPts.push_back({ xAt[(size_t) k], yOriginalAt(binPos) });
     }
+    // REDUCTION audit fix: min-preserving (most-negative-real-bin-wins)
+    // downsample instead of single-point linear interpolation -- see
+    // resampleReductionForDisplay()'s own header doc. Fixes narrow real
+    // notches (Detail=10 especially) silently falling between two sample
+    // points and vanishing from the display, without inventing/scaling any
+    // value -- every point is still a real bin value or a lerp of two.
+    resampleReductionForDisplay(smoothedRedDb, engine.currentSampleRate(), 2 * ((int) smoothedRedDb.size() - 1), numPts, rawRedAt);
 
     // 0.1p: light spatial smoothing in log-frequency FIRST (small symmetric
     // kernel) -- removes single-point noise/teeth without erasing real
@@ -253,11 +295,6 @@ void SpectrumComponent::paint(juce::Graphics& g)
         }
     }
 
-    std::vector<juce::Point<float>> redPts;
-    redPts.reserve((size_t) numPts);
-    for (int k = 0; k < numPts; ++k)
-        redPts.push_back({ xAt[(size_t) k], centreY - envAt[(size_t) k] * dbPxPerDb });
-
     // Monotonic/bounded cubic through the resampled points: Catmull-Rom
     // control points clamped to each segment's own [min(y0,y1),max(y0,y1)]
     // range, so the rendered curve NEVER overshoots past a real sampled
@@ -301,21 +338,33 @@ void SpectrumComponent::paint(juce::Graphics& g)
         g.strokePath(origPath, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    // REDUCTION water surface: neutral (flat, coincides with the 0dB line)
-    // wherever reduction is ~0; fills/deforms only where reduction is
-    // actually happening, in bright cyan, scaled by the same dB-per-pixel
-    // constant as the 0/-3/-6/-9/-12 labels.
-    auto redPath = buildBoundedPath(redPts);
-    juce::Path fillPath(redPath);
-    fillPath.lineTo(redPts.back().x, centreY);
-    fillPath.lineTo(redPts.front().x, centreY);
-    fillPath.closeSubPath();
-    juce::ColourGradient grad(juce::Colour(0xff27d8ff).withAlpha(0.30f), 0, centreY,
-                               juce::Colour(0xff27d8ff).withAlpha(0.10f), 0, plot.getBottom(), false);
-    g.setGradientFill(grad);
-    g.fillPath(fillPath);
-    g.setColour(juce::Colour(0xff27d8ff));
-    g.strokePath(redPath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    // REDUCTION water surface: drawn ONLY inside the gated `regions` --
+    // never as one continuous path across the whole width. Previously the
+    // cyan stroke ran edge-to-edge at every point, including the ~0dB-
+    // reduction stretches, where it sat exactly on the 0dB gridline as a
+    // permanent bright cyan bar competing with real valleys. Now cyan
+    // exists ONLY where GainMaskEngine is actually reducing something; the
+    // already-present discreet 0dB gridline (drawn earlier, same dark grey
+    // as -3/-6/-9/-12) is the only thing marking 0dB elsewhere.
+    for (auto& r : regions)
+    {
+        if (r.end <= r.start) continue;
+        std::vector<juce::Point<float>> regPts;
+        regPts.reserve((size_t) (r.end - r.start + 1));
+        for (int k = r.start; k <= r.end; ++k)
+            regPts.push_back({ xAt[(size_t) k], centreY - envAt[(size_t) k] * dbPxPerDb });
+        auto regPath = buildBoundedPath(regPts);
+        juce::Path fillPath(regPath);
+        fillPath.lineTo(regPts.back().x, centreY);
+        fillPath.lineTo(regPts.front().x, centreY);
+        fillPath.closeSubPath();
+        juce::ColourGradient grad(juce::Colour(0xff27d8ff).withAlpha(0.30f), 0, centreY,
+                                   juce::Colour(0xff27d8ff).withAlpha(0.10f), 0, plot.getBottom(), false);
+        g.setGradientFill(grad);
+        g.fillPath(fillPath);
+        g.setColour(juce::Colour(0xff27d8ff));
+        g.strokePath(regPath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+    }
 
     // RESONANCES: architecture prep only -- no data exists yet (that's
     // ResonanceMapSnapshot / V2-B/V2-C), so nothing is drawn here. When it

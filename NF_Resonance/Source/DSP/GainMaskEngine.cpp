@@ -15,6 +15,7 @@ void GainMaskEngine::prepare(double sr, int fft, int hop)
     rawTargetDb.assign((size_t) bins, 0.0f);
     regularizedDb.assign((size_t) bins, 0.0f);
     smoothedDb.assign((size_t) bins, 0.0f);
+    prefixScratch.assign((size_t) bins + 1, 0.0f);
 
     setParams(depth, selectivity, 10.0f, 80.0f, lowHz, highHz); // provisional defaults, overwritten by the host's actual attack/release on the first real setParams() call
 }
@@ -63,6 +64,48 @@ static float applySensitivity(float baseAction, float sensitivityDb)
     const float kSensGainPerDb = 0.18f;
     float shifted = logit + sensitivityDb * kSensGainPerDb;
     return juce::jlimit(0.0f, 1.0f, 1.0f / (1.0f + std::exp(-shifted)));
+}
+
+// DETAIL: octave-consistent box-mean smoothing, O(bins) via a cumulative
+// sum (prefixScratch) so the cost is independent of the window's own
+// width. Each bin's own window is derived from ITS OWN log-frequency
+// position (not a fixed bin count), so the same halfWidthOct produces the
+// same physical octave span at 44.1/48/96/192kHz alike -- only the NUMBER
+// of bins spanning that window changes with sample rate/bin resolution,
+// never the musical width itself.
+void GainMaskEngine::octaveSmooth(const std::vector<float>& src, std::vector<float>& dst, float halfWidthOct)
+{
+    prefixScratch[0] = 0.0f;
+    for (int i = 0; i < bins; ++i) prefixScratch[(size_t) i + 1] = prefixScratch[(size_t) i] + src[(size_t) i];
+    const float mult = std::pow(2.0f, juce::jmax(0.0f, halfWidthOct));
+    const double hzPerBin = sampleRate / (double) fftSize;
+    for (int b = 0; b < bins; ++b)
+    {
+        float hz = binToHz(b);
+        float loHz = juce::jmax(1.0f, hz / mult);
+        float hiHz = hz * mult;
+        int loBin = juce::jlimit(0, bins - 1, (int) std::floor((double) loHz / hzPerBin));
+        int hiBin = juce::jlimit(0, bins - 1, (int) std::ceil((double) hiHz / hzPerBin));
+        if (hiBin < loBin) hiBin = loBin;
+        int count = hiBin - loBin + 1;
+        dst[(size_t) b] = (prefixScratch[(size_t) hiBin + 1] - prefixScratch[(size_t) loBin]) / (float) count;
+    }
+}
+
+float GainMaskEngine::detailToOctHalfWidth(float detailValue)
+{
+    // Anchors: Detail=0 -> wide/aggregated (nearby resonances merge into
+    // one broader, shallower dip). Detail=5 -> the Sonic Alpha Calibration
+    // 1 baseline (matches the old fixed 3-bin box average closely -- see
+    // Tests/DetailCheck.cpp's Detail=5-vs-pre-Detail comparison). Detail=10
+    // -> minimal/near-raw, just enough of a floor to avoid audible ringing
+    // on inverse-FFT from a fully unsmoothed per-bin mask. Piecewise-
+    // geometric interpolation between adjacent anchors is smooth,
+    // continuous and monotonic -- no hard switches at any Detail value.
+    const float kWideOct = 0.40f, kBaselineOct = 0.033f, kNarrowOct = 0.006f;
+    float d = juce::jlimit(0.0f, 10.0f, detailValue);
+    if (d <= 5.0f) { float t = d / 5.0f; return kWideOct * std::pow(kBaselineOct / kWideOct, t); }
+    float t = (d - 5.0f) / 5.0f; return kBaselineOct * std::pow(kNarrowOct / kBaselineOct, t);
 }
 
 void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSamples, int hopCount, std::vector<float>& reductionDbOut)
@@ -163,17 +206,14 @@ void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSa
         }
     }
 
-    // Light spatial regularization (3-bin box average in dB) -- smooths
-    // bin-to-bin discontinuities that would otherwise ring on inverse-FFT,
-    // WITHOUT touching the region-local envelope shape already applied
-    // above (this is not Detail -- just enough to avoid a jagged mask).
-    for (int b = 0; b < bins; ++b)
-    {
-        float sum = rawTargetDb[(size_t) b]; int cnt = 1;
-        if (b > 0) { sum += rawTargetDb[(size_t) (b - 1)]; ++cnt; }
-        if (b < bins - 1) { sum += rawTargetDb[(size_t) (b + 1)]; ++cnt; }
-        regularizedDb[(size_t) b] = sum / (float) cnt;
-    }
+    // DETAIL -- octave-consistent spatial regularization. rawTargetDb is
+    // the fully-localized mask (per-region Gaussian envelopes, most-
+    // negative combine, untouched above). Mean-smoothing it over a WIDER
+    // octave window can only ever move a bin's value TOWARD zero (never
+    // past the deepest actual value already present in that window), so
+    // widening Detail's window can never increase overall reduction energy
+    // -- only dilute/merge nearby valleys into one broader, shallower one.
+    octaveSmooth(rawTargetDb, regularizedDb, detailToOctHalfWidth(detail));
 
     // Causal per-bin attack/release envelope in dB (log-gain domain) --
     // absorbs any single-frame jump in the underlying decision (including

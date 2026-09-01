@@ -81,6 +81,63 @@ target_link_libraries(NFResonanceCalibrationAudit PRIVATE
   juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
+juce_add_console_app(NFResonanceReductionRenderDiagnostic PRODUCT_NAME "NF Resonance Reduction Render Diagnostic")
+juce_generate_juce_header(NFResonanceReductionRenderDiagnostic)
+target_sources(NFResonanceReductionRenderDiagnostic PRIVATE
+  Tests/ReductionRenderDiagnostic.cpp
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h)
+target_include_directories(NFResonanceReductionRenderDiagnostic PRIVATE Source)
+target_compile_definitions(NFResonanceReductionRenderDiagnostic PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+target_link_libraries(NFResonanceReductionRenderDiagnostic PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceReductionRenderCheck PRODUCT_NAME "NF Resonance Reduction Render Check")
+juce_generate_juce_header(NFResonanceReductionRenderCheck)
+target_sources(NFResonanceReductionRenderCheck PRIVATE
+  Tests/ReductionRenderCheck.cpp
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h)
+target_include_directories(NFResonanceReductionRenderCheck PRIVATE Source)
+target_compile_definitions(NFResonanceReductionRenderCheck PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+target_link_libraries(NFResonanceReductionRenderCheck PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceDetailCheck PRODUCT_NAME "NF Resonance Detail Check")
+juce_generate_juce_header(NFResonanceDetailCheck)
+target_sources(NFResonanceDetailCheck PRIVATE
+  Tests/DetailCheck.cpp
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceDetailCheck PRIVATE Source)
+target_link_libraries(NFResonanceDetailCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
 juce_add_console_app(NFResonanceSensitivityCurveCheck PRODUCT_NAME "NF Resonance Sensitivity Curve Check")
 juce_generate_juce_header(NFResonanceSensitivityCurveCheck)
 target_sources(NFResonanceSensitivityCurveCheck PRIVATE

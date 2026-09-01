@@ -13,7 +13,7 @@ public:
  // Checkpoint A: bandWidth (octaves, how far this band's influence reaches
  // in log-frequency) + bandShape (0=Bell,1=LowShelf,2=HighShelf,3=LowFocus,
  // 4=HighFocus) alongside the existing freq/sens/active per slot.
- struct Params{ float depth=5,sharpness=4,selectivity=3.5f,attackMs=10,releaseMs=80,lowHz=20,highHz=20000,transient=5,biasDb=1.5f,
+ struct Params{ float depth=5,sharpness=4,selectivity=3.5f,attackMs=10,releaseMs=80,lowHz=20,highHz=20000,transient=5,biasDb=1.5f,detail=5,
    bandFreq[kMaxBands]{}, bandSens[kMaxBands]{}, bandWidth[kMaxBands]{}, bandFocus[kMaxBands]{}; bool bandActive[kMaxBands]{}; int bandShape[kMaxBands]{}; int mode=0; bool delta=false;
    // lowEnabled/highEnabled OFF means that side of the range is fully open
    // for the detector's gate -- lowHz/highHz themselves are left untouched

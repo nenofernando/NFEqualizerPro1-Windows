@@ -35,6 +35,7 @@ void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(
  // ring the STFT itself reads -- no separate buffering, no extra latency.
  for(int k=0;k<hop;++k){ int idx=(s.histPos-hop+k+fftSize)%fftSize; s.hopScratch[(size_t)k]=s.history[(size_t)idx]; }
  s.mask.setParams(params.depth,params.selectivity,params.attackMs,params.releaseMs,params.lowEnabled?params.lowHz:0.0f,params.highEnabled?params.highHz:1.0e9f);
+ s.mask.setDetail(params.detail);
  // White Sensitivity Curve -- same band arrays the UI curve already reads/
  // draws (params.bandFreq/.../bandActive), now also modulating local action
  // authority inside GainMaskEngine (see setSensitivityCurve()).

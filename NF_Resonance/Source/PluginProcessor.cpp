@@ -100,6 +100,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
     // mix just by existing. This is explicitly temporary: once Detector V2
     // is finished, Depth gets recalibrated into a real musical default.
     f("depth","Depth",0,10,0); f("sharpness","Sharpness",0,10,4); f("selectivity","Selectivity",0,10,3.5f);
+    f("detail","Detail",0,10,5);
     f("attack","Attack",0.1f,200,10,0.1f); f("release","Release",5,1000,80,0.5f);
     f("lowHz","Low Frequency",20,1000,100,0.1f); f("highHz","High Frequency",2000,22000,16000,0.1f); // fine step: now also draggable as analyzer handles, not just knobs
     // Independent ON/OFF for the LOW/HIGH range boundary -- OFF means that
@@ -111,27 +112,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
     p.push_back(std::make_unique<juce::AudioParameterBool>("highEnabled","High Cut Enabled",true));
     f("output","Output",-12,12,0,0.01f); f("mix","Mix",0,100,100,0.1f);
     f("transient","Transient Protect",0,10,5); f("threshold","Detector Bias",-6,12,1.5f,0.01f);
-    // DETAIL -- PLANNED, NOT YET A PUBLIC PARAMETER. A third, independent
-    // concept alongside SHARPNESS (broad/medium/narrow structure preference)
-    // and SELECTIVITY (how much evidence/confidence is required to call
-    // something a problem). DETAIL is meant to control the granularity/
-    // resolution of the FINAL reduction mask itself, once that pipeline
-    // stage exists:
-    //   prominence/confidence -> raw reduction mask -> DETAIL / mask
-    //   regularization -> temporal/spatial smoothing -> final reduction
-    // Low Detail = group microvariations into a smoother, broader mask
-    // (fewer independent small reductions); High Detail = preserve small
-    // spectral structures, allow narrow resonances to be acted on
-    // individually.
-    //
-    // A prior pass of this file registered "detail" as a real, automatable
-    // AudioParameterFloat with no DSP behind it -- reverted on request: no
-    // public/automatable host parameter may exist without a real effect.
-    // Reserved ID for when V2-B's mask-regularization stage lands: "detail"
-    // (range 0-10, default 5, matching sharpness/selectivity's convention).
-    // Since this ID has never shipped in any build, introducing it later
-    // creates no compatibility break -- old sessions simply won't have it,
-    // same as any other new parameter added going forward.
+    // DETAIL -- Sonic Alpha V2. A third, independent concept alongside
+    // SHARPNESS (broad/medium/narrow structure preference) and SELECTIVITY
+    // (how much evidence/confidence is required to call something a
+    // problem). DETAIL controls the granularity/resolution of the FINAL
+    // reduction mask itself, applied AFTER the full decision pipeline
+    // (Problem Confidence -> Selectivity -> Transient Protection -> White
+    // Sensitivity Curve -> gamma/action shaping -> raw local gain mask) and
+    // BEFORE temporal gain smoothing -- see GainMaskEngine::process(). Low
+    // Detail groups nearby resonances into a smoother, broader/aggregated
+    // mask (fewer independent small reductions); High Detail preserves
+    // small spectral structures, letting narrow resonances close together
+    // be acted on individually. Default 5 reproduces the Sonic Alpha
+    // Calibration 1 baseline (matching sharpness/selectivity's 0-10
+    // convention); Detail itself never changes how MUCH is reduced
+    // (Depth's job), only how spatially granular that reduction is.
     // LEGACY (0.1h): the original 7 fixed-ID sensitivity + frequency params.
     // Kept permanently, unchanged, for old-session/automation-lane
     // compatibility -- setStateInformation() migrates their loaded values
@@ -224,6 +219,7 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
     SpectralEngine::Params p;
     p.depth=apvts.getRawParameterValue("depth")->load(); p.sharpness=apvts.getRawParameterValue("sharpness")->load(); p.selectivity=apvts.getRawParameterValue("selectivity")->load();
     p.attackMs=apvts.getRawParameterValue("attack")->load(); p.releaseMs=apvts.getRawParameterValue("release")->load();
+    p.detail=apvts.getRawParameterValue("detail")->load();
     p.lowHz=apvts.getRawParameterValue("lowHz")->load(); p.highHz=apvts.getRawParameterValue("highHz")->load(); p.transient=apvts.getRawParameterValue("transient")->load(); p.biasDb=apvts.getRawParameterValue("threshold")->load();
     p.lowEnabled=lowEnabledParam->load()>0.5f; p.highEnabled=highEnabledParam->load()>0.5f;
     p.mode=(int)apvts.getRawParameterValue("mode")->load(); p.delta=apvts.getRawParameterValue("delta")->load()>0.5f;

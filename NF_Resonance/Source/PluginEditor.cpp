@@ -7,7 +7,7 @@
 static constexpr int kBaseW = 1180, kBaseH = 650;
 NFResonanceAudioProcessorEditor::NFResonanceAudioProcessorEditor(NFResonanceAudioProcessor& pr):AudioProcessorEditor(pr),p(pr),spectrum(pr.engine()),curve(pr.state()){
  setLookAndFeel(&lf);
- setup(depth,"depth","DEPTH");setup(sharp,"sharpness","SHARPNESS");setup(select,"selectivity","SELECTIVITY");setup(attack,"attack","ATTACK");setup(release,"release","RELEASE");setup(output,"output","OUTPUT");setup(mix,"mix","MIX");setup(low,"lowHz","LOW");setup(high,"highHz","HIGH");setup(transient,"transient","TRANSIENT");
+ setup(depth,"depth","DEPTH");setup(sharp,"sharpness","SHARPNESS");setup(detail,"detail","DETAIL");setup(select,"selectivity","SELECTIVITY");setup(attack,"attack","ATTACK");setup(release,"release","RELEASE");setup(output,"output","OUTPUT");setup(mix,"mix","MIX");setup(low,"lowHz","LOW");setup(high,"highHz","HIGH");setup(transient,"transient","TRANSIENT");
  presetManager=std::make_unique<PresetManager>(p.state());
  presetButton.setButtonText("Default v");presetButton.setColour(juce::TextButton::buttonColourId,juce::Colour(0xff141a24));presetButton.setColour(juce::TextButton::textColourOffId,juce::Colour(0xff00afff));presetButton.onClick=[this]{showPresetMenu();};addAndMakeVisible(presetButton);
  { juce::Path ham; float w=18.0f,h=13.0f,lh=2.2f; ham.addRoundedRectangle(0.0f,0.0f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,(h-lh)*0.5f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,h-lh,w,lh,lh*0.5f); menuButton.setShape(ham,false,true,false); }
@@ -47,11 +47,12 @@ void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Co
  knobCaptionAbove(output,"OUTPUT",12.0f,principalCol,20,16);
  knobCaptionAbove(mix,"MIX",12.5f,principalCol,15,14);
  knobCaptionAbove(sharp,"SHARPNESS",9.8f,secondaryCol,15,13);
+ knobCaptionAbove(detail,"DETAIL",9.8f,secondaryCol,15,13);
  knobCaptionAbove(select,"SELECTIVITY",9.8f,secondaryCol,15,13);
  knobCaptionAbove(attack,"ATTACK",9.8f,secondaryCol,15,13);
  knobCaptionAbove(release,"RELEASE",9.8f,secondaryCol,15,13);
- knobCaptionAbove(low,"LOW",9.5f,secondaryCol,14,13);
- knobCaptionAbove(high,"HIGH",9.5f,secondaryCol,14,13);
+ knobCaptionAbove(low,"LOW",9.5f,secondaryCol,9,9);
+ knobCaptionAbove(high,"HIGH",9.5f,secondaryCol,9,9);
  g.setColour(secondaryCol);g.setFont(10.8f);
  g.drawText("MODE",mode.getX(),mode.getY()-16,mode.getWidth(),14,juce::Justification::centredLeft);
  g.drawText("QUALITY",quality.getX(),quality.getBottom()+3,quality.getWidth(),14,juce::Justification::centredLeft);
@@ -81,12 +82,27 @@ void NFResonanceAudioProcessorEditor::resized(){
  const float sx = (float) getWidth() / (float) kBaseW, sy = (float) getHeight() / (float) kBaseH;
  auto R = [&](float x, float y, float w, float h) { return juce::Rectangle<int>((int) std::round(x * sx), (int) std::round(y * sy), (int) std::round(w * sx), (int) std::round(h * sy)); };
  depth.setBounds(R(20, 90, 150, 150));
+ // DETAIL (0.1s): grouped with DEPTH -- not column-B -- since conceptually
+ // DEPTH is "how much" and DETAIL is "how granular", the same pairing the
+ // spec calls for. Sits in column-A's own empty space below DEPTH (240)
+ // and well above LOW/HIGH (551), same small-knob size/style as SHARPNESS/
+ // SELECTIVITY/ATTACK/RELEASE always used. Column-B (SHARPNESS/
+ // SELECTIVITY/ATTACK/RELEASE) is untouched, back to its original spacing.
+ detail.setBounds(R(48, 290, 94, 94));
  sharp.setBounds(R(178, 99, 94, 94));
  select.setBounds(R(178, 213, 94, 94));
  attack.setBounds(R(178, 327, 94, 94));
  release.setBounds(R(178, 441, 94, 94));
- low.setBounds(R(20, 551, 100, 99));
- high.setBounds(R(130, 551, 100, 99));
+ // LOW/HIGH re-centred (0.1s) to share the exact same centerX as the
+ // column above them -- column 1 (DEPTH/DETAIL, centerX=95) for LOW,
+ // column 2 (SHARPNESS/SELECTIVITY/ATTACK/RELEASE, centerX=225) for HIGH.
+ // Size/width unchanged (100x99), only the X origin moves. Y nudged up
+ // from 551 to 545 -- as tight as RELEASE's own bottom edge (535) allows
+ // while still leaving the HIGH/LOW caption its own clear row (see the
+ // matching gapAbove/rowH shrink in paint()), trimming the empty gap
+ // below DETAIL without touching knob sizes or column-B's own positions.
+ low.setBounds(R(45, 545, 100, 99));
+ high.setBounds(R(175, 545, 100, 99));
  spectrum.setBounds(R(290, 82, 690, 473));
  output.setBounds(R(1000, 88, 130, 130));
  mix.setBounds(R(1000, 235, 130, 130));

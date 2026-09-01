@@ -21,7 +21,7 @@ private:
     NFLookAndFeel lf;
     SpectrumComponent spectrum;
     ControlCurveComponent curve;
-    juce::Slider depth,sharp,select,attack,release,output,mix,low,high,transient;
+    juce::Slider depth,sharp,detail,select,attack,release,output,mix,low,high,transient;
     juce::ComboBox mode,quality;
     juce::ToggleButton delta{"DELTA"},bypass{"BYPASS"},fft{"FFT"};
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sa;

@@ -280,7 +280,11 @@ void ControlCurveComponent::paint(juce::Graphics& g)
         const juce::Colour neonWhite(0xffeef7ff);
         if (glowAlpha > 0.0f) { g.setColour(neonWhite.withAlpha(glowAlpha)); g.strokePath(path, juce::PathStrokeType(6.0f)); }
         g.setColour(neonWhite.withAlpha(lineAlpha));
-        g.strokePath(path, juce::PathStrokeType(1.9f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        // 1.9->1.6: a small, deliberate thinning (matches the individual
+        // band lines' own 1.6f elsewhere in this file) so the white curve
+        // reads a touch more discreet and lets the blue REDUCTION surface
+        // stand out more -- position/colour/glow/behaviour all unchanged.
+        g.strokePath(path, juce::PathStrokeType(1.6f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     // LOW/HIGH range handles -- small capsules sitting ON the 0dB line

@@ -54,18 +54,20 @@ public:
     GainMaskEngine(GainMaskEngine&& o) noexcept
         : sampleRate(o.sampleRate), fftSize(o.fftSize), hopSize(o.hopSize), bins(o.bins),
           depth(o.depth), selectivity(o.selectivity), actionShapeGamma(o.actionShapeGamma), attackCoeff(o.attackCoeff), releaseCoeff(o.releaseCoeff),
-          lowHz(o.lowHz), highHz(o.highHz),
+          lowHz(o.lowHz), highHz(o.highHz), detail(o.detail),
           prom(std::move(o.prom)), aux(std::move(o.aux)), conf(std::move(o.conf)), trans(std::move(o.trans)),
           promOut(std::move(o.promOut)), rawTargetDb(std::move(o.rawTargetDb)), regularizedDb(std::move(o.regularizedDb)), smoothedDb(std::move(o.smoothedDb)),
+          prefixScratch(std::move(o.prefixScratch)),
           lastActiveContributing(o.lastActiveContributing), regionDebug(o.regionDebug), uiReductionBuffers(o.uiReductionBuffers),
           sensBandFreq(o.sensBandFreq), sensBandSens(o.sensBandSens), sensBandWidth(o.sensBandWidth), sensBandFocus(o.sensBandFocus), sensBandActive(o.sensBandActive), sensBandShape(o.sensBandShape) {}
     GainMaskEngine& operator=(GainMaskEngine&& o) noexcept
     {
         sampleRate=o.sampleRate; fftSize=o.fftSize; hopSize=o.hopSize; bins=o.bins;
         depth=o.depth; selectivity=o.selectivity; actionShapeGamma=o.actionShapeGamma; attackCoeff=o.attackCoeff; releaseCoeff=o.releaseCoeff;
-        lowHz=o.lowHz; highHz=o.highHz;
+        lowHz=o.lowHz; highHz=o.highHz; detail=o.detail;
         prom=std::move(o.prom); aux=std::move(o.aux); conf=std::move(o.conf); trans=std::move(o.trans);
         promOut=std::move(o.promOut); rawTargetDb=std::move(o.rawTargetDb); regularizedDb=std::move(o.regularizedDb); smoothedDb=std::move(o.smoothedDb);
+        prefixScratch=std::move(o.prefixScratch);
         lastActiveContributing=o.lastActiveContributing; regionDebug=o.regionDebug; uiReductionBuffers=o.uiReductionBuffers;
         sensBandFreq=o.sensBandFreq; sensBandSens=o.sensBandSens; sensBandWidth=o.sensBandWidth; sensBandFocus=o.sensBandFocus; sensBandActive=o.sensBandActive; sensBandShape=o.sensBandShape;
         uiActiveBufferIndex.store(0, std::memory_order_relaxed);
@@ -110,6 +112,21 @@ public:
     // Called once per frame (same cadence as setParams()); fixed-size
     // arrays, zero allocation.
     void setSensitivityCurve(const float bandFreq[ResonanceDetector::kMaxBands], const float bandSens[ResonanceDetector::kMaxBands], const float bandWidth[ResonanceDetector::kMaxBands], const int bandShape[ResonanceDetector::kMaxBands], const float bandFocus[ResonanceDetector::kMaxBands], const bool bandActive[ResonanceDetector::kMaxBands]);
+
+    // DETAIL -- mask granularity/regularization, applied AFTER the raw
+    // per-region gain mask and BEFORE temporal attack/release smoothing
+    // (never touches ConfidenceEngine/TransientProtectionEngine/gamma/
+    // Depth). 0..10, matching Depth/Selectivity's own convention. Controls
+    // an octave-CONSISTENT (not fixed-bin) spectral smoothing half-width
+    // applied to the raw mask -- low Detail widens it (nearby resonances
+    // aggregate into one broader, shallower dip: mean-smoothing can only
+    // ever make a dip SHALLOWER, never deeper, so this can't increase
+    // overall reduction energy), high Detail narrows it toward the raw,
+    // fully localized per-region mask (small independent valleys preserved).
+    // Detail=5 is calibrated to reproduce the pre-Detail 3-bin regularization
+    // baseline (Sonic Alpha Calibration 1) closely. Same physical octave
+    // width at any sample rate (44.1/48/96/192kHz), unlike a fixed bin count.
+    void setDetail(float d) { detail = juce::jlimit(0.0f, 10.0f, d); }
 
     // One call per host hop (same cadence SpectralEngine::frame() already
     // runs at). magDb: the SAME host-rate raw magnitude array
@@ -170,6 +187,7 @@ private:
     float actionShapeGamma = 0.4f;
     float attackCoeff = 0.0f, releaseCoeff = 0.0f;
     float lowHz = 20.0f, highHz = 20000.0f;
+    float detail = 5.0f;
 
     SpectralProminenceEngineV5 prom;
     LowFrequencyHarmonicAnalyzer aux;
@@ -177,9 +195,10 @@ private:
     TransientProtectionEngine trans;
 
     std::vector<float> promOut;      // reused prominence scratch
-    std::vector<float> rawTargetDb;  // this frame's un-smoothed, un-regularized mask
-    std::vector<float> regularizedDb; // after the 3-bin spatial pass
+    std::vector<float> rawTargetDb;  // this frame's un-smoothed, un-regularized mask (the DETAIL "fine" anchor)
+    std::vector<float> regularizedDb; // after DETAIL's octave-consistent spatial pass
     std::vector<float> smoothedDb;   // after the temporal attack/release envelope -- what's returned
+    std::vector<float> prefixScratch; // DETAIL scratch: cumulative sum for O(bins) octave-window averaging
 
     int lastActiveContributing = 0;
     std::array<RegionActionDebug, kMaxDebugRegions> regionDebug{};
@@ -197,4 +216,16 @@ private:
 
     float binToHz(int bin) const { return (float) (bin * sampleRate / fftSize); }
     static float depthToMaxReductionDb(float depthValue) { return juce::jmax(0.0f, depthValue) * 0.9f; } // provisional, conservative -- see PHYSICAL/GainMask checkpoint report, NOT a final calibration
+
+    // DETAIL: octave-consistent box-mean smoothing of `src` into `dst`
+    // (same array, in place is NOT safe -- always a distinct destination),
+    // half-width `halfWidthOct` octaves at every bin regardless of its
+    // frequency or the sample rate. O(bins) via prefixScratch (a cumulative
+    // sum), zero allocation once prepare() has sized it.
+    void octaveSmooth(const std::vector<float>& src, std::vector<float>& dst, float halfWidthOct);
+    // DETAIL 0->10 maps to an octave half-width via piecewise-geometric
+    // interpolation through 3 anchors (wide/aggregated at 0, the
+    // Calibration-1-matching baseline at 5, minimal/near-raw at 10) --
+    // continuous and monotonic, no hard switches. See setDetail().
+    static float detailToOctHalfWidth(float detailValue);
 };
