@@ -424,3 +424,142 @@ target_compile_definitions(NFResonanceMultibandCpuBenchmark PRIVATE
 target_link_libraries(NFResonanceMultibandCpuBenchmark PRIVATE
   juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# Sonic Alpha V2: SpectralProminenceEngineV5 (A5C geometry + Method C)
+# ported in from main's validated V2 prominence research. Prominence-only
+# (no reduction stage yet) -- see PHYSICAL B audit.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonanceNarrowMethodDefaultCheck PRODUCT_NAME "NF Resonance Narrow Method Default Check")
+juce_generate_juce_header(NFResonanceNarrowMethodDefaultCheck)
+target_sources(NFResonanceNarrowMethodDefaultCheck PRIVATE
+  Tests/NarrowMethodDefaultCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceNarrowMethodDefaultCheck PRIVATE Source)
+target_link_libraries(NFResonanceNarrowMethodDefaultCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceDetectorV2A5Benchmark PRODUCT_NAME "NF Resonance Detector V2A5 Benchmark")
+juce_generate_juce_header(NFResonanceDetectorV2A5Benchmark)
+target_sources(NFResonanceDetectorV2A5Benchmark PRIVATE
+  Tests/DetectorV2A5Benchmark.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+target_include_directories(NFResonanceDetectorV2A5Benchmark PRIVATE Source)
+target_link_libraries(NFResonanceDetectorV2A5Benchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceV2A5CpuIsolationBenchmark PRODUCT_NAME "NF Resonance V2A5 CPU Isolation Benchmark")
+juce_generate_juce_header(NFResonanceV2A5CpuIsolationBenchmark)
+target_sources(NFResonanceV2A5CpuIsolationBenchmark PRIVATE
+  Tests/V2A5CpuIsolationBenchmark.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceV2A5CpuIsolationBenchmark PRIVATE Source)
+target_link_libraries(NFResonanceV2A5CpuIsolationBenchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceV2A5BPrecisionComparison PRODUCT_NAME "NF Resonance V2A5B Precision Comparison")
+juce_generate_juce_header(NFResonanceV2A5BPrecisionComparison)
+target_sources(NFResonanceV2A5BPrecisionComparison PRIVATE
+  Tests/V2A5B_PrecisionComparison.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+target_include_directories(NFResonanceV2A5BPrecisionComparison PRIVATE Source)
+target_link_libraries(NFResonanceV2A5BPrecisionComparison PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceV2A5CGeometrySweep PRODUCT_NAME "NF Resonance V2A5C Geometry Sweep")
+juce_generate_juce_header(NFResonanceV2A5CGeometrySweep)
+target_sources(NFResonanceV2A5CGeometrySweep PRIVATE
+  Tests/V2A5C_GeometrySweep.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/SpectralProminenceEngineV2.cpp Source/DSP/SpectralProminenceEngineV2.h)
+target_include_directories(NFResonanceV2A5CGeometrySweep PRIVATE Source)
+target_link_libraries(NFResonanceV2A5CGeometrySweep PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceV1BaselineVsV2A5CProminence PRODUCT_NAME "NF Resonance V1 Baseline vs V2A5C Prominence")
+juce_generate_juce_header(NFResonanceV1BaselineVsV2A5CProminence)
+target_sources(NFResonanceV1BaselineVsV2A5CProminence PRIVATE
+  Tests/V1BaselineVsV2A5CProminence.cpp
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceV1BaselineVsV2A5CProminence PRIVATE Source)
+target_link_libraries(NFResonanceV1BaselineVsV2A5CProminence PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceMusicalMaterialV1vsV2 PRODUCT_NAME "NF Resonance Musical Material V1 vs V2")
+juce_generate_juce_header(NFResonanceMusicalMaterialV1vsV2)
+target_sources(NFResonanceMusicalMaterialV1vsV2 PRIVATE
+  Tests/MusicalMaterialV1vsV2.cpp
+  Source/PluginProcessor.cpp Source/PluginProcessor.h
+  Source/PluginEditor.cpp Source/PluginEditor.h
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
+  Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
+target_include_directories(NFResonanceMusicalMaterialV1vsV2 PRIVATE Source)
+target_compile_definitions(NFResonanceMusicalMaterialV1vsV2 PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+target_link_libraries(NFResonanceMusicalMaterialV1vsV2 PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceMethodCCpuBenchmark PRODUCT_NAME "NF Resonance Method C CPU Benchmark")
+juce_generate_juce_header(NFResonanceMethodCCpuBenchmark)
+target_sources(NFResonanceMethodCCpuBenchmark PRIVATE
+  Tests/MethodCCpuBenchmark.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceMethodCCpuBenchmark PRIVATE Source)
+target_link_libraries(NFResonanceMethodCCpuBenchmark PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# Same benchmark, compiled with NF_PROMINENCE_PROFILING=1 -- the internal
+# per-stage std::chrono calls inside computeProminence() are compiled BACK
+# IN, so B2/C2 measure whether that instrumentation itself adds overhead
+# versus B1/C1 (the default, profiling-OFF, commercial-build configuration).
+juce_add_console_app(NFResonanceMethodCCpuBenchmarkProfiled PRODUCT_NAME "NF Resonance Method C CPU Benchmark Profiled")
+juce_generate_juce_header(NFResonanceMethodCCpuBenchmarkProfiled)
+target_sources(NFResonanceMethodCCpuBenchmarkProfiled PRIVATE
+  Tests/MethodCCpuBenchmark.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceMethodCCpuBenchmarkProfiled PRIVATE Source)
+target_compile_definitions(NFResonanceMethodCCpuBenchmarkProfiled PRIVATE NF_PROMINENCE_PROFILING=1)
+target_link_libraries(NFResonanceMethodCCpuBenchmarkProfiled PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceSequentialSampleRateReprepareCheck PRODUCT_NAME "NF Resonance Sequential Sample Rate Reprepare Check")
+juce_generate_juce_header(NFResonanceSequentialSampleRateReprepareCheck)
+target_sources(NFResonanceSequentialSampleRateReprepareCheck PRIVATE
+  Tests/SequentialSampleRateReprepareCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceSequentialSampleRateReprepareCheck PRIVATE Source)
+target_link_libraries(NFResonanceSequentialSampleRateReprepareCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ASAN/UBSAN variant for root-cause diagnosis -- separate target so the
+# normal Release regression target above stays clean/fast.
+juce_add_console_app(NFResonanceSequentialSampleRateReprepareCheckASAN PRODUCT_NAME "NF Resonance Sequential Sample Rate Reprepare Check ASAN")
+juce_generate_juce_header(NFResonanceSequentialSampleRateReprepareCheckASAN)
+target_sources(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE
+  Tests/SequentialSampleRateReprepareCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE Source)
+target_compile_options(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE -fsanitize=address,undefined -fno-omit-frame-pointer -g)
+target_link_options(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE -fsanitize=address,undefined)
+target_link_libraries(NFResonanceSequentialSampleRateReprepareCheckASAN PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
