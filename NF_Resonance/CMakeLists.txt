@@ -877,6 +877,19 @@ target_link_libraries(NFResonanceC23f96k120vs170 PRIVATE
   juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
+juce_add_console_app(NFResonancePhysicalDTransientCheck PRODUCT_NAME "NF Resonance Physical D Transient Check")
+juce_generate_juce_header(NFResonancePhysicalDTransientCheck)
+target_sources(NFResonancePhysicalDTransientCheck PRIVATE
+  Tests/PhysicalD_TransientProtectionCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonancePhysicalDTransientCheck PRIVATE Source)
+target_link_libraries(NFResonancePhysicalDTransientCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
 juce_add_console_app(NFResonanceC23kActionAuthority PRODUCT_NAME "NF Resonance C23k Action Authority")
 juce_generate_juce_header(NFResonanceC23kActionAuthority)
 target_sources(NFResonanceC23kActionAuthority PRIVATE
