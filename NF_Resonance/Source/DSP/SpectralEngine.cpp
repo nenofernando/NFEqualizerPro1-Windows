@@ -35,6 +35,10 @@ void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(
  // ring the STFT itself reads -- no separate buffering, no extra latency.
  for(int k=0;k<hop;++k){ int idx=(s.histPos-hop+k+fftSize)%fftSize; s.hopScratch[(size_t)k]=s.history[(size_t)idx]; }
  s.mask.setParams(params.depth,params.selectivity,params.attackMs,params.releaseMs,params.lowEnabled?params.lowHz:0.0f,params.highEnabled?params.highHz:1.0e9f);
+ // White Sensitivity Curve -- same band arrays the UI curve already reads/
+ // draws (params.bandFreq/.../bandActive), now also modulating local action
+ // authority inside GainMaskEngine (see setSensitivityCurve()).
+ s.mask.setSensitivityCurve(params.bandFreq,params.bandSens,params.bandWidth,params.bandShape,params.bandFocus,params.bandActive);
  s.mask.process(s.magDb,s.hopScratch.data(),hop,s.reduction);
  (void) transientFactor; // V1's TransientGuard-derived scalar is superseded by PHYSICAL D's own per-band transientProtection inside GainMaskEngine; s.trans itself is left running (unused for gain) rather than removed, see header comment.
  int frameIdx = channelIndex>=0 && channelIndex<(int)frameCountPerChan.size() ? frameCountPerChan[(size_t)channelIndex]++ : -1;

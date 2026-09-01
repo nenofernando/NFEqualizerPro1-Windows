@@ -71,12 +71,28 @@ juce_generate_juce_header(NFResonanceCalibrationAudit)
 target_sources(NFResonanceCalibrationAudit PRIVATE
   Tests/CalibrationAudit.cpp
   Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
   Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
   Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
   Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
 target_include_directories(NFResonanceCalibrationAudit PRIVATE Source)
 target_link_libraries(NFResonanceCalibrationAudit PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceSensitivityCurveCheck PRODUCT_NAME "NF Resonance Sensitivity Curve Check")
+juce_generate_juce_header(NFResonanceSensitivityCurveCheck)
+target_sources(NFResonanceSensitivityCurveCheck PRIVATE
+  Tests/SensitivityCurveCheck.cpp
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceSensitivityCurveCheck PRIVATE Source)
+target_link_libraries(NFResonanceSensitivityCurveCheck PRIVATE
   juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 

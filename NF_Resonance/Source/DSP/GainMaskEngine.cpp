@@ -39,6 +39,32 @@ void GainMaskEngine::setParams(float depthIn, float selectivityIn, float attackM
     releaseCoeff = (float) std::exp(-hopMs / juce::jmax(0.1, (double) releaseMs));
 }
 
+void GainMaskEngine::setSensitivityCurve(const float bandFreq[ResonanceDetector::kMaxBands], const float bandSens[ResonanceDetector::kMaxBands], const float bandWidth[ResonanceDetector::kMaxBands], const int bandShape[ResonanceDetector::kMaxBands], const float bandFocus[ResonanceDetector::kMaxBands], const bool bandActive[ResonanceDetector::kMaxBands])
+{
+    std::copy(bandFreq, bandFreq + ResonanceDetector::kMaxBands, sensBandFreq.begin());
+    std::copy(bandSens, bandSens + ResonanceDetector::kMaxBands, sensBandSens.begin());
+    std::copy(bandWidth, bandWidth + ResonanceDetector::kMaxBands, sensBandWidth.begin());
+    std::copy(bandShape, bandShape + ResonanceDetector::kMaxBands, sensBandShape.begin());
+    std::copy(bandFocus, bandFocus + ResonanceDetector::kMaxBands, sensBandFocus.begin());
+    std::copy(bandActive, bandActive + ResonanceDetector::kMaxBands, sensBandActive.begin());
+}
+
+// Smooth, continuous, bounded remapping of action authority by local
+// sensitivity: shifts action in the LOGIT domain (never a hard threshold,
+// never a jump) so action=0 stays exactly 0 (logit(0)=-inf, any bounded
+// shift keeps it -inf -> sigmoid=0 -- the curve can never manufacture
+// reduction where PHYSICAL C found no evidence) and action=1 stays exactly
+// 1 by the same symmetry. kSensGainPerDb is deliberately modest: PHYSICAL
+// C's own confidence remains the primary authority, the curve only nudges it.
+static float applySensitivity(float baseAction, float sensitivityDb)
+{
+    float a = juce::jlimit(1.0e-4f, 1.0f - 1.0e-4f, baseAction);
+    float logit = std::log(a / (1.0f - a));
+    const float kSensGainPerDb = 0.18f;
+    float shifted = logit + sensitivityDb * kSensGainPerDb;
+    return juce::jlimit(0.0f, 1.0f, 1.0f / (1.0f + std::exp(-shifted)));
+}
+
 void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSamples, int hopCount, std::vector<float>& reductionDbOut)
 {
     // ---- PHYSICAL C / D, byte-identical call pattern to their own validated harnesses ----
@@ -89,15 +115,25 @@ void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSa
             if (action <= 1.0e-4f) continue;
             ++lastActiveContributing;
 
-            // SONIC ALPHA CALIBRATION 1 -- the ONLY thing being calibrated:
-            // shapedAction = action^gamma (gamma=1 reproduces the original
-            // linear FIRST-Alpha mapping exactly). Concave (gamma<1) raises
-            // intermediate action values toward the Depth ceiling faster
-            // than linear -- endpoints action=0->0 and action=1->ceiling
-            // are UNCHANGED by construction (0^g=0, 1^g=1 for any g>0), so
-            // this is a smooth re-shaping, not a new knee/threshold and not
-            // a blanket multiplier.
-            float shapedAction = std::pow(action, actionShapeGamma);
+            // WHITE SENSITIVITY CURVE: local detector-sensitivity modulation
+            // of action authority, evaluated at THIS region's own centerHz
+            // via the exact same math the UI curve renders. Skipped (exact
+            // identity) when the curve is flat/neutral at this frequency --
+            // zero drift from Calibration 1's own validated numbers for
+            // anyone who never touches the curve.
+            float sensDb = ResonanceDetector::combinedSensitivityAt(r.centerHz, sensBandFreq.data(), sensBandSens.data(), sensBandWidth.data(), sensBandShape.data(), sensBandFocus.data(), sensBandActive.data());
+            regionDebug[(size_t) regionIdx].sensitivityDb = sensDb;
+            float effectiveAction = (std::abs(sensDb) < 1.0e-6f) ? action : applySensitivity(action, sensDb);
+
+            // SONIC ALPHA CALIBRATION 1 -- shapedAction = effectiveAction^gamma
+            // (gamma=1 reproduces the original linear FIRST-Alpha mapping
+            // exactly). Concave (gamma<1) raises intermediate action values
+            // toward the Depth ceiling faster than linear -- endpoints
+            // effectiveAction=0->0 and effectiveAction=1->ceiling are
+            // UNCHANGED by construction (0^g=0, 1^g=1 for any g>0), so this
+            // is a smooth re-shaping, not a new knee/threshold and not a
+            // blanket multiplier.
+            float shapedAction = std::pow(effectiveAction, actionShapeGamma);
             regionDebug[(size_t) regionIdx].requestedPeakDb = -maxReductionDb * shapedAction;
             float regionPeakDb = -maxReductionDb * shapedAction; // <=0
             // Local, log-frequency-Gaussian envelope around THIS region's

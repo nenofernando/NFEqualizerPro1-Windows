@@ -7,6 +7,7 @@
 #include "LowFrequencyHarmonicAnalyzer.h"
 #include "ConfidenceEngine.h"
 #include "TransientProtectionEngine.h"
+#include "ResonanceDetector.h"
 
 // FIRST V2 SONIC GAIN MASK -- Sonic Alpha. Wires PHYSICAL C (ConfidenceEngine's
 // problemConfidence / Selectivity actionWeight) and PHYSICAL D
@@ -56,7 +57,8 @@ public:
           lowHz(o.lowHz), highHz(o.highHz),
           prom(std::move(o.prom)), aux(std::move(o.aux)), conf(std::move(o.conf)), trans(std::move(o.trans)),
           promOut(std::move(o.promOut)), rawTargetDb(std::move(o.rawTargetDb)), regularizedDb(std::move(o.regularizedDb)), smoothedDb(std::move(o.smoothedDb)),
-          lastActiveContributing(o.lastActiveContributing), regionDebug(o.regionDebug), uiReductionBuffers(o.uiReductionBuffers) {}
+          lastActiveContributing(o.lastActiveContributing), regionDebug(o.regionDebug), uiReductionBuffers(o.uiReductionBuffers),
+          sensBandFreq(o.sensBandFreq), sensBandSens(o.sensBandSens), sensBandWidth(o.sensBandWidth), sensBandFocus(o.sensBandFocus), sensBandActive(o.sensBandActive), sensBandShape(o.sensBandShape) {}
     GainMaskEngine& operator=(GainMaskEngine&& o) noexcept
     {
         sampleRate=o.sampleRate; fftSize=o.fftSize; hopSize=o.hopSize; bins=o.bins;
@@ -65,6 +67,7 @@ public:
         prom=std::move(o.prom); aux=std::move(o.aux); conf=std::move(o.conf); trans=std::move(o.trans);
         promOut=std::move(o.promOut); rawTargetDb=std::move(o.rawTargetDb); regularizedDb=std::move(o.regularizedDb); smoothedDb=std::move(o.smoothedDb);
         lastActiveContributing=o.lastActiveContributing; regionDebug=o.regionDebug; uiReductionBuffers=o.uiReductionBuffers;
+        sensBandFreq=o.sensBandFreq; sensBandSens=o.sensBandSens; sensBandWidth=o.sensBandWidth; sensBandFocus=o.sensBandFocus; sensBandActive=o.sensBandActive; sensBandShape=o.sensBandShape;
         uiActiveBufferIndex.store(0, std::memory_order_relaxed);
         return *this;
     }
@@ -97,6 +100,16 @@ public:
     // change to PHYSICAL C/D. gamma==1 reproduces the original linear
     // mapping exactly (the FIRST Alpha's behaviour).
     void setActionShapeGamma(float g) { actionShapeGamma = juce::jlimit(0.05f, 4.0f, g); }
+
+    // WHITE SENSITIVITY CURVE integration (Sonic Alpha V2 -- Band Bias).
+    // The white curve is NOT EQ -- it is LOCAL DETECTOR SENSITIVITY: 0dB =
+    // normal V2 sensitivity, above 0 = more sensitive in that region, below
+    // 0 = less sensitive. Reuses ResonanceDetector::combinedSensitivityAt()
+    // verbatim -- the exact same math the UI curve renders, so the drawn
+    // shape and what actually shifts action authority can never disagree.
+    // Called once per frame (same cadence as setParams()); fixed-size
+    // arrays, zero allocation.
+    void setSensitivityCurve(const float bandFreq[ResonanceDetector::kMaxBands], const float bandSens[ResonanceDetector::kMaxBands], const float bandWidth[ResonanceDetector::kMaxBands], const int bandShape[ResonanceDetector::kMaxBands], const float bandFocus[ResonanceDetector::kMaxBands], const bool bandActive[ResonanceDetector::kMaxBands]);
 
     // One call per host hop (same cadence SpectralEngine::frame() already
     // runs at). magDb: the SAME host-rate raw magnitude array
@@ -137,7 +150,7 @@ public:
     // shaping) -- so the actionWeight distribution can be audited directly
     // against real material, never guessed. Diagnostic-only, not used by
     // process() itself beyond being filled for reporting.
-    struct RegionActionDebug { bool active = false; float centerHz = 0, actionWeight = 0, transientProt = 0, action = 0, requestedPeakDb = 0; };
+    struct RegionActionDebug { bool active = false; float centerHz = 0, actionWeight = 0, transientProt = 0, action = 0, requestedPeakDb = 0, sensitivityDb = 0; };
     static constexpr int kMaxDebugRegions = ConfidenceEngine::kMaxRegions;
     const std::array<RegionActionDebug, kMaxDebugRegions>& lastRegionActionDebug() const { return regionDebug; }
 
@@ -173,6 +186,14 @@ private:
 
     mutable std::array<std::array<float, kUIBins>, 2> uiReductionBuffers{};
     mutable std::atomic<int> uiActiveBufferIndex{0};
+
+    // White Sensitivity Curve band data (copied from Params each frame,
+    // zero allocation). All-inactive by default -- combinedSensitivityAt()
+    // then returns exactly 0 (neutral), matching pre-integration behaviour
+    // for anyone who never touches the curve.
+    std::array<float, ResonanceDetector::kMaxBands> sensBandFreq{}, sensBandSens{}, sensBandWidth{}, sensBandFocus{};
+    std::array<bool, ResonanceDetector::kMaxBands> sensBandActive{};
+    std::array<int, ResonanceDetector::kMaxBands> sensBandShape{};
 
     float binToHz(int bin) const { return (float) (bin * sampleRate / fftSize); }
     static float depthToMaxReductionDb(float depthValue) { return juce::jmax(0.0f, depthValue) * 0.9f; } // provisional, conservative -- see PHYSICAL/GainMask checkpoint report, NOT a final calibration
