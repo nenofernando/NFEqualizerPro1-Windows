@@ -235,3 +235,61 @@ float LowFrequencyHarmonicAnalyzer::harmonicLikelihoodFor(float queryHz) const
     // "confirmed non-harmonic" never collapse into the same low number.
     return gaussian * cap;
 }
+
+float LowFrequencyHarmonicAnalyzer::auxProminenceFor(float queryHz, float* outEstimatedHz, float* outValueReliability, float* outFreqReliability) const
+{
+    const int bins = kAnalysisFftSize / 2 + 1;
+    double binHz = analysisBinHz();
+    int approxBin = (int) std::round((double) queryHz / binHz);
+    approxBin = juce::jlimit(1, bins - 2, approxBin);
+
+    // Search a small window around the query's nominal bin for the actual
+    // local max in PROMINENCE (still the right signal for "does something
+    // stand out here" -- just not for WHERE it is, see below).
+    const int searchRadius = 2;
+    int bestBin = approxBin; float bestProm = promScratch[(size_t) approxBin];
+    for (int b = juce::jmax(1, approxBin - searchRadius); b <= juce::jmin(bins - 2, approxBin + searchRadius); ++b)
+        if (promScratch[(size_t) b] > bestProm) { bestProm = promScratch[(size_t) b]; bestBin = b; }
+
+    // C2.3 item 6: sub-bin LOCATION from raw magnitude, never from
+    // prominence -- prominence answers "how much", magnitude answers
+    // "where". This is what fixes the ~108Hz-instead-of-~94Hz corruption
+    // found when a contaminated neighbor bin pulls a prominence-domain
+    // parabolic fit off-target.
+    float l = magDbScratch[(size_t) (bestBin - 1)], c = magDbScratch[(size_t) bestBin], r = magDbScratch[(size_t) (bestBin + 1)];
+    float denom = l - 2.0f * c + r;
+    float delta = 0.0f;
+    if (std::abs(denom) > 1.0e-6f) delta = juce::jlimit(-0.5f, 0.5f, 0.5f * (l - r) / denom);
+    float estimatedHz = (float) ((bestBin + delta) * binHz);
+
+    // Reliability: continuous, never a truth value.
+    //  - neighbor asymmetry in MAGNITUDE (a contaminated/artifact neighbor
+    //    shows up here as a large imbalance unrelated to the peak's own
+    //    shape).
+    //  - distance from DC: bins 0-3 are structurally where the known
+    //    prominence-inversion artifact lives: ramps from 0 at bin<=1 to
+    //    full trust by bin>=5.
+    //  - genuine magnitude-domain local max (not just prominence-domain):
+    //    a bin that stands out in prominence but ISN'T itself a magnitude
+    //    peak (i.e. it only "won" via baseline subtraction, not because it
+    //    is genuinely the loudest nearby bin) is exactly the failure
+    //    pattern this whole investigation traced -- such a bin gets a hard
+    //    reliability penalty, not a subtle one.
+    float asymmetry = std::abs(l - r) / juce::jmax(1.0f, std::abs(l) + std::abs(r));
+    float dcTrust = juce::jlimit(0.0f, 1.0f, ((float) bestBin - 1.0f) / 4.0f);
+    bool magnitudeLocalMax = c > l && c >= r;
+    float shapeTrust = magnitudeLocalMax ? 1.0f : 0.25f;
+    // C2.3a: value reliability (is the PROMINENCE NUMBER trustworthy) cares
+    // about shape+DC distance, not neighbor asymmetry (a peak can be
+    // genuinely prominent even if its position is a little smeared).
+    float valueReliability = juce::jlimit(0.0f, 1.0f, dcTrust * shapeTrust);
+    // Frequency reliability (is estimatedHz trustworthy) cares about
+    // asymmetry+DC distance specifically -- asymmetry is precisely what
+    // skews a sub-bin parabolic fit off-target.
+    float freqReliability = juce::jlimit(0.0f, 1.0f, (1.0f - asymmetry) * dcTrust);
+
+    if (outEstimatedHz != nullptr) *outEstimatedHz = estimatedHz;
+    if (outValueReliability != nullptr) *outValueReliability = valueReliability;
+    if (outFreqReliability != nullptr) *outFreqReliability = freqReliability;
+    return bestProm;
+}

@@ -142,6 +142,53 @@ public:
     // conflated into the same low number.
     float harmonicLikelihoodFor(float queryHz) const;
 
+    // PHYSICAL C2.3: low-frequency PROMINENCE assistance -- deliberately
+    // INDEPENDENT of harmonicLikelihoodFor()/currentContext(). Prominence
+    // ("how much does this stand out") and harmonic context ("is this
+    // musically expected") are different questions; this answers only the
+    // first, using THIS analyzer's own decimated (much finer at high host
+    // SR) resolution instead of the main host-rate SpectralProminenceEngineV5.
+    //
+    // Root cause this exists for: at very low FFT bins (0-3) combined with
+    // a high host sample rate, the main engine's BROAD/MEDIUM/NARROW
+    // prominence blend can invert the true magnitude ordering between
+    // neighboring bins (measured directly: a real peak's own bin scored
+    // LOWER prominence than an empty neighbor bin) -- and even where the
+    // correct bin IS found as a local max, parabolic sub-bin interpolation
+    // computed on the (already-contaminated) prominence curve gets pulled
+    // toward the spurious neighbor, landing tens of cents to over 100 cents
+    // away from the true peak. This method fixes BOTH failure modes for
+    // its own decimated resolution: peak LOCATION comes from raw magnitude
+    // (debugMagDb()), never from prominence -- prominence answers only
+    // "how much", never "where".
+    //
+    // outEstimatedHz: sub-bin-refined frequency of the nearest local
+    // magnitude peak to queryHz (searched within a small bin window).
+    // outReliability: 0..1, continuous -- NOT a truth value. Approximates
+    // how much this specific measurement should be trusted, from neighbor
+    // asymmetry (a contaminated neighbor skews this), distance from DC
+    // (bins 0-3 are structurally less trustworthy), and whether the
+    // located bin is a genuine magnitude-domain local max (not just a
+    // prominence-domain one). Low reliability means "uncertain", not
+    // "confirmed absent" -- same UNKNOWN-is-a-real-state philosophy as
+    // f0Reliability above.
+    //
+    // C2.3a: outValueReliability and outFreqReliability are DELIBERATELY
+    // separate (previously one field carried both jobs) -- confidence in
+    // the prominence VALUE (is this really standing out) and confidence in
+    // the peak's physical LOCATION are different questions with different
+    // failure modes: a peak can be genuinely prominent but have its
+    // sub-bin position skewed by neighbor contamination, or vice versa.
+    //   outValueReliability: shape-based (genuine magnitude-domain local
+    //     max?) and DC-distance-based confidence in the RETURNED PROMINENCE
+    //     NUMBER.
+    //   outFreqReliability: neighbor-asymmetry and DC-distance-based
+    //     confidence in outEstimatedHz specifically (the sub-bin location).
+    // Returns the prominence (dB) AT the located bin -- "how much it
+    // stands out", read from this analyzer's own prominence array,
+    // completely unrelated to harmonicLikelihoodFor()/f0Reliability.
+    float auxProminenceFor(float queryHz, float* outEstimatedHz = nullptr, float* outValueReliability = nullptr, float* outFreqReliability = nullptr) const;
+
     int decimationFactor() const { return decimation; }
     double analysisRate() const { return decimatedRate; }
     double analysisBinHz() const { return decimatedRate / kAnalysisFftSize; }

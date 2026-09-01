@@ -573,6 +573,7 @@ juce_generate_juce_header(NFResonanceConfidenceLayerCheck)
 target_sources(NFResonanceConfidenceLayerCheck PRIVATE
   Tests/ConfidenceLayerCheck.cpp
   Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
   Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
 target_include_directories(NFResonanceConfidenceLayerCheck PRIVATE Source)
 target_link_libraries(NFResonanceConfidenceLayerCheck PRIVATE
@@ -637,5 +638,337 @@ target_sources(NFResonanceLowFreqF0ReliabilitySweep PRIVATE
   Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
 target_include_directories(NFResonanceLowFreqF0ReliabilitySweep PRIVATE Source)
 target_link_libraries(NFResonanceLowFreqF0ReliabilitySweep PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C2: LowFrequencyHarmonicAnalyzer integrated into
+# ConfidenceEngine as the single source of harmonic truth below the
+# aux/host crossover. Diagnostic only, no gain reduction.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonancePhysicalC2IntegrationCheck PRODUCT_NAME "NF Resonance Physical C2 Integration Check")
+juce_generate_juce_header(NFResonancePhysicalC2IntegrationCheck)
+target_sources(NFResonancePhysicalC2IntegrationCheck PRIVATE
+  Tests/PhysicalC2IntegrationCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonancePhysicalC2IntegrationCheck PRIVATE Source)
+target_link_libraries(NFResonancePhysicalC2IntegrationCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceMainRelDiag PRODUCT_NAME "NF Resonance Main Rel Diag")
+juce_generate_juce_header(NFResonanceMainRelDiag)
+target_sources(NFResonanceMainRelDiag PRIVATE
+  Tests/MainRelDiag.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceMainRelDiag PRIVATE Source)
+target_link_libraries(NFResonanceMainRelDiag PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C2: dual-uncertainty (aux+main both unreliable) characterization
+# sweep, comparing Policy A (current)/B (damping)/C (conservative hold)
+# offline. Does not change production ConfidenceEngine behavior.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonancePhysicalC2DualUncertaintySweep PRODUCT_NAME "NF Resonance Physical C2 Dual Uncertainty Sweep")
+juce_generate_juce_header(NFResonancePhysicalC2DualUncertaintySweep)
+target_sources(NFResonancePhysicalC2DualUncertaintySweep PRIVATE
+  Tests/PhysicalC2DualUncertaintySweep.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonancePhysicalC2DualUncertaintySweep PRIVATE Source)
+target_link_libraries(NFResonancePhysicalC2DualUncertaintySweep PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C2.1: candidate admission / peak floor investigation.
+# Diagnostic only, does not touch ConfidenceEngine.cpp production logic.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonancePhysicalC2CandidateAdmissionSweep PRODUCT_NAME "NF Resonance Physical C2 Candidate Admission Sweep")
+juce_generate_juce_header(NFResonancePhysicalC2CandidateAdmissionSweep)
+target_sources(NFResonancePhysicalC2CandidateAdmissionSweep PRIVATE
+  Tests/PhysicalC2CandidateAdmissionSweep.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonancePhysicalC2CandidateAdmissionSweep PRIVATE Source)
+target_link_libraries(NFResonancePhysicalC2CandidateAdmissionSweep PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC2_120HzRootCause PRODUCT_NAME "NF Resonance C2 120Hz Root Cause")
+juce_generate_juce_header(NFResonanceC2_120HzRootCause)
+target_sources(NFResonanceC2_120HzRootCause PRIVATE
+  Tests/C2_120HzRootCause.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceC2_120HzRootCause PRIVATE Source)
+target_link_libraries(NFResonanceC2_120HzRootCause PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceMagCheck PRODUCT_NAME "NF Resonance Mag Check")
+juce_generate_juce_header(NFResonanceMagCheck)
+target_sources(NFResonanceMagCheck PRIVATE
+  Tests/MagCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonanceMagCheck PRIVATE Source)
+target_link_libraries(NFResonanceMagCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonancePhysicalC22PoolPriorityCheck PRODUCT_NAME "NF Resonance Physical C22 Pool Priority Check")
+juce_generate_juce_header(NFResonancePhysicalC22PoolPriorityCheck)
+target_sources(NFResonancePhysicalC22PoolPriorityCheck PRIVATE
+  Tests/PhysicalC22PoolPriorityCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h)
+target_include_directories(NFResonancePhysicalC22PoolPriorityCheck PRIVATE Source)
+target_link_libraries(NFResonancePhysicalC22PoolPriorityCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceAdmCheck2 PRODUCT_NAME "NF Resonance Adm Check 2")
+juce_generate_juce_header(NFResonanceAdmCheck2)
+target_sources(NFResonanceAdmCheck2 PRIVATE
+  Tests/AdmCheck2.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceAdmCheck2 PRIVATE Source)
+target_link_libraries(NFResonanceAdmCheck2 PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceAllocCheck PRODUCT_NAME "NF Resonance Alloc Check")
+juce_generate_juce_header(NFResonanceAllocCheck)
+target_sources(NFResonanceAllocCheck PRIVATE
+  Tests/AllocCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceAllocCheck PRIVATE Source)
+target_link_libraries(NFResonanceAllocCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23ProminenceCompare PRODUCT_NAME "NF Resonance C23 Prominence Compare")
+juce_generate_juce_header(NFResonanceC23ProminenceCompare)
+target_sources(NFResonanceC23ProminenceCompare PRIVATE
+  Tests/C23_ProminenceCompare.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceC23ProminenceCompare PRIVATE Source)
+target_link_libraries(NFResonanceC23ProminenceCompare PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23BlendCompare PRODUCT_NAME "NF Resonance C23 Blend Compare")
+juce_generate_juce_header(NFResonanceC23BlendCompare)
+target_sources(NFResonanceC23BlendCompare PRIVATE
+  Tests/C23_BlendCompare.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceC23BlendCompare PRIVATE Source)
+target_link_libraries(NFResonanceC23BlendCompare PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23ApplesToApples PRODUCT_NAME "NF Resonance C23 Apples To Apples")
+juce_generate_juce_header(NFResonanceC23ApplesToApples)
+target_sources(NFResonanceC23ApplesToApples PRIVATE
+  Tests/C23_ApplesToApples.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23ApplesToApples PRIVATE Source)
+target_link_libraries(NFResonanceC23ApplesToApples PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23aRefinedBlend PRODUCT_NAME "NF Resonance C23a Refined Blend")
+juce_generate_juce_header(NFResonanceC23aRefinedBlend)
+target_sources(NFResonanceC23aRefinedBlend PRIVATE
+  Tests/C23a_RefinedBlend.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23aRefinedBlend PRIVATE Source)
+target_link_libraries(NFResonanceC23aRefinedBlend PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23cCrossSourceDiag PRODUCT_NAME "NF Resonance C23c Cross Source Diag")
+juce_generate_juce_header(NFResonanceC23cCrossSourceDiag)
+target_sources(NFResonanceC23cCrossSourceDiag PRIVATE
+  Tests/C23c_CrossSourceDiag.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceC23cCrossSourceDiag PRIVATE Source)
+target_link_libraries(NFResonanceC23cCrossSourceDiag PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23dNativeVsDecimated PRODUCT_NAME "NF Resonance C23d Native Vs Decimated")
+juce_generate_juce_header(NFResonanceC23dNativeVsDecimated)
+target_sources(NFResonanceC23dNativeVsDecimated PRIVATE
+  Tests/C23d_NativeVsDecimated.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceC23dNativeVsDecimated PRIVATE Source)
+target_link_libraries(NFResonanceC23dNativeVsDecimated PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+# ----------------------------------------------------------------
+# PHYSICAL C -- FINAL FULL PIPELINE CHECK. Uses the real, integrated
+# production ConfidenceEngine (C2.2 soft admission + C2.3 prominence
+# assist + Policy A harmonic blend). Still diagnostic only, no gain.
+# ----------------------------------------------------------------
+juce_add_console_app(NFResonancePhysicalCFinalPipelineCheck PRODUCT_NAME "NF Resonance Physical C Final Pipeline Check")
+juce_generate_juce_header(NFResonancePhysicalCFinalPipelineCheck)
+target_sources(NFResonancePhysicalCFinalPipelineCheck PRIVATE
+  Tests/PhysicalC_FinalPipelineCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonancePhysicalCFinalPipelineCheck PRIVATE Source)
+target_link_libraries(NFResonancePhysicalCFinalPipelineCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceIsolateMagDb PRODUCT_NAME "NF Resonance Isolate MagDb")
+juce_generate_juce_header(NFResonanceIsolateMagDb)
+target_sources(NFResonanceIsolateMagDb PRIVATE
+  Tests/IsolateMagDb.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceIsolateMagDb PRIVATE Source)
+target_link_libraries(NFResonanceIsolateMagDb PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceTopologyProof PRODUCT_NAME "NF Resonance Topology Proof")
+juce_generate_juce_header(NFResonanceTopologyProof)
+target_sources(NFResonanceTopologyProof PRIVATE
+  Tests/TopologyProof.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h)
+target_include_directories(NFResonanceTopologyProof PRIVATE Source)
+target_link_libraries(NFResonanceTopologyProof PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23f96k120vs170 PRODUCT_NAME "NF Resonance C23f 96k 120 vs 170")
+juce_generate_juce_header(NFResonanceC23f96k120vs170)
+target_sources(NFResonanceC23f96k120vs170 PRIVATE
+  Tests/C23f_96k120vs170.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23f96k120vs170 PRIVATE Source)
+target_link_libraries(NFResonanceC23f96k120vs170 PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23kActionAuthority PRODUCT_NAME "NF Resonance C23k Action Authority")
+juce_generate_juce_header(NFResonanceC23kActionAuthority)
+target_sources(NFResonanceC23kActionAuthority PRIVATE
+  Tests/C23k_ActionAuthorityValidation.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23kActionAuthority PRIVATE Source)
+target_link_libraries(NFResonanceC23kActionAuthority PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23iOverconfidenceAudit PRODUCT_NAME "NF Resonance C23i Overconfidence Audit")
+juce_generate_juce_header(NFResonanceC23iOverconfidenceAudit)
+target_sources(NFResonanceC23iOverconfidenceAudit PRIVATE
+  Tests/C23i_FundamentalOverconfidenceAudit.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23iOverconfidenceAudit PRIVATE Source)
+target_link_libraries(NFResonanceC23iOverconfidenceAudit PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23hCascadeDiag PRODUCT_NAME "NF Resonance C23h Cascade Diag")
+juce_generate_juce_header(NFResonanceC23hCascadeDiag)
+target_sources(NFResonanceC23hCascadeDiag PRIVATE
+  Tests/C23h_BridgeCascadeDiag.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23hCascadeDiag PRIVATE Source)
+target_link_libraries(NFResonanceC23hCascadeDiag PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23hDebug113 PRODUCT_NAME "NF Resonance C23h Debug 113")
+juce_generate_juce_header(NFResonanceC23hDebug113)
+target_sources(NFResonanceC23hDebug113 PRIVATE
+  Tests/C23h_Debug113.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23hDebug113 PRIVATE Source)
+target_link_libraries(NFResonanceC23hDebug113 PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceC23hNegativeBridge PRODUCT_NAME "NF Resonance C23h Negative Bridge")
+juce_generate_juce_header(NFResonanceC23hNegativeBridge)
+target_sources(NFResonanceC23hNegativeBridge PRIVATE
+  Tests/C23h_NegativeBridgeCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonanceC23hNegativeBridge PRIVATE Source)
+target_link_libraries(NFResonanceC23hNegativeBridge PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonance48k135GroundTruth PRODUCT_NAME "NF Resonance 48k 135 Ground Truth")
+juce_generate_juce_header(NFResonance48k135GroundTruth)
+target_sources(NFResonance48k135GroundTruth PRIVATE
+  Tests/C23g_48k135GroundTruth.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonance48k135GroundTruth PRIVATE Source)
+target_link_libraries(NFResonance48k135GroundTruth PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonance48k135vs80 PRODUCT_NAME "NF Resonance 48k 135 vs 80")
+juce_generate_juce_header(NFResonance48k135vs80)
+target_sources(NFResonance48k135vs80 PRIVATE
+  Tests/C_48k135vs80.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonance48k135vs80 PRIVATE Source)
+target_link_libraries(NFResonance48k135vs80 PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonancePoolRescueCheck PRODUCT_NAME "NF Resonance Pool Rescue Check")
+juce_generate_juce_header(NFResonancePoolRescueCheck)
+target_sources(NFResonancePoolRescueCheck PRIVATE
+  Tests/PoolRescueCheck.cpp
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h)
+target_include_directories(NFResonancePoolRescueCheck PRIVATE Source)
+target_link_libraries(NFResonancePoolRescueCheck PRIVATE
   juce::juce_core juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
