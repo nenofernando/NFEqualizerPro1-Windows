@@ -4,7 +4,21 @@
 #include "TransientGuard.h"
 class SpectralEngine {
 public:
- struct Params{ float depth=5,sharpness=4,selectivity=3.5f,attackMs=10,releaseMs=80,lowHz=20,highHz=20000,transient=5,biasDb=1.5f,curveDb[7]{}; int mode=0; bool delta=false; };
+ // Multiband Sensitivity Curve (0.1q): 32 pre-allocated slots (AU/VST3/AAX
+ // need static parameters, so this is a fixed ceiling, never a runtime
+ // allocation). Each slot is independently active/inactive; inactive slots
+ // simply don't contribute to curveAt() -- they aren't destroyed.
+ static constexpr int kMaxBands = 32;
+ // Checkpoint A: bandWidth (octaves, how far this band's influence reaches
+ // in log-frequency) + bandShape (0=Bell,1=LowShelf,2=HighShelf,3=LowFocus,
+ // 4=HighFocus) alongside the existing freq/sens/active per slot.
+ struct Params{ float depth=5,sharpness=4,selectivity=3.5f,attackMs=10,releaseMs=80,lowHz=20,highHz=20000,transient=5,biasDb=1.5f,
+   bandFreq[kMaxBands]{}, bandSens[kMaxBands]{}, bandWidth[kMaxBands]{}, bandFocus[kMaxBands]{}; bool bandActive[kMaxBands]{}; int bandShape[kMaxBands]{}; int mode=0; bool delta=false;
+   // lowEnabled/highEnabled OFF means that side of the range is fully open
+   // for the detector's gate -- lowHz/highHz themselves are left untouched
+   // (still whatever the user last set/automated), only the EFFECTIVE bound
+   // passed to ResonanceDetector::compute() changes. See SpectralEngine::process().
+   bool lowEnabled=true, highEnabled=true; };
  // Production path uses LeftPad (true left-padded/negative-time-framed STFT)
  // exclusively -- see below. TimeGate and NormGate remain only so the offline
  // test harness can still A/B them against LeftPad for historical comparison;
