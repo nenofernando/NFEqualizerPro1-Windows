@@ -1,5 +1,5 @@
 #include "SpectralEngine.h"
-void SpectralEngine::prepare(double sr,int channels){sampleRate=sr;fft=std::make_unique<juce::dsp::FFT>(order);window.resize(fftSize);for(int i=0;i<fftSize;++i)window[(size_t)i]=std::sqrt(0.5f-0.5f*std::cos(juce::MathConstants<float>::twoPi*i/(fftSize-1)));c.clear();c.resize((size_t)juce::jmax(1,channels));for(auto& s:c){s.history.assign(fftSize,0);s.ola.assign(ringSize,0);s.norm.assign(ringSize,0);s.fftData.assign(fftSize*2,0);s.magDb.assign(fftSize/2+1,-120);s.reduction.assign(fftSize/2+1,0);s.lastWet.assign(fftSize/2+1,0);s.det.prepare(fftSize/2+1,sr,fftSize);}
+void SpectralEngine::prepare(double sr,int channels){sampleRate=sr;fft=std::make_unique<juce::dsp::FFT>(order);window.resize(fftSize);for(int i=0;i<fftSize;++i)window[(size_t)i]=std::sqrt(0.5f-0.5f*std::cos(juce::MathConstants<float>::twoPi*i/(fftSize-1)));c.clear();c.resize((size_t)juce::jmax(1,channels));for(auto& s:c){s.history.assign(fftSize,0);s.ola.assign(ringSize,0);s.norm.assign(ringSize,0);s.fftData.assign(fftSize*2,0);s.magDb.assign(fftSize/2+1,-120);s.reduction.assign(fftSize/2+1,0);s.lastWet.assign(fftSize/2+1,0);s.det.prepare(fftSize/2+1,sr,fftSize);s.mask.prepare(sr,fftSize,hop);}
  // Compute the true steady-state norm value for this window/hop by running the
  // same accumulation logic as frame() would, with silence, so this is exactly
  // what the real algorithm converges to (not a guessed constant).
@@ -13,7 +13,7 @@ void SpectralEngine::prepare(double sr,int channels){sampleRate=sr;fft=std::make
  reset();}
 void SpectralEngine::reset(){for(auto& s:c){std::fill(s.history.begin(),s.history.end(),0);std::fill(s.ola.begin(),s.ola.end(),0);
    if(warmupMode==WarmupMode::PreRoll) s.norm=preRollNorm; else std::fill(s.norm.begin(),s.norm.end(),0);
-   s.t=0;s.histPos=0;s.det.reset();s.trans.reset();}
+   s.t=0;s.histPos=0;s.det.reset();s.trans.reset();s.mask.reset();}
    frameCountPerChan.assign(c.size(),0);
    if(debugCapture){ debugPerChan.assign(c.size(),{}); } }
 float SpectralEngine::processOne(Chan& s,float x,int channelIndex){ long long t=s.t; int out=(int)(t%ringSize); float nrm=s.norm[(size_t)out];
@@ -26,7 +26,17 @@ float SpectralEngine::processOne(Chan& s,float x,int channelIndex){ long long t=
  bool frameDue = (warmupMode==WarmupMode::LeftPad) ? (s.t>0 && (s.t%hop)==0) : (s.t>=fftSize && (s.t%hop)==0);
  if(frameDue) frame(s,tf,channelIndex); return y; }
 void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(int k=0;k<fftSize;++k){int idx=(s.histPos+k)%fftSize;s.fftData[(size_t)k]=s.history[(size_t)idx]*window[(size_t)k];} std::fill(s.fftData.begin()+fftSize,s.fftData.end(),0); fft->performRealOnlyForwardTransform(s.fftData.data());
- for(int i=0;i<=fftSize/2;++i){float re=s.fftData[(size_t)2*i],im=(i==0||i==fftSize/2)?0.0f:s.fftData[(size_t)2*i+1];s.magDb[(size_t)i]=juce::Decibels::gainToDecibels(std::sqrt(re*re+im*im)/(float)fftSize+1e-12f,-120.0f);} s.det.compute(s.magDb,s.reduction,params.depth,params.sharpness,params.selectivity,params.attackMs,params.releaseMs,params.lowEnabled?params.lowHz:0.0f,params.highEnabled?params.highHz:1.0e9f,params.biasDb,params.bandFreq,params.bandSens,params.bandWidth,params.bandShape,params.bandFocus,params.bandActive,transientFactor);
+ for(int i=0;i<=fftSize/2;++i){float re=s.fftData[(size_t)2*i],im=(i==0||i==fftSize/2)?0.0f:s.fftData[(size_t)2*i+1];s.magDb[(size_t)i]=juce::Decibels::gainToDecibels(std::sqrt(re*re+im*im)/(float)fftSize+1e-12f,-120.0f);}
+ // Sonic Alpha V2 gain mask (PHYSICAL C/D-driven) -- REPLACES
+ // ResonanceDetector::compute() as what fills s.reduction. Extracts this
+ // channel's own raw time-domain samples for the hop that just completed
+ // (LowFrequencyHarmonicAnalyzer, inside GainMaskEngine, is causal and
+ // needs real audio, not just the spectral frame) from the SAME history
+ // ring the STFT itself reads -- no separate buffering, no extra latency.
+ for(int k=0;k<hop;++k){ int idx=(s.histPos-hop+k+fftSize)%fftSize; s.hopScratch[(size_t)k]=s.history[(size_t)idx]; }
+ s.mask.setParams(params.depth,params.selectivity,params.attackMs,params.releaseMs,params.lowEnabled?params.lowHz:0.0f,params.highEnabled?params.highHz:1.0e9f);
+ s.mask.process(s.magDb,s.hopScratch.data(),hop,s.reduction);
+ (void) transientFactor; // V1's TransientGuard-derived scalar is superseded by PHYSICAL D's own per-band transientProtection inside GainMaskEngine; s.trans itself is left running (unused for gain) rather than removed, see header comment.
  int frameIdx = channelIndex>=0 && channelIndex<(int)frameCountPerChan.size() ? frameCountPerChan[(size_t)channelIndex]++ : -1;
  // Testing-only mask override (never engaged unless the harness explicitly sets it).
  if(maskOverride!=MaskOverride::None && frameIdx>=0 && frameIdx<maskOverrideFrameLimit){

@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "ResonanceDetector.h"
 #include "TransientGuard.h"
+#include "GainMaskEngine.h"
 class SpectralEngine {
 public:
  // Multiband Sensitivity Curve (0.1q): 32 pre-allocated slots (AU/VST3/AAX
@@ -27,6 +28,14 @@ public:
  void setWarmupMode(WarmupMode m){ warmupMode=m; }
  void prepare(double sr,int channels); void reset(); void setParams(const Params& p){params=p;} void process(juce::AudioBuffer<float>&); int latencySamples() const{return fftSize;}
  std::vector<float> getLastSpectrum() const; std::vector<float> getLastReduction() const;
+ // Sonic Alpha V2 visual connect: the REDUCTION analyzer's real data source
+ // -- the exact final mask GainMaskEngine applied to the audio (channel 0),
+ // published through its own realtime-safe double-buffer (see
+ // GainMaskEngine::appliedReductionSnapshot()), not the same unsynchronized
+ // vector copy getLastReduction() above still uses.
+ const std::array<float, GainMaskEngine::kUIBins>& getAppliedReductionSnapshot() const { static const std::array<float, GainMaskEngine::kUIBins> empty{}; return c.empty() ? empty : c[0].mask.appliedReductionSnapshot(); }
+ int getAppliedReductionSnapshotBinCount() const { return c.empty() ? 0 : c[0].mask.appliedReductionBinCount(); }
+ double currentSampleRate() const { return sampleRate; }
 
  // ---- Investigation-only instrumentation (never used by the real plugin path) ----
  struct FrameDebugSnapshot {
@@ -103,6 +112,11 @@ private:
  std::vector<std::vector<FrameDebugSnapshot>> debugPerChan;
  MaskOverride maskOverride=MaskOverride::None; float maskOverrideConstantDb=0.0f; int maskOverrideFrameLimit=0;
  std::vector<int> frameCountPerChan; // how many frames fired since last reset, per channel
- struct Chan{ std::vector<float> history,ola,norm,fftData,magDb,reduction,lastWet; long long t=0; int histPos=0; ResonanceDetector det; TransientGuard trans; };
+ struct Chan{ std::vector<float> history,ola,norm,fftData,magDb,reduction,lastWet; long long t=0; int histPos=0; ResonanceDetector det; TransientGuard trans;
+   // Sonic Alpha V2: PHYSICAL C/D-driven gain mask (see GainMaskEngine) --
+   // REPLACES ResonanceDetector::compute() as what fills `reduction` below;
+   // `det`/`trans` above are left in place (unused for gain now) rather
+   // than removed, to keep this swap minimal-footprint and reversible.
+   GainMaskEngine mask; std::array<float, hop> hopScratch{}; };
  std::unique_ptr<juce::dsp::FFT> fft; std::vector<float> window; std::vector<Chan> c; double sampleRate=48000; Params params;
  void frame(Chan& s,float transientFactor,int channelIndex); float processOne(Chan& s,float x,int channelIndex); };

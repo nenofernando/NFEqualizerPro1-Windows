@@ -44,6 +44,11 @@ target_sources(NFResonance PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -61,6 +66,45 @@ target_link_libraries(NFResonance PRIVATE
 # for NaN/Inf, silent/muted output, and blown-up levels. Not part
 # of the plugin build itself.
 # ----------------------------------------------------------------
+juce_add_console_app(NFResonanceCalibrationAudit PRODUCT_NAME "NF Resonance Calibration Audit")
+juce_generate_juce_header(NFResonanceCalibrationAudit)
+target_sources(NFResonanceCalibrationAudit PRIVATE
+  Tests/CalibrationAudit.cpp
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceCalibrationAudit PRIVATE Source)
+target_link_libraries(NFResonanceCalibrationAudit PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceGainMaskV2Check PRODUCT_NAME "NF Resonance Gain Mask V2 Check")
+juce_generate_juce_header(NFResonanceGainMaskV2Check)
+target_sources(NFResonanceGainMaskV2Check PRIVATE
+  Tests/GainMaskV2Check.cpp
+  Source/PluginProcessor.cpp Source/PluginProcessor.h
+  Source/PluginEditor.cpp Source/PluginEditor.h
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
+  Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
+  Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
+  Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
+target_include_directories(NFResonanceGainMaskV2Check PRIVATE Source)
+target_compile_definitions(NFResonanceGainMaskV2Check PRIVATE
+  JUCE_WEB_BROWSER=0 JUCE_USE_CURL=0 JUCE_VST3_CAN_REPLACE_VST2=0
+  JucePlugin_Build_VST3=0 JucePlugin_Build_AU=0 JucePlugin_Build_AAX=0)
+target_link_libraries(NFResonanceGainMaskV2Check PRIVATE
+  juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
 juce_add_console_app(NFResonanceSmokeTest PRODUCT_NAME "NF Resonance Smoke Test")
 
 juce_generate_juce_header(NFResonanceSmokeTest)
@@ -72,6 +116,11 @@ target_sources(NFResonanceSmokeTest PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -101,6 +150,11 @@ target_sources(NFResonanceWarmupCompare PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -131,6 +185,11 @@ target_sources(NFResonanceOvershootDiagnosis PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -160,6 +219,11 @@ target_sources(NFResonanceC2FinalValidation PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -189,6 +253,11 @@ target_sources(NFResonanceDAWPreviewDiagnostics PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -272,6 +341,11 @@ target_sources(NFResonanceBypassNullCheck PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -297,6 +371,11 @@ target_sources(NFResonanceLegacyAutomationCompatCheck PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -329,6 +408,11 @@ target_sources(NFResonanceFactoryDefaultNeutralityCheck PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -359,6 +443,11 @@ target_sources(NFResonanceLowHighEnabledCheck PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -389,6 +478,11 @@ target_sources(NFResonanceDefaultsDumpCheck PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h
   Source/UI/ControlCurveComponent.cpp Source/UI/ControlCurveComponent.h)
@@ -503,6 +597,11 @@ target_sources(NFResonanceMusicalMaterialV1vsV2 PRIVATE
   Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
   Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
   Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h
   Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
   Source/UI/NFLookAndFeel.cpp Source/UI/NFLookAndFeel.h
   Source/UI/SpectrumComponent.cpp Source/UI/SpectrumComponent.h

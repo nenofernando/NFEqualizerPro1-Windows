@@ -69,8 +69,19 @@ void SpectrumComponent::paint(juce::Graphics& g)
             g.drawText(juce::String((int) db), (int) plot.getRight() + 2, (int) (y - 6.0f), (int) (full.getRight() - plot.getRight()) - 4, 12, juce::Justification::centredLeft);
     }
 
-    auto m = engine.getLastSpectrum(), red = engine.getLastReduction();
-    if (m.size() < 2) return;
+    auto m = engine.getLastSpectrum();
+    // Sonic Alpha V2 visual connect: read the REAL, final applied mask from
+    // GainMaskEngine's own realtime-safe double-buffer snapshot (post
+    // Problem-Confidence -> Selectivity -> Transient Protection -> Depth ->
+    // spatial regularization -> temporal smoothing) -- not
+    // getLastReduction()'s unsynchronized vector copy, and never a V1/
+    // ResonanceDetector buffer (V1's reduction path is no longer wired to
+    // the audio at all as of the V2 gain mask swap).
+    const auto& redSnap = engine.getAppliedReductionSnapshot();
+    int redBinCount = juce::jmin((int) redSnap.size(), engine.getAppliedReductionSnapshotBinCount());
+    std::vector<float> red((size_t) juce::jmax(0, redBinCount));
+    for (size_t i = 0; i < red.size(); ++i) red[i] = redSnap[i];
+    if (m.size() < 2 || red.size() < 2) return;
 
     // 0.1l: the "water surface" is driven by REDUCTION, not input level --
     // a bin sitting at ~0dB reduction must stay visually still no matter how
@@ -99,7 +110,11 @@ void SpectrumComponent::paint(juce::Graphics& g)
     // a nearest-bin snap there meant many consecutive render points shared
     // one bin's value, then jumped hard to the next. Linear interpolation
     // between the true bin values never exceeds either bin's own value.
-    auto binPosForHz = [&](float hz) { return juce::jlimit(1.0f, (float) (m.size() - 1), hz * (float) (2 * (m.size() - 1)) / 48000.0f); };
+    // Bin position must scale with the ENGINE's actual sample rate -- a
+    // hardcoded 48000 here silently mis-mapped every bin (and therefore
+    // every reduction valley's on-screen frequency) at 44.1/96/192kHz.
+    const float engineSr = (float) juce::jmax(1.0, engine.currentSampleRate());
+    auto binPosForHz = [&](float hz) { return juce::jlimit(1.0f, (float) (m.size() - 1), hz * (float) (2 * (m.size() - 1)) / engineSr); };
     auto lerpAtBinPos = [](const std::vector<float>& v, float binPos) {
         size_t lo = (size_t) binPos, hi = juce::jmin(v.size() - 1, lo + 1);
         float frac = binPos - (float) lo;
@@ -107,19 +122,21 @@ void SpectrumComponent::paint(juce::Graphics& g)
     };
     auto yOriginalAt = [&](float binPos) { return plot.getBottom() - juce::jlimit(0.0f, 1.0f, (lerpAtBinPos(smoothedMagDb, binPos) + 90.0f) / 102.0f) * plot.getHeight(); };
 
-    // 0.1m/0.1o: SELECTIVE visual activity gate. The V1 detector spreads
-    // small, real reduction thinly across many bins on dense material, and
-    // even within one genuine resonance the real per-bin reduction isn't
-    // perfectly smooth -- reduction-driven alone (0.1l) still read as "many
-    // frequencies dancing softly" / "teeth" because of that, not because the
-    // display was wrong. gateThresholdDb is the MINIMUM real reduction
-    // magnitude (dB) a point must have to count as "active" for the region
-    // grouping below; this uses ONLY the real reductionDb already computed
-    // by the detector -- no confidence/persistence data is invented here
-    // (that's ResonanceMapSnapshot / V2-B/V2-C's job; today's proxy for "the
-    // plugin considers this a real correction" is simply "reduction
-    // magnitude clearly above the visual noise floor").
-    const float gateThresholdDb = 1.2f;
+    // 0.1m/0.1o: SELECTIVE visual activity gate. gateThresholdDb is the
+    // MINIMUM real reduction magnitude (dB) a point must have to count as
+    // "active" for the region grouping below -- uses ONLY the real
+    // reductionDb already computed by the mask, no invented data.
+    // Recalibrated for the V2 gain mask (Sonic Alpha): V2's own Depth curve
+    // is deliberately conservative (Depth=1 typically tops out well under
+    // 1dB even in a genuinely treated region -- see GainMaskEngine's own
+    // depthToMaxReductionDb), so the OLD V1-era threshold of 1.2dB would
+    // hide essentially all of Depth 1-3's real, intentional reduction from
+    // the analyzer even though it IS being applied to the audio. 0.15dB
+    // is safe as a noise floor because untouched bins read EXACTLY 0.0dB
+    // (Depth=0 is a bit-exact identity, and Depth>0 bins with no real
+    // action authority stay at their smoothed target of 0 too) -- there is
+    // no ambient dither/noise in the mask to gate away.
+    const float gateThresholdDb = 0.15f;
 
     const int numPts = juce::jlimit(48, 220, (int) plot.getWidth() / 4);
     std::vector<float> xAt(numPts), rawRedAt(numPts);
