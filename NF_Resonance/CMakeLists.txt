@@ -13,11 +13,20 @@ else()
 endif()
 
 option(NF_ENABLE_AAX "Build AAX (requires Avid AAX SDK configured in JUCE)" OFF)
+# Local path to an Avid AAX SDK checkout -- NOT a substitute for PACE Anti-
+# Piracy wrapping/signing (Avid-issued credentials, not present on this
+# machine). An AAX built with only this SDK compiles but is NOT authorized
+# to load in a real Pro Tools -- test/internal use only, never distribute.
+set(NF_AAX_SDK_PATH "" CACHE PATH "Path to the Avid AAX SDK (only used when NF_ENABLE_AAX=ON)")
 set(NF_FORMATS VST3 Standalone)
 if(APPLE)
   list(APPEND NF_FORMATS AU)
 endif()
 if(NF_ENABLE_AAX)
+  if(NOT NF_AAX_SDK_PATH)
+    message(FATAL_ERROR "NF_ENABLE_AAX=ON requires -DNF_AAX_SDK_PATH=<path to AAX SDK>")
+  endif()
+  juce_set_aax_sdk_path("${NF_AAX_SDK_PATH}")
   list(APPEND NF_FORMATS AAX)
 endif()
 
