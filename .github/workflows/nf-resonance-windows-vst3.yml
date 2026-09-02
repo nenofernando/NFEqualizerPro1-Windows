@@ -1,0 +1,59 @@
+name: NF Resonance - Windows VST3 TEST installer
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  build-windows-vst3:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Checkout NF Resonance
+        uses: actions/checkout@v4
+
+      - name: Checkout JUCE (pinned to the same version used for local builds)
+        uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.1
+          path: JUCE
+
+      - name: Configure (VST3 only, no DSP/plugin source changes)
+        run: |
+          cmake -S NF_Resonance -B build \
+            -DJUCE_DIR="${{ github.workspace }}/JUCE" \
+            -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build NFResonance_VST3
+        run: cmake --build build --config Release --target NFResonance_VST3 --parallel
+
+      - name: Verify VST3 output exists
+        shell: pwsh
+        run: |
+          $vst3 = "build/NFResonance_artefacts/Release/VST3/NF Resonance.vst3"
+          if (-not (Test-Path $vst3)) { throw "VST3 bundle not found at $vst3" }
+          Get-ChildItem -Recurse $vst3 | Select-Object -First 20
+
+      - name: Install Inno Setup
+        run: choco install innosetup --no-progress -y
+
+      - name: Build installer (.exe)
+        shell: pwsh
+        run: |
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" "NF_Resonance\installer\windows\NFResonance.iss"
+
+      - name: Compute SHA-256 of installer
+        shell: pwsh
+        run: |
+          $f = Get-ChildItem "NF_Resonance\installer\windows\Output\*.exe" | Select-Object -First 1
+          Get-FileHash $f.FullName -Algorithm SHA256 | Format-List
+          Copy-Item $f.FullName "NF_Resonance_V1.0_TEST_Windows_x64.exe"
+
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: NF_Resonance_V1.0_TEST_Windows_x64
+          path: NF_Resonance_V1.0_TEST_Windows_x64.exe
+          if-no-files-found: error
