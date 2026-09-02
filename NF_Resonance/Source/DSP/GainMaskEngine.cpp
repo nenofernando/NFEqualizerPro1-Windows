@@ -28,6 +28,7 @@ void GainMaskEngine::reset()
     std::fill(rawTargetDb.begin(), rawTargetDb.end(), 0.0f);
     std::fill(regularizedDb.begin(), regularizedDb.end(), 0.0f);
     std::fill(smoothedDb.begin(), smoothedDb.end(), 0.0f);
+    maxReductionCapSmoothedDb = maxReductionCapTargetDb; // no stale ramp across a reset
     lastActiveContributing = 0;
     for (auto& buf : uiReductionBuffers) buf.fill(0.0f);
 }
@@ -38,6 +39,12 @@ void GainMaskEngine::setParams(float depthIn, float selectivityIn, float attackM
     double hopMs = 1000.0 * (double) hopSize / sampleRate;
     attackCoeff = (float) std::exp(-hopMs / juce::jmax(0.1, (double) attackMs));
     releaseCoeff = (float) std::exp(-hopMs / juce::jmax(0.1, (double) releaseMs));
+    // MAX REDUCTION cap smoothing: fixed ~30ms time constant, independent
+    // of the user's own Attack/Release (those shape detection response,
+    // not this control's own movement) -- just enough to make a live knob
+    // move click-free without adding audible lag to the ceiling itself.
+    const double capSmoothMs = 30.0;
+    capSmoothCoeff = (float) std::exp(-hopMs / capSmoothMs);
 }
 
 void GainMaskEngine::setSensitivityCurve(const float bandFreq[ResonanceDetector::kMaxBands], const float bandSens[ResonanceDetector::kMaxBands], const float bandWidth[ResonanceDetector::kMaxBands], const int bandShape[ResonanceDetector::kMaxBands], const float bandFocus[ResonanceDetector::kMaxBands], const bool bandActive[ResonanceDetector::kMaxBands])
@@ -215,6 +222,20 @@ void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSa
     // -- only dilute/merge nearby valleys into one broader, shallower one.
     octaveSmooth(rawTargetDb, regularizedDb, detailToOctHalfWidth(detail));
 
+    // MAX REDUCTION -- hard ceiling on the TARGET mask, applied after
+    // Detail and before temporal smoothing (per the approved pipeline
+    // order). Not EQ, not makeup gain, not another Depth: a floor on the
+    // reduction value itself, independent of what produced it. capDb
+    // itself ramps toward its target (never the reduction values) so a
+    // live knob move is click-free. Skipped entirely when disabled -- OFF
+    // is bit-exactly the pre-Max-Reduction DSP, not merely equivalent.
+    if (maxReductionEnabled)
+    {
+        maxReductionCapSmoothedDb += (maxReductionCapTargetDb - maxReductionCapSmoothedDb) * capSmoothCoeff;
+        const float floorDb = -maxReductionCapSmoothedDb;
+        for (int b = 0; b < bins; ++b) regularizedDb[(size_t) b] = juce::jmax(regularizedDb[(size_t) b], floorDb);
+    }
+
     // Causal per-bin attack/release envelope in dB (log-gain domain) --
     // absorbs any single-frame jump in the underlying decision (including
     // the documented PHYSICAL C problemConfidence discontinuity) into a
@@ -226,6 +247,16 @@ void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSa
         float target = regularizedDb[(size_t) b];
         float coeff = (target < smoothedDb[(size_t) b]) ? attackCoeff : releaseCoeff;
         smoothedDb[(size_t) b] = target + (smoothedDb[(size_t) b] - target) * coeff;
+    }
+
+    // Defensive final clamp: the attack/release EMA above can't overshoot
+    // past its own already-capped target, so this is normally a no-op --
+    // it exists so the ceiling is a structural guarantee on the ACTUALLY
+    // APPLIED value, not an assumption about the smoother's own behaviour.
+    if (maxReductionEnabled)
+    {
+        const float floorDb = -maxReductionCapSmoothedDb;
+        for (int b = 0; b < bins; ++b) smoothedDb[(size_t) b] = juce::jmax(smoothedDb[(size_t) b], floorDb);
     }
 
     if ((int) reductionDbOut.size() != bins) reductionDbOut.assign((size_t) bins, 0.0f);

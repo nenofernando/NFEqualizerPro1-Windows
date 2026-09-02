@@ -334,6 +334,21 @@ void SpectrumComponent::paint(juce::Graphics& g)
     if (showOriginal)
     {
         auto origPath = buildBoundedPath(origPts);
+        // Filled spectrum: dark purple, translucent, between the real FFT
+        // curve and the bottom of the plot -- never above the curve, never
+        // touching REDUCTION's cyan or the Sensitivity Curve's white. Own
+        // hue/identity (not copied from any reference plugin), subtle
+        // enough to read as texture, not compete with REDUCTION.
+        {
+            juce::Path fillPath(origPath);
+            fillPath.lineTo(origPts.back().x, plot.getBottom());
+            fillPath.lineTo(origPts.front().x, plot.getBottom());
+            fillPath.closeSubPath();
+            juce::ColourGradient purpleGrad(juce::Colour(0xff6a3fb0).withAlpha(0.16f), 0, plot.getY(),
+                                             juce::Colour(0xff6a3fb0).withAlpha(0.03f), 0, plot.getBottom(), false);
+            g.setGradientFill(purpleGrad);
+            g.fillPath(fillPath);
+        }
         g.setColour(juce::Colour(0xff8fb8d9).withAlpha(0.38f));
         g.strokePath(origPath, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }

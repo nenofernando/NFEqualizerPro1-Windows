@@ -55,6 +55,7 @@ public:
         : sampleRate(o.sampleRate), fftSize(o.fftSize), hopSize(o.hopSize), bins(o.bins),
           depth(o.depth), selectivity(o.selectivity), actionShapeGamma(o.actionShapeGamma), attackCoeff(o.attackCoeff), releaseCoeff(o.releaseCoeff),
           lowHz(o.lowHz), highHz(o.highHz), detail(o.detail),
+          maxReductionEnabled(o.maxReductionEnabled), maxReductionCapTargetDb(o.maxReductionCapTargetDb), maxReductionCapSmoothedDb(o.maxReductionCapSmoothedDb), capSmoothCoeff(o.capSmoothCoeff),
           prom(std::move(o.prom)), aux(std::move(o.aux)), conf(std::move(o.conf)), trans(std::move(o.trans)),
           promOut(std::move(o.promOut)), rawTargetDb(std::move(o.rawTargetDb)), regularizedDb(std::move(o.regularizedDb)), smoothedDb(std::move(o.smoothedDb)),
           prefixScratch(std::move(o.prefixScratch)),
@@ -65,6 +66,7 @@ public:
         sampleRate=o.sampleRate; fftSize=o.fftSize; hopSize=o.hopSize; bins=o.bins;
         depth=o.depth; selectivity=o.selectivity; actionShapeGamma=o.actionShapeGamma; attackCoeff=o.attackCoeff; releaseCoeff=o.releaseCoeff;
         lowHz=o.lowHz; highHz=o.highHz; detail=o.detail;
+        maxReductionEnabled=o.maxReductionEnabled; maxReductionCapTargetDb=o.maxReductionCapTargetDb; maxReductionCapSmoothedDb=o.maxReductionCapSmoothedDb; capSmoothCoeff=o.capSmoothCoeff;
         prom=std::move(o.prom); aux=std::move(o.aux); conf=std::move(o.conf); trans=std::move(o.trans);
         promOut=std::move(o.promOut); rawTargetDb=std::move(o.rawTargetDb); regularizedDb=std::move(o.regularizedDb); smoothedDb=std::move(o.smoothedDb);
         prefixScratch=std::move(o.prefixScratch);
@@ -128,6 +130,25 @@ public:
     // width at any sample rate (44.1/48/96/192kHz), unlike a fixed bin count.
     void setDetail(float d) { detail = juce::jlimit(0.0f, 10.0f, d); }
 
+    // MAX REDUCTION -- a real ceiling on how much any bin can be reduced,
+    // independent of Depth/Selectivity/Detail/resonance strength. NOT EQ,
+    // NOT makeup gain, NOT another Depth: a hard floor on the reduction
+    // value itself (finalReductionDb >= -maxReductionDb), applied AFTER
+    // Detail's spectral regularization and BEFORE temporal attack/release
+    // smoothing, with a second identical clamp on the final post-smoothing
+    // value as a defensive guarantee (attack/release EMA already can't
+    // overshoot past its own target, so this second pass is normally a
+    // no-op -- it exists so the ceiling is a structural guarantee, not an
+    // assumption about the smoother's own behaviour). When disabled, this
+    // stage is skipped entirely (not merely set to a very large ceiling),
+    // so OFF is bit-exactly today's DSP, not "practically identical".
+    // capDb is itself smoothed toward its target (NOT the reduction
+    // values) so moving the Max Reduction control live never clicks --
+    // same per-hop EMA cadence as attack/release, own fixed ~30ms time
+    // constant (independent of the user's own Attack/Release knobs, which
+    // shape DETECTION response time, not this control's own movement).
+    void setMaxReduction(bool enabled, float capDbValue) { maxReductionEnabled = enabled; maxReductionCapTargetDb = juce::jlimit(0.5f, 12.0f, capDbValue); }
+
     // One call per host hop (same cadence SpectralEngine::frame() already
     // runs at). magDb: the SAME host-rate raw magnitude array
     // SpectralEngine already computed for this frame -- reused, not
@@ -188,6 +209,10 @@ private:
     float attackCoeff = 0.0f, releaseCoeff = 0.0f;
     float lowHz = 20.0f, highHz = 20000.0f;
     float detail = 5.0f;
+    bool maxReductionEnabled = false;
+    float maxReductionCapTargetDb = 3.0f;   // user-facing target, 0.5..12
+    float maxReductionCapSmoothedDb = 3.0f; // ramps toward the target, click-free
+    float capSmoothCoeff = 0.0f;            // computed in setParams() from sampleRate/hop
 
     SpectralProminenceEngineV5 prom;
     LowFrequencyHarmonicAnalyzer aux;

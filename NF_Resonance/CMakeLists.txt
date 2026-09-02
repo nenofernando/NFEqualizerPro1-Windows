@@ -123,6 +123,23 @@ target_link_libraries(NFResonanceReductionRenderCheck PRIVATE
   juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
+juce_add_console_app(NFResonanceMaxReductionCheck PRODUCT_NAME "NF Resonance Max Reduction Check")
+juce_generate_juce_header(NFResonanceMaxReductionCheck)
+target_sources(NFResonanceMaxReductionCheck PRIVATE
+  Tests/MaxReductionCheck.cpp
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceMaxReductionCheck PRIVATE Source)
+target_link_libraries(NFResonanceMaxReductionCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
 juce_add_console_app(NFResonanceSidechainCheck PRODUCT_NAME "NF Resonance Sidechain Check")
 juce_generate_juce_header(NFResonanceSidechainCheck)
 target_sources(NFResonanceSidechainCheck PRIVATE

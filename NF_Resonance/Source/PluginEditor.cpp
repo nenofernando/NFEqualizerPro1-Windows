@@ -7,7 +7,8 @@
 static constexpr int kBaseW = 1180, kBaseH = 650;
 NFResonanceAudioProcessorEditor::NFResonanceAudioProcessorEditor(NFResonanceAudioProcessor& pr):AudioProcessorEditor(pr),p(pr),spectrum(pr.engine()),curve(pr.state()){
  setLookAndFeel(&lf);
- setup(depth,"depth","DEPTH");setup(sharp,"sharpness","SHARPNESS");setup(detail,"detail","DETAIL");setup(select,"selectivity","SELECTIVITY");setup(attack,"attack","ATTACK");setup(release,"release","RELEASE");setup(output,"output","OUTPUT");setup(mix,"mix","MIX");setup(low,"lowHz","LOW");setup(high,"highHz","HIGH");setup(transient,"transient","TRANSIENT");
+ setup(depth,"depth","DEPTH");setup(sharp,"sharpness","SHARPNESS");setup(detail,"detail","DETAIL");setup(select,"selectivity","SELECTIVITY");setup(attack,"attack","ATTACK");setup(release,"release","RELEASE");setup(output,"output","OUTPUT");setup(mix,"mix","MIX");setup(low,"lowHz","LOW");setup(high,"highHz","HIGH");setup(transient,"transient","TRANSIENT");setup(maxRed,"maxReductionDb","MAX RED");
+ addAndMakeVisible(maxRedEnabled);mrea=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"maxReductionEnabled",maxRedEnabled);
  presetManager=std::make_unique<PresetManager>(p.state());
  presetButton.setButtonText("Default v");presetButton.setColour(juce::TextButton::buttonColourId,juce::Colour(0xff141a24));presetButton.setColour(juce::TextButton::textColourOffId,juce::Colour(0xff00afff));presetButton.onClick=[this]{showPresetMenu();};addAndMakeVisible(presetButton);
  { juce::Path ham; float w=18.0f,h=13.0f,lh=2.2f; ham.addRoundedRectangle(0.0f,0.0f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,(h-lh)*0.5f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,h-lh,w,lh,lh*0.5f); menuButton.setShape(ham,false,true,false); }
@@ -28,6 +29,8 @@ NFResonanceAudioProcessorEditor::NFResonanceAudioProcessorEditor(NFResonanceAudi
 void NFResonanceAudioProcessorEditor::timerCallback(){
  bool lowOn=p.state().getRawParameterValue("lowEnabled")->load()>0.5f, highOn=p.state().getRawParameterValue("highEnabled")->load()>0.5f;
  low.setAlpha(lowOn?1.0f:0.45f); high.setAlpha(highOn?1.0f:0.45f);
+ bool maxRedOn=p.state().getRawParameterValue("maxReductionEnabled")->load()>0.5f;
+ maxRed.setAlpha(maxRedOn?1.0f:0.45f);
 }
 NFResonanceAudioProcessorEditor::~NFResonanceAudioProcessorEditor(){setLookAndFeel(nullptr);}void NFResonanceAudioProcessorEditor::setup(juce::Slider&s,const char*id,const char*){s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,68,18);addAndMakeVisible(s);sa.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.state(),id,s));}
 void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Colour(0xff090d13));g.setColour(juce::Colour(0xffeaf4ff));g.setFont(30);g.drawText("NF",20,12,48,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff00afff));g.drawText("Resonance",68,12,190,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff708090));g.setFont(11);g.drawText("DYNAMIC RESONANCE SUPPRESSOR",22,45,260,18,juce::Justification::centredLeft);
@@ -53,6 +56,10 @@ void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Co
  knobCaptionAbove(release,"RELEASE",9.8f,secondaryCol,15,13);
  knobCaptionAbove(low,"LOW",9.5f,secondaryCol,9,9);
  knobCaptionAbove(high,"HIGH",9.5f,secondaryCol,9,9);
+ // TRANSIENT never had a caption of its own (pre-existing gap, unrelated
+ // to Max Reduction/QUALITY) -- now that MAX RED sits directly above it,
+ // the missing label read as ambiguous. Same secondary-knob caption style.
+ knobCaptionAbove(transient,"TRANSIENT",9.5f,secondaryCol,14,12);
  g.setColour(secondaryCol);g.setFont(10.8f);
  g.drawText("MODE",mode.getX(),mode.getY()-16,mode.getWidth(),14,juce::Justification::centredLeft);
  // DETECT (Etapa 1, External Sidechain): same caption style as MODE
@@ -116,11 +123,18 @@ void NFResonanceAudioProcessorEditor::resized(){
  // simply overlaying DETECT there would have hidden "MODE").
  detect.setBounds(R(1000, 428, 152, 20));
  mode.setBounds(R(1000, 488, 152, 30));
- // QUALITY removed (confirmed inert -- no DSP effect, see the Remove
- // Inert Quality Control checkpoint). The gap between MODE (bottom 518)
- // and TRANSIENT (top 582) is left empty deliberately, reserved for the
- // next feature (Max Reduction) rather than filled here.
- transient.setBounds(R(1000, 582, 130, 60));
+ // MAX REDUCTION -- now occupies the space QUALITY used to (its removal
+ // was reserved for exactly this). Compact toggle + small knob, not
+ // another large primary knob. Toggle text IS the on/off label (same
+ // convention as DELTA/BYPASS); the knob always shows the dB value,
+ // dimmed when disabled (same dimming convention timerCallback() already
+ // uses for LOW/HIGH when their own side is off).
+ maxRedEnabled.setBounds(R(1000, 519, 84, 18));
+ maxRed.setBounds(R(1000, 541, 84, 34));
+ // TRANSIENT's own caption (added above) needs its own clear row -- pushed
+ // down from its previous position so it no longer collides with MAX RED's
+ // value box; its own height trimmed slightly to still fit the canvas.
+ transient.setBounds(R(1000, 596, 130, 52));
  fft.setBounds(R(290, 65, 46, 15)); // 0.1r: discreet FFT/ORIGINAL toggle, same header row as the legend
  // Preset selector + hamburger anchored to the TOP-RIGHT corner (not a
  // fixed left-based coordinate), so they stay pinned there through resize

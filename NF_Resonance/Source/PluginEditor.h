@@ -21,12 +21,12 @@ private:
     NFLookAndFeel lf;
     SpectrumComponent spectrum;
     ControlCurveComponent curve;
-    juce::Slider depth,sharp,detail,select,attack,release,output,mix,low,high,transient;
+    juce::Slider depth,sharp,detail,select,attack,release,output,mix,low,high,transient,maxRed;
     juce::ComboBox mode,detect;
-    juce::ToggleButton delta{"DELTA"},bypass{"BYPASS"},fft{"FFT"};
+    juce::ToggleButton delta{"DELTA"},bypass{"BYPASS"},fft{"FFT"},maxRedEnabled{"MAX RED"};
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sa;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> ma,deta;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> da,ba,fa;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> da,ba,fa,mrea;
     void setup(juce::Slider&,const char*,const char*);
     // Preset selector + hamburger menu -- own header widgets, independent of
     // the host's generic preset UI (see PresetManager).

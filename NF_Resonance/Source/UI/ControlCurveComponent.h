@@ -37,6 +37,16 @@ private:
     float highHzOf() const;
     bool lowEnabledOf() const;
     bool highEnabledOf() const;
+    // MAX REDUCTION line -- a discreet horizontal reference at -maxReductionDb
+    // (real REDUCTION dB scale, shared with SpectrumComponent via its
+    // yForReductionDbIn/reductionDbForYIn statics), draggable vertically to
+    // adjust the same "maxReductionDb" APVTS parameter. Hidden entirely
+    // when "maxReductionEnabled" is off. Only captures the mouse when the
+    // cursor is genuinely close to the line AND closer to it than to any
+    // band point, so it never steals a band-drag or LOW/HIGH gesture.
+    bool draggingMaxRed = false;
+    bool maxRedEnabledOf() const;
+    float maxRedDbOf() const;
     // Click-vs-drag distinction on the LOW/HIGH handles: mouseDown only
     // arms dragging<Low/High> and remembers where the press started; the
     // change gesture begins (and, if that side was OFF, reactivates it)

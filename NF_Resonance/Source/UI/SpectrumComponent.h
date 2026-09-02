@@ -12,6 +12,14 @@ public:
     static juce::Rectangle<float> plotAreaFor(juce::Rectangle<float> full);
     static float xForHzIn(juce::Rectangle<float> plot, float hz);
     static float hzForXIn(juce::Rectangle<float> plot, float x); // inverse of xForHzIn -- used by the curve's X-drag
+    // Shared REDUCTION dB<->Y mapping (0dB at plot centre, dbPxPerDb scales
+    // with plot height) -- so an overlay (e.g. the Max Reduction line/drag
+    // in ControlCurveComponent) stays pixel-exact with the same vertical
+    // scale this component's own REDUCTION curve/gridlines use, without
+    // duplicating the formula.
+    static float dbPxPerDbFor(juce::Rectangle<float> plot) { return plot.getHeight() * 0.045f; }
+    static float yForReductionDbIn(juce::Rectangle<float> plot, float db) { return plot.getCentreY() - db * dbPxPerDbFor(plot); }
+    static float reductionDbForYIn(juce::Rectangle<float> plot, float y) { return (plot.getCentreY() - y) / juce::jmax(1.0e-6f, dbPxPerDbFor(plot)); }
     // REDUCTION visual audit: downsamples `binReductionDb` (one real value
     // per FFT bin, <=0dB) to `numPts` log-frequency render points. Pure/
     // testable (no Graphics dependency) -- exercised directly by

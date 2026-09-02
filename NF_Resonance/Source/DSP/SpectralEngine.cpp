@@ -63,6 +63,7 @@ void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(
  const float* detectorHop = useSidechain ? s.scHopScratch.data() : s.hopScratch.data();
  s.mask.setParams(params.depth,params.selectivity,params.attackMs,params.releaseMs,params.lowEnabled?params.lowHz:0.0f,params.highEnabled?params.highHz:1.0e9f);
  s.mask.setDetail(params.detail);
+ s.mask.setMaxReduction(params.maxReductionEnabled,params.maxReductionDb);
  // White Sensitivity Curve -- same band arrays the UI curve already reads/
  // draws (params.bandFreq/.../bandActive), now also modulating local action
  // authority inside GainMaskEngine (see setSensitivityCurve()).

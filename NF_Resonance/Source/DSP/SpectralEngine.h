@@ -21,6 +21,11 @@ public:
    // detection stage analyzes -- the resulting mask is always applied to
    // the MAIN signal's own bins in frame(), unconditionally.
    int detectorSource=0;
+   // MAX REDUCTION: a real ceiling on reduction magnitude, independent of
+   // Depth/Selectivity/Detail/resonance strength -- see GainMaskEngine::
+   // setMaxReduction(). OFF (default) reproduces the pre-Max-Reduction DSP
+   // exactly; enabled clamps finalReductionDb to >= -maxReductionDb.
+   bool maxReductionEnabled=false; float maxReductionDb=3.0f;
    // lowEnabled/highEnabled OFF means that side of the range is fully open
    // for the detector's gate -- lowHz/highHz themselves are left untouched
    // (still whatever the user last set/automated), only the EFFECTIVE bound

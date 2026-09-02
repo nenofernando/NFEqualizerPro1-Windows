@@ -14,6 +14,8 @@ float ControlCurveComponent::lowHzOf() const { return state.getRawParameterValue
 float ControlCurveComponent::highHzOf() const { return state.getRawParameterValue("highHz")->load(); }
 bool ControlCurveComponent::lowEnabledOf() const { return state.getRawParameterValue("lowEnabled")->load() > 0.5f; }
 bool ControlCurveComponent::highEnabledOf() const { return state.getRawParameterValue("highEnabled")->load() > 0.5f; }
+bool ControlCurveComponent::maxRedEnabledOf() const { return state.getRawParameterValue("maxReductionEnabled")->load() > 0.5f; }
+float ControlCurveComponent::maxRedDbOf() const { return state.getRawParameterValue("maxReductionDb")->load(); }
 float ControlCurveComponent::freqOf(int slot) const { return state.getRawParameterValue(freqParamId(slot))->load(); }
 float ControlCurveComponent::sensOf(int slot) const { return state.getRawParameterValue(sensParamId(slot))->load(); }
 float ControlCurveComponent::widthOf(int slot) const { return state.getRawParameterValue(widthParamId(slot))->load(); }
@@ -235,6 +237,31 @@ void ControlCurveComponent::paint(juce::Graphics& g)
         if (highOn && effHighX < full.getRight() - 0.5f) g.fillRect(juce::Rectangle<float>(effHighX, full.getY(), full.getRight() - effHighX, full.getHeight()));
     }
 
+    // MAX REDUCTION line -- a discreet horizontal reference at -maxReductionDb
+    // on the REAL reduction dB scale (shared mapping with SpectrumComponent,
+    // never a separately invented scale). Completely hidden when off, per
+    // spec ("não mostrar uma linha forte... pode ocultar completamente").
+    // Drawn BEFORE the white Sensitivity Curve/bands so it always reads as
+    // a background reference, never competing with them.
+    if (maxRedEnabledOf())
+    {
+        float lineY = SpectrumComponent::yForReductionDbIn(full, -maxRedDbOf());
+        bool active = draggingMaxRed;
+        g.setColour(juce::Colour(0xffff6ec7).withAlpha(active ? 0.55f : 0.28f));
+        float dash[] = { 4.0f, 4.0f };
+        juce::Path lineP, dashedP; lineP.startNewSubPath(full.getX(), lineY); lineP.lineTo(full.getRight(), lineY);
+        juce::PathStrokeType strokeType(active ? 1.6f : 1.1f);
+        strokeType.createDashedStroke(dashedP, lineP, dash, 2);
+        g.fillPath(dashedP);
+        if (active)
+        {
+            g.setFont(11.0f);
+            g.setColour(juce::Colour(0xffff6ec7));
+            juce::String txt = "MAX REDUCTION  " + juce::String(maxRedDbOf(), 1) + " dB";
+            g.drawText(txt, (int) (full.getCentreX() - 80.0f), (int) (lineY - 18.0f), 160, 14, juce::Justification::centred);
+        }
+    }
+
     // Curve rendering: globalRangeShapeAt(lowHz,highHz) -- the two lateral
     // roll-offs -- PLUS the ACTUAL mathematical sum of every active band's
     // own shaped contribution (ResonanceDetector::bandContribution/
@@ -448,6 +475,23 @@ void ControlCurveComponent::mouseDown(const juce::MouseEvent& e)
     float d; int i = nearestActivePoint(e.position, d);
     bool hit = d <= 16.0f;
 
+    // MAX REDUCTION line hit-test -- only when ON, only when the cursor is
+    // genuinely close to it (tight Y band, full width since it's a
+    // horizontal reference), and only when it's actually closer than the
+    // nearest band point, so it can never steal a band's own drag/click.
+    if (! e.mods.isPopupMenu() && maxRedEnabledOf())
+    {
+        float lineY = SpectrumComponent::yForReductionDbIn(getLocalBounds().toFloat(), -maxRedDbOf());
+        float lineDist = std::abs(e.position.y - lineY);
+        if (lineDist <= 7.0f && lineDist < d)
+        {
+            draggingMaxRed = true;
+            if (auto* p = state.getParameter("maxReductionDb")) p->beginChangeGesture();
+            repaint();
+            return;
+        }
+    }
+
     if (e.mods.isPopupMenu())
     {
         if (hit)
@@ -483,6 +527,17 @@ void ControlCurveComponent::mouseDown(const juce::MouseEvent& e)
 }
 void ControlCurveComponent::mouseDrag(const juce::MouseEvent& e)
 {
+    if (draggingMaxRed)
+    {
+        auto r = getLocalBounds().toFloat();
+        // Up -> smaller Max Reduction, Down -> larger (dragging the line
+        // itself, its own Y position IS -maxReductionDb on the real scale).
+        float dbAtMouse = SpectrumComponent::reductionDbForYIn(r, e.position.y);
+        float newMaxRedDb = juce::jlimit(0.5f, 12.0f, -dbAtMouse);
+        if (auto* p = state.getParameter("maxReductionDb")) p->setValueNotifyingHost(p->convertTo0to1(newMaxRedDb));
+        repaint();
+        return;
+    }
     if (draggingLow || draggingHigh)
     {
         if (! lowHighDidDrag)
@@ -523,6 +578,12 @@ void ControlCurveComponent::mouseDrag(const juce::MouseEvent& e)
 }
 void ControlCurveComponent::mouseUp(const juce::MouseEvent&)
 {
+    if (draggingMaxRed)
+    {
+        if (auto* p = state.getParameter("maxReductionDb")) p->endChangeGesture();
+        draggingMaxRed = false;
+        repaint();
+    }
     if (draggingLow)
     {
         // A plain click with no real movement is JUST selection/focus -- it

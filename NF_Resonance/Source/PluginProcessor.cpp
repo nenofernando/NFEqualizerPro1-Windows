@@ -199,6 +199,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
     // the MAIN signal's own bins either way (see SpectralEngine::frame()).
     // Automatable/saved like any other choice parameter.
     p.push_back(std::make_unique<juce::AudioParameterChoice>("detectorSource","Detector Source",juce::StringArray{"Internal","Sidechain"},0));
+    // MAX REDUCTION: a real ceiling on reduction magnitude, independent of
+    // Depth/Selectivity/Detail/resonance strength -- see GainMaskEngine::
+    // setMaxReduction(). OFF by default so the plugin's current sound is
+    // unchanged unless the user explicitly opts in.
+    p.push_back(std::make_unique<juce::AudioParameterBool>("maxReductionEnabled","Max Reduction Enabled",false));
+    f("maxReductionDb","Max Reduction",0.5f,12.0f,3.0f,0.01f);
     p.push_back(std::make_unique<juce::AudioParameterBool>("showOriginalFft","Show Original FFT",false)); // 0.1p: OFF by default, per request
     return {p.begin(),p.end()};
 }
@@ -251,6 +257,8 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
     p.lowEnabled=lowEnabledParam->load()>0.5f; p.highEnabled=highEnabledParam->load()>0.5f;
     p.mode=(int)apvts.getRawParameterValue("mode")->load(); p.delta=apvts.getRawParameterValue("delta")->load()>0.5f;
     p.detectorSource=(int)apvts.getRawParameterValue("detectorSource")->load();
+    p.maxReductionEnabled=apvts.getRawParameterValue("maxReductionEnabled")->load()>0.5f;
+    p.maxReductionDb=apvts.getRawParameterValue("maxReductionDb")->load();
     for(int i=0;i<SpectralEngine::kMaxBands;++i)
     {
         p.bandActive[i]=bandActiveParams[i]->load()>0.5f;
