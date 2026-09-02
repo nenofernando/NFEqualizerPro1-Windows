@@ -18,6 +18,19 @@ option(NF_ENABLE_AAX "Build AAX (requires Avid AAX SDK configured in JUCE)" OFF)
 # machine). An AAX built with only this SDK compiles but is NOT authorized
 # to load in a real Pro Tools -- test/internal use only, never distribute.
 set(NF_AAX_SDK_PATH "" CACHE PATH "Path to the Avid AAX SDK (only used when NF_ENABLE_AAX=ON)")
+# The AAX SDK's own sources use __FILE__ in a few asserts/exceptions
+# (AAX_CParameter.h, AAX_CEffectParameters.cpp, AAX_VComponentDescriptor.cpp),
+# which the compiler expands to this machine's own absolute SDK checkout
+# path and embeds as a plain string literal -- not a debug symbol, so
+# stripping the binary afterwards cannot remove it. Rewriting it at compile
+# time (not a functional change -- purely which string an assert failure
+# would print) keeps developer-machine paths out of anything built.
+# Applied globally (harmless when NF_AAX_SDK_PATH is empty/AAX is OFF):
+# AU/VST3 already carry no such paths, so this is a no-op for them.
+add_compile_options(-ffile-prefix-map=${CMAKE_SOURCE_DIR}=NF_Resonance)
+if(NF_AAX_SDK_PATH)
+  add_compile_options(-ffile-prefix-map=${NF_AAX_SDK_PATH}=AAX_SDK)
+endif()
 set(NF_FORMATS VST3 Standalone)
 if(APPLE)
   list(APPEND NF_FORMATS AU)
