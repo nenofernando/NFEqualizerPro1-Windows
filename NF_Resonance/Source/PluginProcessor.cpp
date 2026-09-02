@@ -3,7 +3,13 @@
 
 NFResonanceAudioProcessor::NFResonanceAudioProcessor()
 : AudioProcessor(BusesProperties().withInput("Input", juce::AudioChannelSet::stereo(), true)
-                                 .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
+                                 .withOutput("Output", juce::AudioChannelSet::stereo(), true)
+                                 // EXTERNAL SIDECHAIN: optional second input bus, OFF by default
+                                 // (starts disabled -- most hosts require the user to explicitly
+                                 // enable a sidechain bus in routing). Purely a detector input --
+                                 // never mixed into the output, never widens the main channel
+                                 // count. See isBusesLayoutSupported() for the accepted shapes.
+                                 .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)),
   apvts(*this, nullptr, "PARAMETERS", makeLayout())
 {
     // Cache band parameter pointers once here (string concatenation is fine
@@ -186,13 +192,31 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
     p.push_back(std::make_unique<juce::AudioParameterBool>("delta","Delta",false));
     p.push_back(std::make_unique<juce::AudioParameterBool>("bypass","Bypass",false));
     p.push_back(std::make_unique<juce::AudioParameterChoice>("quality","Quality",juce::StringArray{"Eco","Balanced","High"},1));
+    // EXTERNAL SIDECHAIN (Etapa 1): which spectral content feeds the
+    // detector (PHYSICAL C/D/ConfidenceEngine/GainMaskEngine's own
+    // detection stage). INTERNAL (default) = the main signal, exactly
+    // today's behaviour. SIDECHAIN = the optional second input bus's own
+    // spectral content instead -- the Gain Mask itself is still applied to
+    // the MAIN signal's own bins either way (see SpectralEngine::frame()).
+    // Automatable/saved like any other choice parameter.
+    p.push_back(std::make_unique<juce::AudioParameterChoice>("detectorSource","Detector Source",juce::StringArray{"Internal","Sidechain"},0));
     p.push_back(std::make_unique<juce::AudioParameterBool>("showOriginalFft","Show Original FFT",false)); // 0.1p: OFF by default, per request
     return {p.begin(),p.end()};
 }
 
 bool NFResonanceAudioProcessor::isBusesLayoutSupported(const BusesLayout& l) const
 {
-    return l.getMainInputChannelSet()==l.getMainOutputChannelSet() && (l.getMainOutputChannelSet()==juce::AudioChannelSet::mono() || l.getMainOutputChannelSet()==juce::AudioChannelSet::stereo());
+    if (l.getMainInputChannelSet() != l.getMainOutputChannelSet()) return false;
+    auto mainSet = l.getMainOutputChannelSet();
+    if (mainSet != juce::AudioChannelSet::mono() && mainSet != juce::AudioChannelSet::stereo()) return false;
+    // Sidechain (input bus index 1): disabled, mono, or stereo -- never
+    // required, never changes the main output's own channel count.
+    if (l.inputBuses.size() > 1)
+    {
+        auto sc = l.inputBuses[1];
+        if (! sc.isDisabled() && sc != juce::AudioChannelSet::mono() && sc != juce::AudioChannelSet::stereo()) return false;
+    }
+    return true;
 }
 void NFResonanceAudioProcessor::prepareToPlay(double sr,int spb)
 {
@@ -206,7 +230,11 @@ void NFResonanceAudioProcessor::prepareToPlay(double sr,int spb)
 void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::MidiBuffer&)
 {
     juce::ScopedNoDenormals n;
-    const int ch=b.getNumChannels(), ns=b.getNumSamples(), lat=spectral.latencySamples(), ring=dryDelay.getNumSamples();
+    // ch must be the MAIN bus's own channel count, never b.getNumChannels()
+    // -- with the optional Sidechain input bus enabled, the combined buffer
+    // JUCE hands processBlock() carries extra channels beyond the main
+    // signal, and dry/output must only ever touch the main ones.
+    const int ch=getTotalNumOutputChannels(), ns=b.getNumSamples(), lat=spectral.latencySamples(), ring=dryDelay.getNumSamples();
     juce::AudioBuffer<float> dry(ch,ns);
     for(int i=0;i<ns;++i){
         for(int c=0;c<ch;++c){ float x=b.getSample(c,i); dryDelay.setSample(c,dryWrite,x); int rp=(dryWrite-lat+ring)%ring; dry.setSample(c,i,dryDelay.getSample(c,rp)); }
@@ -223,6 +251,7 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
     p.lowHz=apvts.getRawParameterValue("lowHz")->load(); p.highHz=apvts.getRawParameterValue("highHz")->load(); p.transient=apvts.getRawParameterValue("transient")->load(); p.biasDb=apvts.getRawParameterValue("threshold")->load();
     p.lowEnabled=lowEnabledParam->load()>0.5f; p.highEnabled=highEnabledParam->load()>0.5f;
     p.mode=(int)apvts.getRawParameterValue("mode")->load(); p.delta=apvts.getRawParameterValue("delta")->load()>0.5f;
+    p.detectorSource=(int)apvts.getRawParameterValue("detectorSource")->load();
     for(int i=0;i<SpectralEngine::kMaxBands;++i)
     {
         p.bandActive[i]=bandActiveParams[i]->load()>0.5f;
@@ -232,7 +261,21 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
         p.bandShape[i]=(int)bandShapeParams[i]->load();
         p.bandFocus[i]=bandFocusParams[i]->load();
     }
-    spectral.setParams(p); spectral.process(b);
+    // EXTERNAL SIDECHAIN: only ever a detector INPUT (see
+    // SpectralEngine::process()'s own sidechain parameter) -- never mixed
+    // into the main signal. Safe fallback: if the bus doesn't exist, isn't
+    // enabled, or has zero channels (SIDECHAIN selected but the host never
+    // routed anything to it), scAvailable stays false and SpectralEngine
+    // transparently falls back to the main signal for detection, exactly
+    // like INTERNAL -- no special-casing needed downstream, no NaN risk
+    // (an unfed/zeroed sidechain ring just reads as silence, which the
+    // detector already handles safely).
+    juce::AudioBuffer<float> scBuf;
+    bool scAvailable = false;
+    if (auto* scBus = getBus(true, 1))
+        if (scBus->isEnabled() && scBus->getNumberOfChannels() > 0)
+        { scBuf = getBusBuffer(b, true, 1); scAvailable = true; }
+    spectral.setParams(p); spectral.process(b, scAvailable ? &scBuf : nullptr);
 
     const float mix=apvts.getRawParameterValue("mix")->load()/100.0f, out=juce::Decibels::decibelsToGain(apvts.getRawParameterValue("output")->load());
     const bool bypassed = apvts.getRawParameterValue("bypass")->load()>0.5f;

@@ -15,6 +15,12 @@ public:
  // 4=HighFocus) alongside the existing freq/sens/active per slot.
  struct Params{ float depth=5,sharpness=4,selectivity=3.5f,attackMs=10,releaseMs=80,lowHz=20,highHz=20000,transient=5,biasDb=1.5f,detail=5,
    bandFreq[kMaxBands]{}, bandSens[kMaxBands]{}, bandWidth[kMaxBands]{}, bandFocus[kMaxBands]{}; bool bandActive[kMaxBands]{}; int bandShape[kMaxBands]{}; int mode=0; bool delta=false;
+   // EXTERNAL SIDECHAIN (Etapa 1): 0=Internal (main feeds the detector,
+   // today's behaviour), 1=Sidechain (the optional second input bus feeds
+   // the detector instead). Only ever changes WHAT GainMaskEngine's
+   // detection stage analyzes -- the resulting mask is always applied to
+   // the MAIN signal's own bins in frame(), unconditionally.
+   int detectorSource=0;
    // lowEnabled/highEnabled OFF means that side of the range is fully open
    // for the detector's gate -- lowHz/highHz themselves are left untouched
    // (still whatever the user last set/automated), only the EFFECTIVE bound
@@ -26,7 +32,12 @@ public:
  // neither is reachable from the plugin UI and neither is the default.
  enum class WarmupMode { TimeGate, NormGate, PreRoll, LeftPad };
  void setWarmupMode(WarmupMode m){ warmupMode=m; }
- void prepare(double sr,int channels); void reset(); void setParams(const Params& p){params=p;} void process(juce::AudioBuffer<float>&); int latencySamples() const{return fftSize;}
+ void prepare(double sr,int channels); void reset(); void setParams(const Params& p){params=p;}
+ // sidechain: optional, detector-input-only buffer (see PluginProcessor's
+ // own safe-fallback logic for when it's null/unavailable). Never read
+ // beyond its own channel count; never written to; never reaches the
+ // output. nullptr behaves exactly like Params::detectorSource==Internal.
+ void process(juce::AudioBuffer<float>&, const juce::AudioBuffer<float>* sidechain=nullptr); int latencySamples() const{return fftSize;}
  std::vector<float> getLastSpectrum() const; std::vector<float> getLastReduction() const;
  // Sonic Alpha V2 visual connect: the REDUCTION analyzer's real data source
  // -- the exact final mask GainMaskEngine applied to the audio (channel 0),
@@ -117,6 +128,19 @@ private:
    // REPLACES ResonanceDetector::compute() as what fills `reduction` below;
    // `det`/`trans` above are left in place (unused for gain now) rather
    // than removed, to keep this swap minimal-footprint and reversible.
-   GainMaskEngine mask; std::array<float, hop> hopScratch{}; };
+   GainMaskEngine mask; std::array<float, hop> hopScratch{};
+   // EXTERNAL SIDECHAIN (Etapa 1): a second, independent history ring/FFT
+   // scratch, same fftSize/hop/window as the main one above, ALWAYS kept
+   // in lockstep with it (same histPos, same frame-firing instants -- see
+   // processOne()/frame()) so its own spectral frame is exactly time-
+   // aligned with the main one it's paired against. Purely a detector
+   // input candidate (scMagDb/scHopScratch); never touches fftData/ola/
+   // the audio output path. Fixed-size, allocated once in prepare().
+   std::vector<float> scHistory, scFftData, scMagDb; std::array<float, hop> scHopScratch{}; };
  std::unique_ptr<juce::dsp::FFT> fft; std::vector<float> window; std::vector<Chan> c; double sampleRate=48000; Params params;
- void frame(Chan& s,float transientFactor,int channelIndex); float processOne(Chan& s,float x,int channelIndex); };
+ // Set once per process() call from whether a real sidechain buffer was
+ // handed in this block; frame() reads it (can't see process()'s own
+ // local variable otherwise) to decide main-vs-sidechain per Params::
+ // detectorSource, with a hard fallback to main whenever this is false.
+ bool sidechainAvailable=false;
+ void frame(Chan& s,float transientFactor,int channelIndex); float processOne(Chan& s,float x,int channelIndex,float scX); };

@@ -13,8 +13,8 @@ NFResonanceAudioProcessorEditor::NFResonanceAudioProcessorEditor(NFResonanceAudi
  { juce::Path ham; float w=18.0f,h=13.0f,lh=2.2f; ham.addRoundedRectangle(0.0f,0.0f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,(h-lh)*0.5f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,h-lh,w,lh,lh*0.5f); menuButton.setShape(ham,false,true,false); }
  menuButton.onClick=[this]{showMainMenu();};addAndMakeVisible(menuButton);
  addAndMakeVisible(spectrum);addAndMakeVisible(curve); // curve added AFTER spectrum: paints on top, as an overlay
- mode.addItemList({"Stereo","L/R","Mid/Side"},1);quality.addItemList({"Eco","Balanced","High"},1);addAndMakeVisible(mode);addAndMakeVisible(quality);addAndMakeVisible(delta);addAndMakeVisible(bypass);addAndMakeVisible(fft);
- ma=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"mode",mode);qa=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"quality",quality);da=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"delta",delta);ba=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"bypass",bypass);fa=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"showOriginalFft",fft);
+ mode.addItemList({"Stereo","L/R","Mid/Side"},1);quality.addItemList({"Eco","Balanced","High"},1);detect.addItemList({"Internal","Sidechain"},1);addAndMakeVisible(mode);addAndMakeVisible(quality);addAndMakeVisible(detect);addAndMakeVisible(delta);addAndMakeVisible(bypass);addAndMakeVisible(fft);
+ ma=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"mode",mode);qa=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"quality",quality);deta=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"detectorSource",detect);da=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"delta",delta);ba=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"bypass",bypass);fa=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"showOriginalFft",fft);
  spectrum.setShowOriginalFftParam(p.state().getRawParameterValue("showOriginalFft")); // 0.1r
  setResizable(true,true);
  setResizeLimits((int)(kBaseW*0.66),(int)(kBaseH*0.66),(int)(kBaseW*1.55),(int)(kBaseH*1.55));
@@ -56,6 +56,10 @@ void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Co
  g.setColour(secondaryCol);g.setFont(10.8f);
  g.drawText("MODE",mode.getX(),mode.getY()-16,mode.getWidth(),14,juce::Justification::centredLeft);
  g.drawText("QUALITY",quality.getX(),quality.getBottom()+3,quality.getWidth(),14,juce::Justification::centredLeft);
+ // DETECT (Etapa 1, External Sidechain): same caption style as MODE
+ // (label row above the box). Internal (default) = today's behaviour,
+ // Sidechain = the optional second input bus feeds the detector instead.
+ g.drawText("DETECT",detect.getX(),detect.getY()-16,detect.getWidth(),14,juce::Justification::centredLeft);
  g.drawText("ORIGINAL    REDUCTION",spectrum.getX(),spectrum.getY()-16,spectrum.getWidth(),14,juce::Justification::centredRight); // 0.1e: RESONANCES removed -- no matching overlay exists yet
 
  // 0.1i: manufacturer footer -- anchored to the LIVE bottom edge (not the
@@ -108,9 +112,15 @@ void NFResonanceAudioProcessorEditor::resized(){
  mix.setBounds(R(1000, 235, 130, 130));
  delta.setBounds(R(1000, 378, 68, 30));
  bypass.setBounds(R(1080, 378, 72, 30));
- mode.setBounds(R(1000, 432, 152, 30));
- quality.setBounds(R(1000, 471, 152, 30));
- transient.setBounds(R(1000, 515, 130, 115));
+ // DETECT (Etapa 1, External Sidechain) inserted above MODE, own caption
+ // row included (416->430's zone was already MODE's own caption, so
+ // simply overlaying DETECT there would have hidden "MODE" -- this
+ // reflows MODE/QUALITY/TRANSIENT down accordingly, all still comfortably
+ // inside the same canvas, analyzer/knobs on the left untouched).
+ detect.setBounds(R(1000, 428, 152, 20));
+ mode.setBounds(R(1000, 488, 152, 30));
+ quality.setBounds(R(1000, 527, 152, 30));
+ transient.setBounds(R(1000, 582, 130, 60));
  fft.setBounds(R(290, 65, 46, 15)); // 0.1r: discreet FFT/ORIGINAL toggle, same header row as the legend
  // Preset selector + hamburger anchored to the TOP-RIGHT corner (not a
  // fixed left-based coordinate), so they stay pinned there through resize

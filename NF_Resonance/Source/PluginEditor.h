@@ -22,10 +22,10 @@ private:
     SpectrumComponent spectrum;
     ControlCurveComponent curve;
     juce::Slider depth,sharp,detail,select,attack,release,output,mix,low,high,transient;
-    juce::ComboBox mode,quality;
+    juce::ComboBox mode,quality,detect;
     juce::ToggleButton delta{"DELTA"},bypass{"BYPASS"},fft{"FFT"};
     std::vector<std::unique_ptr<juce::AudioProcessorValueTreeState::SliderAttachment>> sa;
-    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> ma,qa;
+    std::unique_ptr<juce::AudioProcessorValueTreeState::ComboBoxAttachment> ma,qa,deta;
     std::unique_ptr<juce::AudioProcessorValueTreeState::ButtonAttachment> da,ba,fa;
     void setup(juce::Slider&,const char*,const char*);
     // Preset selector + hamburger menu -- own header widgets, independent of
