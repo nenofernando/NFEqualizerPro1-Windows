@@ -14,6 +14,7 @@ NFResonanceAudioProcessorEditor::NFResonanceAudioProcessorEditor(NFResonanceAudi
  { juce::Path ham; float w=18.0f,h=13.0f,lh=2.2f; ham.addRoundedRectangle(0.0f,0.0f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,(h-lh)*0.5f,w,lh,lh*0.5f); ham.addRoundedRectangle(0.0f,h-lh,w,lh,lh*0.5f); menuButton.setShape(ham,false,true,false); }
  menuButton.onClick=[this]{showMainMenu();};addAndMakeVisible(menuButton);
  addAndMakeVisible(spectrum);addAndMakeVisible(curve); // curve added AFTER spectrum: paints on top, as an overlay
+ addAndMakeVisible(rangeLight);
  mode.addItemList({"Stereo","L/R","Mid/Side"},1);detect.addItemList({"Internal","Sidechain"},1);addAndMakeVisible(mode);addAndMakeVisible(detect);addAndMakeVisible(delta);addAndMakeVisible(bypass);addAndMakeVisible(fft);
  ma=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"mode",mode);deta=std::make_unique<juce::AudioProcessorValueTreeState::ComboBoxAttachment>(p.state(),"detectorSource",detect);da=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"delta",delta);ba=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"bypass",bypass);fa=std::make_unique<juce::AudioProcessorValueTreeState::ButtonAttachment>(p.state(),"showOriginalFft",fft);
  spectrum.setShowOriginalFftParam(p.state().getRawParameterValue("showOriginalFft")); // 0.1r
@@ -31,6 +32,7 @@ void NFResonanceAudioProcessorEditor::timerCallback(){
  low.setAlpha(lowOn?1.0f:0.45f); high.setAlpha(highOn?1.0f:0.45f);
  bool maxRedOn=p.state().getRawParameterValue("maxReductionEnabled")->load()>0.5f;
  maxRed.setAlpha(maxRedOn?1.0f:0.45f);
+ rangeLight.repaint(); // reflects lowEnabled/highEnabled -- same 15Hz poll, no separate Timer
 }
 NFResonanceAudioProcessorEditor::~NFResonanceAudioProcessorEditor(){setLookAndFeel(nullptr);}void NFResonanceAudioProcessorEditor::setup(juce::Slider&s,const char*id,const char*){s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,68,18);addAndMakeVisible(s);sa.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.state(),id,s));}
 void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Colour(0xff090d13));g.setColour(juce::Colour(0xffeaf4ff));g.setFont(30);g.drawText("NF",20,12,48,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff00afff));g.drawText("Resonance",68,12,190,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff708090));g.setFont(11);g.drawText("DYNAMIC RESONANCE SUPPRESSOR",22,45,260,18,juce::Justification::centredLeft);
@@ -113,6 +115,18 @@ void NFResonanceAudioProcessorEditor::resized(){
  // below DETAIL without touching knob sizes or column-B's own positions.
  low.setBounds(R(45, 545, 100, 99));
  high.setBounds(R(175, 545, 100, 99));
+ // RANGE light: the CLICKABLE component is 24x16px (a comfortable hit-
+ // area, especially on Retina) even though the drawn mark inside it stays
+ // exactly 16x5px (see RangeLightButton::paint()) -- both share the same
+ // centre, x=160 (the middle of the 30px gap between LOW, ending at
+ // x=145, and HIGH, starting at x=175) and y=594 (vertically centred on
+ // the knobs' own row, y=545..644). 24px wide still fits entirely inside
+ // that 30px gap without overlapping either knob. Scales with the rest of
+ // the layout via the same R() proportional mapping every other control
+ // uses, so its position and hit-area stay correctly centred at any
+ // window size. Purely additive -- LOW/HIGH's own bounds above are
+ // untouched.
+ rangeLight.setBounds(R(148, 586, 24, 16));
  spectrum.setBounds(R(290, 82, 690, 473));
  // RIGHT COLUMN: every group below shares ONE central axis, Xc=1076 (the
  // centre of DETECT/MODE's own 152px-wide span, x=1000..1152 -- the widest
