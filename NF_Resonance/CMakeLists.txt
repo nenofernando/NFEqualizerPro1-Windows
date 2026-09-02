@@ -123,6 +123,55 @@ target_link_libraries(NFResonanceReductionRenderCheck PRIVATE
   juce::juce_audio_utils juce::juce_audio_processors juce::juce_dsp
   juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
 
+juce_add_console_app(NFResonanceTransientCheck PRODUCT_NAME "NF Resonance Transient Check")
+juce_generate_juce_header(NFResonanceTransientCheck)
+target_sources(NFResonanceTransientCheck PRIVATE
+  Tests/TransientCheck.cpp
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceTransientCheck PRIVATE Source)
+target_link_libraries(NFResonanceTransientCheck PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceSuppressionAudit PRODUCT_NAME "NF Resonance Suppression Audit")
+juce_generate_juce_header(NFResonanceSuppressionAudit)
+target_sources(NFResonanceSuppressionAudit PRIVATE
+  Tests/SuppressionAudit.cpp
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceSuppressionAudit PRIVATE Source)
+target_link_libraries(NFResonanceSuppressionAudit PRIVATE
+  juce::juce_core juce::juce_dsp
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
+juce_add_console_app(NFResonanceSuppression4to8kFocusedCheck PRODUCT_NAME "NF Resonance Suppression 4to8k Focused Check")
+juce_generate_juce_header(NFResonanceSuppression4to8kFocusedCheck)
+target_sources(NFResonanceSuppression4to8kFocusedCheck PRIVATE
+  Tests/Suppression4to8kFocusedCheck.cpp
+  Source/DSP/SpectralEngine.cpp Source/DSP/SpectralEngine.h
+  Source/DSP/ResonanceDetector.cpp Source/DSP/ResonanceDetector.h
+  Source/DSP/TransientGuard.h
+  Source/DSP/GainMaskEngine.cpp Source/DSP/GainMaskEngine.h
+  Source/DSP/SpectralProminenceEngineV5.cpp Source/DSP/SpectralProminenceEngineV5.h
+  Source/DSP/LowFrequencyHarmonicAnalyzer.cpp Source/DSP/LowFrequencyHarmonicAnalyzer.h
+  Source/DSP/ConfidenceEngine.cpp Source/DSP/ConfidenceEngine.h
+  Source/DSP/TransientProtectionEngine.cpp Source/DSP/TransientProtectionEngine.h)
+target_include_directories(NFResonanceSuppression4to8kFocusedCheck PRIVATE Source)
+target_link_libraries(NFResonanceSuppression4to8kFocusedCheck PRIVATE
+  juce::juce_core juce::juce_dsp juce::juce_audio_basics juce::juce_audio_formats
+  juce::juce_recommended_config_flags juce::juce_recommended_warning_flags)
+
 juce_add_console_app(NFResonanceMaxReductionCheck PRODUCT_NAME "NF Resonance Max Reduction Check")
 juce_generate_juce_header(NFResonanceMaxReductionCheck)
 target_sources(NFResonanceMaxReductionCheck PRIVATE

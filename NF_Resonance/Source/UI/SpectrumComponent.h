@@ -20,6 +20,23 @@ public:
     static float dbPxPerDbFor(juce::Rectangle<float> plot) { return plot.getHeight() * 0.045f; }
     static float yForReductionDbIn(juce::Rectangle<float> plot, float db) { return plot.getCentreY() - db * dbPxPerDbFor(plot); }
     static float reductionDbForYIn(juce::Rectangle<float> plot, float y) { return (plot.getCentreY() - y) / juce::jmax(1.0e-6f, dbPxPerDbFor(plot)); }
+
+    // CANONICAL REDUCTION display mapping -- the ONE function every visual
+    // element referencing a real reduction dB value must use: the cyan
+    // curve/fill, the dB gridlines' own Y position, the Max Reduction
+    // dashed line, and its drag interaction. Includes the display-only
+    // visual amplification (see SpectrumComponent.cpp's own warpMagnitude
+    // doc) on top of yForReductionDbIn's plain linear scale, plus a clamp
+    // to the plot's own inner bounds. realDb=0 always maps to exactly 0;
+    // strictly monotonic in |realDb|, so ordering/valleys are preserved
+    // and nothing can be invented. mapDisplayYToRealReductionDb is its
+    // exact numerical inverse (bisection -- the warp has no closed form),
+    // used by the Max Reduction line's own drag so the line tracks the
+    // mouse exactly, never a different curve than what's drawn. Neither
+    // touches DSP, GainMaskEngine, or appliedReductionSnapshot() -- purely
+    // a shared rendering transform.
+    static float mapRealReductionDbToDisplayY(juce::Rectangle<float> plot, float realDb);
+    static float mapDisplayYToRealReductionDb(juce::Rectangle<float> plot, float y);
     // REDUCTION visual audit: downsamples `binReductionDb` (one real value
     // per FFT bin, <=0dB) to `numPts` log-frequency render points. Pure/
     // testable (no Graphics dependency) -- exercised directly by
@@ -53,4 +70,11 @@ private:
     // (light symmetric EMA, no fill). Sized lazily to match the engine's own
     // spectrum size on first paint(). Never fed back into the DSP.
     std::vector<float> smoothedMagDb, smoothedRedDb;
+    // Per-bin (position/frequency-indexed, NEVER by a detected group's
+    // temporary identity) short hold before release is allowed to begin --
+    // reset only on a genuine new/deeper attack at that same bin. A bin
+    // whose underlying detected group changes index/classification frame
+    // to frame is still the SAME bin here, so its hold/release state is
+    // never disturbed by that alone.
+    std::vector<double> peakHoldUntilMs;
 };

@@ -114,27 +114,36 @@ void NFResonanceAudioProcessorEditor::resized(){
  low.setBounds(R(45, 545, 100, 99));
  high.setBounds(R(175, 545, 100, 99));
  spectrum.setBounds(R(290, 82, 690, 473));
- output.setBounds(R(1000, 88, 130, 130));
- mix.setBounds(R(1000, 235, 130, 130));
- delta.setBounds(R(1000, 378, 68, 30));
- bypass.setBounds(R(1080, 378, 72, 30));
+ // RIGHT COLUMN: every group below shares ONE central axis, Xc=1076 (the
+ // centre of DETECT/MODE's own 152px-wide span, x=1000..1152 -- the widest
+ // fixed element in the column, so it sets the axis). OUTPUT/MIX/TRANSIENT
+ // (130 wide) and the MAX RED block (84 wide) are each re-centred on Xc
+ // without changing their own size. DELTA+BYPASS's combined span (1000..
+ // 1152, widths unchanged) already shares Xc exactly. Vertical rhythm
+ // standardized to an 18px gap between every group's own box-bottom and
+ // the next group's box-top (a caption drawn in that gap, e.g. DETECT's/
+ // MODE's/TRANSIENT's own gapAbove of 14-16px, always has 2px+ of clear
+ // space before the previous box -- verified, not just assumed).
+ const float colXc = 1076.0f;
+ output.setBounds(R(colXc - 65.0f, 88, 130, 130));
+ mix.setBounds(R(colXc - 65.0f, 236, 130, 130));
+ delta.setBounds(R(1000, 384, 68, 30));
+ bypass.setBounds(R(1080, 384, 72, 30));
  // DETECT (Etapa 1, External Sidechain) inserted above MODE, own caption
- // row included (416->430's zone was already MODE's own caption, so
- // simply overlaying DETECT there would have hidden "MODE").
- detect.setBounds(R(1000, 428, 152, 20));
- mode.setBounds(R(1000, 488, 152, 30));
- // MAX REDUCTION -- now occupies the space QUALITY used to (its removal
- // was reserved for exactly this). Compact toggle + small knob, not
- // another large primary knob. Toggle text IS the on/off label (same
- // convention as DELTA/BYPASS); the knob always shows the dB value,
- // dimmed when disabled (same dimming convention timerCallback() already
- // uses for LOW/HIGH when their own side is off).
- maxRedEnabled.setBounds(R(1000, 519, 84, 18));
- maxRed.setBounds(R(1000, 541, 84, 34));
- // TRANSIENT's own caption (added above) needs its own clear row -- pushed
- // down from its previous position so it no longer collides with MAX RED's
- // value box; its own height trimmed slightly to still fit the canvas.
- transient.setBounds(R(1000, 596, 130, 52));
+ // row included (its gapAbove=16 fits inside the 18px inter-group gap).
+ detect.setBounds(R(1000, 432, 152, 20));
+ mode.setBounds(R(1000, 470, 152, 30));
+ // MAX REDUCTION -- occupies the space freed by QUALITY's removal.
+ // Compact toggle + small knob, not another large primary knob. Toggle
+ // text IS the on/off label (same convention as DELTA/BYPASS); the knob
+ // always shows the dB value, dimmed when disabled (same dimming
+ // convention timerCallback() already uses for LOW/HIGH). Re-centred on
+ // Xc; the 4px gap between toggle and knob is intentionally tighter --
+ // they're one group, not two.
+ maxRedEnabled.setBounds(R(colXc - 42.0f, 518, 84, 18));
+ maxRed.setBounds(R(colXc - 42.0f, 540, 84, 34));
+ // TRANSIENT: own caption (gapAbove=14) fits inside the 18px gap above it.
+ transient.setBounds(R(colXc - 65.0f, 592, 130, 52));
  fft.setBounds(R(290, 65, 46, 15)); // 0.1r: discreet FFT/ORIGINAL toggle, same header row as the legend
  // Preset selector + hamburger anchored to the TOP-RIGHT corner (not a
  // fixed left-based coordinate), so they stay pinned there through resize

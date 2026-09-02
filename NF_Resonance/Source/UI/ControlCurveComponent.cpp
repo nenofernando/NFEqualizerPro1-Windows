@@ -16,6 +16,40 @@ bool ControlCurveComponent::lowEnabledOf() const { return state.getRawParameterV
 bool ControlCurveComponent::highEnabledOf() const { return state.getRawParameterValue("highEnabled")->load() > 0.5f; }
 bool ControlCurveComponent::maxRedEnabledOf() const { return state.getRawParameterValue("maxReductionEnabled")->load() > 0.5f; }
 float ControlCurveComponent::maxRedDbOf() const { return state.getRawParameterValue("maxReductionDb")->load(); }
+
+// SINGLE source of truth for LOW/HIGH-handle-vs-Range-Drag gesture
+// selection -- called identically by mouseMove (cursor) and mouseDown
+// (arming activeDragMode), so the two can never disagree. Each handle
+// keeps a COMFORTABLE, Retina-friendly radius (8px) around its own visual
+// centre; a click counts as "on" a handle ONLY when it's within that
+// handle's own radius AND NOT ALSO within the other handle's radius
+// (exclusive-or, not "nearest wins" -- nearest-wins would still let one
+// handle claim the entire narrow block, leaving no room for Range Drag).
+// When the block is narrow enough that the two 8px zones overlap, every
+// point in that shared strip matches NEITHER handle and resolves to
+// WholeRange instead -- exactly "quando as áreas se sobrepuserem, a
+// região central deve obrigatoriamente resultar em WholeRange". Does NOT
+// consider bands or the Max Reduction line -- those are strictly
+// higher-priority and already handled by the caller before this is
+// consulted, matching mouseDown's own priority order exactly.
+ControlCurveComponent::DragMode ControlCurveComponent::hitTestDragMode(juce::Point<float> pos) const
+{
+    auto full = getLocalBounds().toFloat();
+    float lowX = SpectrumComponent::xForHzIn(full, lowHzOf());
+    float highX = SpectrumComponent::xForHzIn(full, highHzOf());
+    float zeroY = juce::jmap(0.0f, -12.0f, 12.0f, full.getBottom(), full.getY());
+    bool nearZeroY = std::abs(pos.y - zeroY) <= 16.0f;
+    float distLow = std::abs(pos.x - lowX), distHigh = std::abs(pos.x - highX);
+    const float handleRadius = 8.0f;
+    bool inLowZone = nearZeroY && distLow <= handleRadius;
+    bool inHighZone = nearZeroY && distHigh <= handleRadius;
+    if (inLowZone && ! inHighZone) return DragMode::LowHandle;
+    if (inHighZone && ! inLowZone) return DragMode::HighHandle;
+    float lo = lowHzOf(), hi = highHzOf();
+    float mouseHz = SpectrumComponent::hzForXIn(full, pos.x);
+    if (mouseHz > juce::jmin(lo, hi) && mouseHz < juce::jmax(lo, hi)) return DragMode::WholeRange;
+    return DragMode::None;
+}
 float ControlCurveComponent::freqOf(int slot) const { return state.getRawParameterValue(freqParamId(slot))->load(); }
 float ControlCurveComponent::sensOf(int slot) const { return state.getRawParameterValue(sensParamId(slot))->load(); }
 float ControlCurveComponent::widthOf(int slot) const { return state.getRawParameterValue(widthParamId(slot))->load(); }
@@ -237,6 +271,21 @@ void ControlCurveComponent::paint(juce::Graphics& g)
         if (highOn && effHighX < full.getRight() - 0.5f) g.fillRect(juce::Rectangle<float>(effHighX, full.getY(), full.getRight() - effHighX, full.getHeight()));
     }
 
+    // RANGE DRAG: while active, a soft highlight across the WHOLE [LOW,HIGH]
+    // block plus a ghost readout, so it's unambiguous the entire region is
+    // moving together (not just one edge, like a plain LOW/HIGH drag).
+    if (activeDragMode == DragMode::WholeRange)
+    {
+        g.setColour(juce::Colour(0xffeaf4ff).withAlpha(0.06f));
+        g.fillRect(juce::Rectangle<float>(lowX, full.getY(), highX - lowX, full.getHeight()));
+        g.setColour(juce::Colour(0xffeaf4ff).withAlpha(0.22f));
+        g.drawRect(juce::Rectangle<float>(lowX, full.getY(), highX - lowX, full.getHeight()), 1.2f);
+        g.setFont(11.0f);
+        g.setColour(juce::Colour(0xffeaf4ff));
+        juce::String txt = formatHz(lowHzOf()) + "  <->  " + formatHz(highHzOf());
+        g.drawText(txt, (int) (0.5f * (lowX + highX) - 70.0f), (int) (full.getY() + 20.0f), 140, 14, juce::Justification::centred);
+    }
+
     // MAX REDUCTION line -- a discreet horizontal reference at -maxReductionDb
     // on the REAL reduction dB scale (shared mapping with SpectrumComponent,
     // never a separately invented scale). Completely hidden when off, per
@@ -245,7 +294,7 @@ void ControlCurveComponent::paint(juce::Graphics& g)
     // a background reference, never competing with them.
     if (maxRedEnabledOf())
     {
-        float lineY = SpectrumComponent::yForReductionDbIn(full, -maxRedDbOf());
+        float lineY = SpectrumComponent::mapRealReductionDbToDisplayY(full, -maxRedDbOf());
         bool active = draggingMaxRed;
         g.setColour(juce::Colour(0xffff6ec7).withAlpha(active ? 0.55f : 0.28f));
         float dash[] = { 4.0f, 4.0f };
@@ -341,6 +390,7 @@ void ControlCurveComponent::paint(juce::Graphics& g)
             g.drawLine(x, zeroY - h * 0.22f, x, zeroY + h * 0.22f, 1.2f); // small grip mark
         }
     };
+    bool draggingLow = activeDragMode == DragMode::LowHandle, draggingHigh = activeDragMode == DragMode::HighHandle;
     drawHandle(lowX, juce::Colour(0xff5ec8ff), draggingLow, lowOn);
     drawHandle(highX, juce::Colour(0xffffb15e), draggingHigh, highOn);
     if (draggingLow || draggingHigh || juce::Time::currentTimeMillis() < lowHighEditUntilMs)
@@ -450,43 +500,72 @@ void ControlCurveComponent::mouseDown(const juce::MouseEvent& e)
             if (buttons[(size_t) s].contains(e.position)) { setShape(selected, s); return; }
     }
 
-    // LOW/HIGH handle hit-test: the capsules now sit right on the 0dB line,
-    // so the hit region is bounded in both X (near the handle's own x) and Y
-    // (near the 0dB line), not a full-height strip -- this keeps them from
-    // stealing clicks meant for a band point that happens to pass nearby.
-    if (! e.mods.isPopupMenu())
-    {
-        auto full = getLocalBounds().toFloat();
-        float lowX = SpectrumComponent::xForHzIn(full, lowHzOf());
-        float highX = SpectrumComponent::xForHzIn(full, highHzOf());
-        float zeroY = juce::jmap(0.0f, -12.0f, 12.0f, full.getBottom(), full.getY());
-        bool nearZeroY = std::abs(e.position.y - zeroY) <= 16.0f;
-        // Don't begin the change gesture yet -- just arm dragging<Low/High>
-        // and remember where the press started. mouseDrag only turns this
-        // into an actual frequency edit (and reactivates an OFF side) once
-        // the mouse moves past a small threshold; mouseUp with no real
-        // movement toggles ON/OFF instead. This is what keeps a plain click
-        // from accidentally nudging the frequency, and a drag from
-        // accidentally toggling the filter off.
-        if (nearZeroY && std::abs(e.position.x - lowX) <= 9.0f) { draggingLow = true; lowHighDidDrag = false; lowHighMouseDownPos = e.position; repaint(); return; }
-        if (nearZeroY && std::abs(e.position.x - highX) <= 9.0f) { draggingHigh = true; lowHighDidDrag = false; lowHighMouseDownPos = e.position; repaint(); return; }
-    }
-
+    // Band hit-test computed FIRST -- bands are priority 1 over LOW/HIGH
+    // handles and Range Drag (a click meant for a band point must never be
+    // stolen by a handle/range gesture that happens to pass near it).
     float d; int i = nearestActivePoint(e.position, d);
     bool hit = d <= 16.0f;
 
-    // MAX REDUCTION line hit-test -- only when ON, only when the cursor is
-    // genuinely close to it (tight Y band, full width since it's a
-    // horizontal reference), and only when it's actually closer than the
-    // nearest band point, so it can never steal a band's own drag/click.
-    if (! e.mods.isPopupMenu() && maxRedEnabledOf())
+    // MAX REDUCTION line hit-test -- priority 2: only when ON, only when
+    // the cursor is genuinely close to it (tight Y band, full width since
+    // it's a horizontal reference), and only when it's actually closer
+    // than the nearest band point, so it can never steal a band's own
+    // drag/click.
+    if (! e.mods.isPopupMenu() && ! hit && maxRedEnabledOf())
     {
-        float lineY = SpectrumComponent::yForReductionDbIn(getLocalBounds().toFloat(), -maxRedDbOf());
+        float lineY = SpectrumComponent::mapRealReductionDbToDisplayY(getLocalBounds().toFloat(), -maxRedDbOf());
         float lineDist = std::abs(e.position.y - lineY);
         if (lineDist <= 7.0f && lineDist < d)
         {
             draggingMaxRed = true;
             if (auto* p = state.getParameter("maxReductionDb")) p->beginChangeGesture();
+            repaint();
+            return;
+        }
+    }
+
+    // LOW/HIGH handles vs RANGE DRAG (priorities 3/4) -- ONE shared
+    // hit-test function decides the mode; mouseMove's cursor calls the
+    // exact same function, so what the cursor promises is always what a
+    // click here would actually do. Mode is captured ONCE and never
+    // recomputed until the next mouseDown.
+    if (! e.mods.isPopupMenu() && ! hit)
+    {
+        DragMode mode = hitTestDragMode(e.position);
+        if (mode == DragMode::LowHandle || mode == DragMode::HighHandle)
+        {
+            // Don't begin the change gesture yet -- just arm the mode and
+            // remember where the press started. mouseDrag only turns this
+            // into an actual frequency edit (and reactivates an OFF side)
+            // once the mouse moves past a small threshold; mouseUp with no
+            // real movement toggles ON/OFF instead. This is what keeps a
+            // plain click from accidentally nudging the frequency, and a
+            // drag from accidentally toggling the filter off.
+            activeDragMode = mode;
+            lowHighDidDrag = false;
+            lowHighMouseDownPos = e.position;
+            repaint();
+            return;
+        }
+        if (mode == DragMode::WholeRange)
+        {
+            activeDragMode = DragMode::WholeRange;
+            auto full = getLocalBounds().toFloat();
+            float lo = lowHzOf(), hi = highHzOf();
+            dragStartMouseFrequency = SpectrumComponent::hzForXIn(full, e.position.x);
+            dragStartLow = lo; dragStartHigh = hi;
+            rangeBandCount = 0;
+            for (int slot = 0; slot < kMaxBands; ++slot)
+            {
+                if (! isActive(slot)) continue;
+                float f = freqOf(slot);
+                if (f >= juce::jmin(lo, hi) && f <= juce::jmax(lo, hi) && rangeBandCount < kMaxRangeBands)
+                { rangeBandSlots[(size_t) rangeBandCount] = slot; rangeBandInitialFreq[(size_t) rangeBandCount] = f; ++rangeBandCount; }
+            }
+            if (auto* p = state.getParameter("lowHz")) p->beginChangeGesture();
+            if (auto* p = state.getParameter("highHz")) p->beginChangeGesture();
+            for (int k = 0; k < rangeBandCount; ++k)
+                if (auto* p = state.getParameter(freqParamId(rangeBandSlots[(size_t) k]))) p->beginChangeGesture();
             repaint();
             return;
         }
@@ -532,14 +611,42 @@ void ControlCurveComponent::mouseDrag(const juce::MouseEvent& e)
         auto r = getLocalBounds().toFloat();
         // Up -> smaller Max Reduction, Down -> larger (dragging the line
         // itself, its own Y position IS -maxReductionDb on the real scale).
-        float dbAtMouse = SpectrumComponent::reductionDbForYIn(r, e.position.y);
+        float dbAtMouse = SpectrumComponent::mapDisplayYToRealReductionDb(r, e.position.y);
         float newMaxRedDb = juce::jlimit(0.5f, 12.0f, -dbAtMouse);
         if (auto* p = state.getParameter("maxReductionDb")) p->setValueNotifyingHost(p->convertTo0to1(newMaxRedDb));
         repaint();
         return;
     }
-    if (draggingLow || draggingHigh)
+    if (activeDragMode == DragMode::WholeRange)
     {
+        auto r = getLocalBounds().toFloat();
+        float currentMouseFrequency = SpectrumComponent::hzForXIn(r, e.position.x);
+        float factor = currentMouseFrequency / juce::jmax(1.0f, dragStartMouseFrequency);
+        // Hard stop at 20Hz/20kHz -- clamps the FACTOR uniformly, so the
+        // block's own width in octaves (log2(high/low)) never changes even
+        // right at the boundary; it just stops moving, never compresses.
+        float minFactor = 20.0f / dragStartLow;
+        float maxFactor = 20000.0f / dragStartHigh;
+        factor = juce::jlimit(minFactor, maxFactor, factor);
+        float newLow = dragStartLow * factor;
+        float newHigh = dragStartHigh * factor;
+        if (auto* p = state.getParameter("lowHz")) p->setValueNotifyingHost(p->convertTo0to1(newLow));
+        if (auto* p = state.getParameter("highHz")) p->setValueNotifyingHost(p->convertTo0to1(newHigh));
+        for (int k = 0; k < rangeBandCount; ++k)
+        {
+            float newBandFreq = juce::jlimit(20.0f, 20000.0f, rangeBandInitialFreq[(size_t) k] * factor);
+            setFreq(rangeBandSlots[(size_t) k], newBandFreq);
+        }
+        // NOTE: deliberately does NOT touch lowHighEditUntilMs -- that
+        // timestamp independently triggers the OLD LOW/HIGH-only ghost
+        // label (paint() checks it regardless of activeDragMode), which
+        // would double-render alongside Range Drag's own label below.
+        repaint();
+        return;
+    }
+    if (activeDragMode == DragMode::LowHandle || activeDragMode == DragMode::HighHandle)
+    {
+        bool draggingLow = activeDragMode == DragMode::LowHandle;
         if (! lowHighDidDrag)
         {
             if (e.position.getDistanceFrom(lowHighMouseDownPos) < 4.0f) return; // still just a press, not a drag yet
@@ -584,19 +691,27 @@ void ControlCurveComponent::mouseUp(const juce::MouseEvent&)
         draggingMaxRed = false;
         repaint();
     }
-    if (draggingLow)
+    if (activeDragMode == DragMode::WholeRange)
+    {
+        if (auto* p = state.getParameter("lowHz")) p->endChangeGesture();
+        if (auto* p = state.getParameter("highHz")) p->endChangeGesture();
+        for (int k = 0; k < rangeBandCount; ++k)
+            if (auto* p = state.getParameter(freqParamId(rangeBandSlots[(size_t) k]))) p->endChangeGesture();
+        rangeBandCount = 0;
+        repaint();
+    }
+    if (activeDragMode == DragMode::LowHandle)
     {
         // A plain click with no real movement is JUST selection/focus -- it
         // never touches lowHz or lowEnabled. Only a genuine drag (which
         // began its own change gesture in mouseDrag) needs ending here.
         if (lowHighDidDrag) { if (auto* p = state.getParameter("lowHz")) p->endChangeGesture(); }
-        draggingLow = false;
     }
-    if (draggingHigh)
+    if (activeDragMode == DragMode::HighHandle)
     {
         if (lowHighDidDrag) { if (auto* p = state.getParameter("highHz")) p->endChangeGesture(); }
-        draggingHigh = false;
     }
+    activeDragMode = DragMode::None;
     lowHighDidDrag = false;
     if (dragging >= 0)
     {
@@ -610,7 +725,25 @@ void ControlCurveComponent::mouseMove(const juce::MouseEvent& e)
 {
     float d; int i = nearestActivePoint(e.position, d);
     int newHover = (d <= 16.0f) ? i : -1;
-    setMouseCursor(newHover >= 0 ? juce::MouseCursor::UpDownLeftRightResizeCursor : juce::MouseCursor::NormalCursor);
+    if (newHover >= 0)
+        setMouseCursor(juce::MouseCursor::UpDownLeftRightResizeCursor);
+    else
+    {
+        // Cursor for the handle-vs-Range-Drag zone: calls the EXACT SAME
+        // hitTestDragMode() mouseDown() uses to arm the gesture, so the
+        // cursor can never promise something a click wouldn't actually do.
+        // Max Reduction line still takes visual priority over the cursor
+        // hint here (it's a separate, higher-priority gesture, checked the
+        // same way mouseDown() checks it before ever calling
+        // hitTestDragMode).
+        auto full = getLocalBounds().toFloat();
+        bool nearMaxRed = maxRedEnabledOf() && std::abs(e.position.y - SpectrumComponent::mapRealReductionDbToDisplayY(full, -maxRedDbOf())) <= 7.0f;
+        // Handles keep the plain cursor (unchanged from before -- they only
+        // ever move horizontally along the frequency axis, same as the
+        // block); only WholeRange gets the explicit horizontal-move hint.
+        DragMode mode = nearMaxRed ? DragMode::None : hitTestDragMode(e.position);
+        setMouseCursor(mode == DragMode::WholeRange ? juce::MouseCursor::LeftRightResizeCursor : juce::MouseCursor::NormalCursor);
+    }
     if (newHover != hovered) { hovered = newHover; repaint(); }
 }
 void ControlCurveComponent::mouseExit(const juce::MouseEvent&) { if (hovered != -1) { hovered = -1; repaint(); } }

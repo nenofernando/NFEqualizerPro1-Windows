@@ -1,7 +1,6 @@
 #pragma once
 #include <JuceHeader.h>
 #include "ResonanceDetector.h"
-#include "TransientGuard.h"
 #include "GainMaskEngine.h"
 class SpectralEngine {
 public:
@@ -128,11 +127,16 @@ private:
  std::vector<std::vector<FrameDebugSnapshot>> debugPerChan;
  MaskOverride maskOverride=MaskOverride::None; float maskOverrideConstantDb=0.0f; int maskOverrideFrameLimit=0;
  std::vector<int> frameCountPerChan; // how many frames fired since last reset, per channel
- struct Chan{ std::vector<float> history,ola,norm,fftData,magDb,reduction,lastWet; long long t=0; int histPos=0; ResonanceDetector det; TransientGuard trans;
+ struct Chan{ std::vector<float> history,ola,norm,fftData,magDb,reduction,lastWet; long long t=0; int histPos=0; ResonanceDetector det;
    // Sonic Alpha V2: PHYSICAL C/D-driven gain mask (see GainMaskEngine) --
    // REPLACES ResonanceDetector::compute() as what fills `reduction` below;
-   // `det`/`trans` above are left in place (unused for gain now) rather
-   // than removed, to keep this swap minimal-footprint and reversible.
+   // `det` above is left in place (unused for gain now) rather than
+   // removed, to keep this swap minimal-footprint and reversible. V1's
+   // TransientGuard (`trans`) WAS here too but has been fully disconnected
+   // and removed: its own output was already provably unused (see the
+   // TRANSIENT audit -- computed then discarded every frame), and the
+   // "transient" parameter now drives PHYSICAL D's own transientProtection
+   // authority directly via GainMaskEngine::setTransientAmount() instead.
    GainMaskEngine mask; std::array<float, hop> hopScratch{};
    // EXTERNAL SIDECHAIN (Etapa 1): a second, independent history ring/FFT
    // scratch, same fftSize/hop/window as the main one above, ALWAYS kept
@@ -148,4 +152,4 @@ private:
  // local variable otherwise) to decide main-vs-sidechain per Params::
  // detectorSource, with a hard fallback to main whenever this is false.
  bool sidechainAvailable=false;
- void frame(Chan& s,float transientFactor,int channelIndex); float processOne(Chan& s,float x,int channelIndex,float scX); };
+ void frame(Chan& s,int channelIndex); float processOne(Chan& s,float x,int channelIndex,float scX); };

@@ -118,6 +118,20 @@ float GainMaskEngine::detailToOctHalfWidth(float detailValue)
 void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSamples, int hopCount, std::vector<float>& reductionDbOut)
 {
     // ---- PHYSICAL C / D, byte-identical call pattern to their own validated harnesses ----
+    // Detection stays on the ORIGINAL fixed 4.0f -- Sharpness's effect on
+    // width now lives entirely in the deterministic sigmaOct multiplier
+    // below (a closed-form, provably monotonic function of `sharpness`
+    // alone). An earlier version of this fix instead varied THIS argument
+    // with `sharpness`, routing width control through PHYSICAL C's own
+    // peak-width detection (ConfidenceEngine, frozen/validated) -- real,
+    // and correctly directional end to end, but not GUARANTEED monotonic
+    // point-to-point (measured: a small non-monotonic wiggle around
+    // Sharpness 6-8-10, traced to detection-layer width estimation, not to
+    // this class). The audit required strict, click-proof monotonicity
+    // with zero reversals anywhere in 0..10, so PHYSICAL C's own detection
+    // is now left completely untouched by Sharpness (same fixed 4.0f as
+    // pre-fix), and only the already-downstream, already-per-region
+    // Gaussian envelope width is scaled.
     prom.computeProminence(magDb, 4.0f, promOut);
     if (hopSamples != nullptr && hopCount > 0) aux.pushSamples(hopSamples, hopCount);
     conf.process(promOut, &aux, &magDb);
@@ -137,8 +151,13 @@ void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSa
             if (! r.active) continue;
             d.active = true; d.centerHz = r.centerHz;
             d.actionWeight = ConfidenceEngine::actionWeight(r.existenceConfidence, r.reliableProblemEvidence, r.unknownAnomalySupport, selectivity);
+            // TRANSIENT knob: rawTransientProtection (PHYSICAL D's own,
+            // completely unmodified measurement) is kept separately for
+            // diagnostics; only its AUTHORITY over action is rescaled by
+            // transientAmount before the (1-x) action-dampening step.
             d.transientProt = trans.transientProtectionFor(r.centerHz);
-            d.action = juce::jlimit(0.0f, 1.0f, d.actionWeight * (1.0f - d.transientProt));
+            d.effectiveTransientProt = juce::jlimit(0.0f, 1.0f, d.transientProt * transientAmount);
+            d.action = juce::jlimit(0.0f, 1.0f, d.actionWeight * (1.0f - d.effectiveTransientProt));
         }
     }
 
@@ -195,6 +214,25 @@ void GainMaskEngine::process(const std::vector<float>& magDb, const float* hopSa
             float loEdgeHz = juce::jmax(1.0f, r.centerHz - halfWidthHz);
             float hiEdgeHz = r.centerHz + halfWidthHz;
             float sigmaOct = juce::jmax(0.08f, 0.5f * std::log2(hiEdgeHz / loEdgeHz));
+            // SHARPNESS width scaling -- direct control of how far THIS
+            // region's own already-computed peak reduction spreads around
+            // its own already-computed centerHz, pivoted exactly at
+            // Sharpness=4 (multiplier==1.0 there, so the official default
+            // reproduces bit-identical envelope width to the pre-Sharpness-
+            // fix DSP, per the audit's own requirement). Deliberately NOT
+            // routed through regionPeakDb/maxReductionDb/centerBin -- those
+            // stay completely untouched by this line, so peak reduction
+            // magnitude and center frequency can never move with Sharpness,
+            // only the falloff shape can. Complements (does not replace)
+            // the existing SpectralProminenceEngineV5 narrow/medium/broad
+            // blend (setSharpness() above): that reshapes what the detector
+            // considers prominent in the first place; this reshapes the
+            // resulting envelope directly, giving a musically clear,
+            // guaranteed-monotonic width range end to end (0=widest,
+            // 10=narrowest) instead of relying solely on the blend's own,
+            // more diffuse effect on measured region width.
+            const float sharpnessWidthMult = std::pow(2.0f, 1.3f * (4.0f - sharpness) / 10.0f);
+            sigmaOct = juce::jmax(0.03f, sigmaOct * sharpnessWidthMult);
 
             int centerBin = juce::jlimit(0, bins - 1, (int) std::round((double) r.centerHz / (sampleRate / fftSize)));
             // Only walk bins within ~4 sigma -- negligible contribution beyond that, keeps this O(local) not O(bins) per region.

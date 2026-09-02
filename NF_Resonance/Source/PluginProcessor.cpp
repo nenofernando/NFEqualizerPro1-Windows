@@ -100,15 +100,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
         p.push_back(std::make_unique<juce::AudioParameterFloat>(id,name,juce::NormalisableRange<float>(mn,mx,step),def));};
     auto fMeta=[&](const char* id,const char* name,float mn,float mx,float def,float step=0.001f){
         p.push_back(std::make_unique<MetaAudioParameterFloat>(id,name,juce::NormalisableRange<float>(mn,mx,step),def));};
-    // Depth default = 0 (Preview Safe Default): Detector V1's aggressiveness
-    // is a known, separately-tracked issue (see the LOW/HIGH neutrality
-    // investigation) -- a new instance must never audibly darken/lower the
-    // mix just by existing. This is explicitly temporary: once Detector V2
-    // is finished, Depth gets recalibrated into a real musical default.
-    f("depth","Depth",0,10,0); f("sharpness","Sharpness",0,10,4); f("selectivity","Selectivity",0,10,3.5f);
+    // OFFICIAL DEFAULT (Sonic Alpha V2, post-Calibration-1/Detail/Max-
+    // Reduction/Transient): Depth=3 is the first real, musical, non-zero
+    // default -- superseding the old "Preview Safe Default" of 0, which
+    // existed only because Detector V1's aggressiveness made any nonzero
+    // default risky. Detector V2 (PHYSICAL C/D + GainMaskEngine, approved
+    // on LUNA) is now the live engine, so a new instance analyzing and
+    // modulating immediately -- visibly, on the REDUCTION analyzer -- is
+    // the intended out-of-the-box experience, not a risk to guard against.
+    f("depth","Depth",0,10,3.0f); f("sharpness","Sharpness",0,10,4); f("selectivity","Selectivity",0,10,3.5f);
     f("detail","Detail",0,10,5);
     f("attack","Attack",0.1f,200,10,0.1f); f("release","Release",5,1000,80,0.5f);
-    f("lowHz","Low Frequency",20,1000,100,0.1f); f("highHz","High Frequency",2000,22000,16000,0.1f); // fine step: now also draggable as analyzer handles, not just knobs
+    f("lowHz","Low Frequency",20,1000,25.0f,0.1f); f("highHz","High Frequency",2000,22000,16000,0.1f); // fine step: now also draggable as analyzer handles, not just knobs
     // Independent ON/OFF for the LOW/HIGH range boundary -- OFF means that
     // side of the detector's active region is fully open, WITHOUT touching
     // the saved lowHz/highHz value (see SpectralEngine::process()). Real,
@@ -203,9 +206,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
     // Depth/Selectivity/Detail/resonance strength -- see GainMaskEngine::
     // setMaxReduction(). OFF by default so the plugin's current sound is
     // unchanged unless the user explicitly opts in.
-    p.push_back(std::make_unique<juce::AudioParameterBool>("maxReductionEnabled","Max Reduction Enabled",false));
+    p.push_back(std::make_unique<juce::AudioParameterBool>("maxReductionEnabled","Max Reduction Enabled",true)); // official default: ON, 3.0dB -- musical, not aggressive
     f("maxReductionDb","Max Reduction",0.5f,12.0f,3.0f,0.01f);
-    p.push_back(std::make_unique<juce::AudioParameterBool>("showOriginalFft","Show Original FFT",false)); // 0.1p: OFF by default, per request
+    p.push_back(std::make_unique<juce::AudioParameterBool>("showOriginalFft","Show Original FFT",false)); // official default: OFF -- cleaner initial view, REDUCTION + Sensitivity Curve are the focus
     return {p.begin(),p.end()};
 }
 

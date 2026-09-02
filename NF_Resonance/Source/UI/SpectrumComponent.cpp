@@ -63,6 +63,54 @@ void SpectrumComponent::resampleReductionForDisplay(const std::vector<float>& bi
     }
 }
 
+// REDUCTION visual amplification -- DISPLAY ONLY. Never touches DSP,
+// GainMaskEngine, Depth, or appliedReductionSnapshot() itself: whatever
+// calls this has already finished every real decision (gate threshold,
+// valley grouping/splitting, taper) from the true dB values, so what gets
+// GATED, GROUPED, and SPLIT is entirely unaffected -- only how deep the
+// already-decided shape is DRAWN changes. mag=0 always maps to 0 exactly,
+// and the mapping is strictly increasing in mag, so it can never invent a
+// valley, flip an ordering, or make a small reduction look deeper than a
+// genuinely larger one. visualGain (1.7-2.0 requested; 1.85 chosen as a
+// middle value) is a flat multiplier; the mild tanh term adds a bit more
+// emphasis specifically to medium/strong reductions (approaching +10%
+// extra by ~6-8dB) while leaving small ones close to the flat gain.
+static float warpMagnitude(float mag)
+{
+    const float visualGain = 1.85f;
+    if (mag <= 1.0e-6f) return 0.0f;
+    float emphasis = 1.0f + 0.10f * std::tanh(mag / 4.0f);
+    return mag * visualGain * emphasis;
+}
+// Exact numerical inverse of warpMagnitude (the tanh term has no closed
+// form) -- bisection, 40 iterations (~1e-10 relative precision on a value
+// that never exceeds a few dozen dB), UI-thread only (Max Reduction line
+// drag), never called from the audio thread.
+static float unwarpMagnitude(float targetMag)
+{
+    if (targetMag <= 1.0e-6f) return 0.0f;
+    float lo = 0.0f, hi = 60.0f;
+    for (int i = 0; i < 40; ++i)
+    {
+        float mid = 0.5f * (lo + hi);
+        if (warpMagnitude(mid) < targetMag) lo = mid; else hi = mid;
+    }
+    return 0.5f * (lo + hi);
+}
+
+float SpectrumComponent::mapRealReductionDbToDisplayY(juce::Rectangle<float> plot, float realDb)
+{
+    float displayDb = (realDb >= 0.0f ? 1.0f : -1.0f) * warpMagnitude(std::abs(realDb));
+    float y = plot.getCentreY() - displayDb * dbPxPerDbFor(plot);
+    return juce::jlimit(plot.getY(), plot.getBottom(), y);
+}
+float SpectrumComponent::mapDisplayYToRealReductionDb(juce::Rectangle<float> plot, float y)
+{
+    float displayDb = (plot.getCentreY() - y) / juce::jmax(1.0e-6f, dbPxPerDbFor(plot));
+    float sign = displayDb >= 0.0f ? 1.0f : -1.0f;
+    return sign * unwarpMagnitude(std::abs(displayDb));
+}
+
 void SpectrumComponent::paint(juce::Graphics& g)
 {
     auto full = getLocalBounds().toFloat();
@@ -86,21 +134,25 @@ void SpectrumComponent::paint(juce::Graphics& g)
         g.drawText(freqLabels[i], (int) (x - 14.0f), (int) full.getY() + 1, 28, (int) (plot.getY() - full.getY()) - 1, juce::Justification::centred);
     }
 
-    // Reduction dB scale: gridlines + labels down the right edge.
-    const float dbPxPerDb = plot.getHeight() * 0.045f; // scales with analyzer height, was a fixed 6px
-    const float centreY = plot.getCentreY();
+    // Reduction dB scale: gridlines + labels down the right edge. Y
+    // positions now go through the SAME canonical mapping the cyan curve
+    // and the Max Reduction line use (mapRealReductionDbToDisplayY) -- so
+    // a "-3" label always sits exactly where a genuine -3dB point actually
+    // renders, even though the curve itself is visually amplified. Only
+    // the POSITION is warped; the printed number is always the real dB.
+    const float centreY = plot.getCentreY(); // still used below as the fill gradient's own anchor (== mapRealReductionDbToDisplayY(plot,0) exactly)
     static const float dbs[] = { 0, -3, -6, -9, -12 };
     g.setColour(juce::Colour(0xff1c2733));
     for (float db : dbs)
     {
-        float y = centreY - db * dbPxPerDb;
+        float y = mapRealReductionDbToDisplayY(plot, db);
         if (y >= plot.getY() && y <= plot.getBottom())
             g.drawHorizontalLine((int) y, plot.getX(), plot.getRight());
     }
     g.setColour(juce::Colour(0xff7f9cb3));
     for (float db : dbs)
     {
-        float y = centreY - db * dbPxPerDb;
+        float y = mapRealReductionDbToDisplayY(plot, db);
         if (y >= plot.getY() - 5.0f && y <= plot.getBottom() + 5.0f)
             g.drawText(juce::String((int) db), (int) plot.getRight() + 2, (int) (y - 6.0f), (int) (full.getRight() - plot.getRight()) - 4, 12, juce::Justification::centredLeft);
     }
@@ -126,16 +178,35 @@ void SpectrumComponent::paint(juce::Graphics& g)
     // (deformation appears quickly) but slower release (settles back down
     // more gently) -- both purely visual, independent of the DSP's own
     // attack/release times.
-    if (smoothedMagDb.size() != m.size()) { smoothedMagDb = m; smoothedRedDb = red; }
+    if (smoothedMagDb.size() != m.size()) { smoothedMagDb = m; smoothedRedDb = red; peakHoldUntilMs.assign(red.size(), 0.0); }
+    if (peakHoldUntilMs.size() != red.size()) peakHoldUntilMs.assign(red.size(), 0.0);
     const float origEma = 0.30f;      // ORIGINAL: light symmetric smoothing, reference line only
-    const float redAttackEma = 0.55f; // REDUCTION surface: fast when deformation is growing
-    const float redReleaseEma = 0.14f; // REDUCTION surface: slower when settling back toward 0
+    const float redAttackEma = 0.70f; // REDUCTION surface: fast/lively when deformation is growing
+    const float redReleaseEma = 0.20f; // REDUCTION surface: a touch slower than attack, never frozen-looking
+    const double redHoldMs = 40.0;    // short hold before release is allowed to start (25-50ms requested)
+    const double nowMs = juce::Time::getMillisecondCounterHiRes();
     for (size_t i = 0; i < m.size(); ++i)
     {
         smoothedMagDb[i] += (m[i] - smoothedMagDb[i]) * origEma;
         float target = red[i];
-        float coeff = std::abs(target) > std::abs(smoothedRedDb[i]) ? redAttackEma : redReleaseEma;
-        smoothedRedDb[i] += (target - smoothedRedDb[i]) * coeff;
+        if (std::abs(target) > std::abs(smoothedRedDb[i]))
+        {
+            // Attack: fast, and (re)arm the hold window from right now --
+            // per-bin, so a fresh, deeper attack always gets its own hold.
+            smoothedRedDb[i] += (target - smoothedRedDb[i]) * redAttackEma;
+            peakHoldUntilMs[i] = nowMs + redHoldMs;
+        }
+        else if (nowMs < peakHoldUntilMs[i])
+        {
+            // Still holding the last real peak at THIS bin -- release hasn't
+            // started yet. Purely position-indexed: whatever detected group
+            // this bin's reduction came from, and whatever index/
+            // classification that group has this frame, never resets this.
+        }
+        else
+        {
+            smoothedRedDb[i] += (target - smoothedRedDb[i]) * redReleaseEma;
+        }
     }
 
     // 0.1n: fractional-bin position (not round-to-nearest-bin) so the log-X
@@ -158,20 +229,19 @@ void SpectrumComponent::paint(juce::Graphics& g)
     };
     auto yOriginalAt = [&](float binPos) { return plot.getBottom() - juce::jlimit(0.0f, 1.0f, (lerpAtBinPos(smoothedMagDb, binPos) + 90.0f) / 102.0f) * plot.getHeight(); };
 
-    // 0.1m/0.1o: SELECTIVE visual activity gate. gateThresholdDb is the
-    // MINIMUM real reduction magnitude (dB) a point must have to count as
-    // "active" for the region grouping below -- uses ONLY the real
-    // reductionDb already computed by the mask, no invented data.
-    // Recalibrated for the V2 gain mask (Sonic Alpha): V2's own Depth curve
-    // is deliberately conservative (Depth=1 typically tops out well under
-    // 1dB even in a genuinely treated region -- see GainMaskEngine's own
-    // depthToMaxReductionDb), so the OLD V1-era threshold of 1.2dB would
-    // hide essentially all of Depth 1-3's real, intentional reduction from
-    // the analyzer even though it IS being applied to the audio. 0.15dB
-    // is safe as a noise floor because untouched bins read EXACTLY 0.0dB
-    // (Depth=0 is a bit-exact identity, and Depth>0 bins with no real
-    // action authority stay at their smoothed target of 0 too) -- there is
-    // no ambient dither/noise in the mask to gate away.
+    // gateThresholdDb: the reduction magnitude (dB) at which a point's
+    // visual weight crosses 0.5 in the SOFT-KNEE curve below -- no longer a
+    // hard on/off cutoff (see weightForMag). Recalibrated for the V2 gain
+    // mask (Sonic Alpha): V2's own Depth curve is deliberately conservative
+    // (Depth=1 typically tops out well under 1dB even in a genuinely
+    // treated region -- see GainMaskEngine's own depthToMaxReductionDb), so
+    // the OLD V1-era threshold of 1.2dB would hide essentially all of
+    // Depth 1-3's real, intentional reduction from the analyzer even though
+    // it IS being applied to the audio. 0.15dB is safe as the knee's centre
+    // because untouched bins read EXACTLY 0.0dB (Depth=0 is a bit-exact
+    // identity, and Depth>0 bins with no real action authority stay at
+    // their smoothed target of 0 too) -- there is no ambient dither/noise
+    // in the mask that this could mistakenly bring to life.
     const float gateThresholdDb = 0.15f;
 
     const int numPts = juce::jlimit(48, 220, (int) plot.getWidth() / 4);
@@ -211,88 +281,29 @@ void SpectrumComponent::paint(juce::Graphics& g)
         smAt[(size_t) k] = (float) (sum / n);
     }
 
-    // Gate on the SMOOTHED profile (stabler than raw): a point counts as
-    // "active" only above gateThresholdDb.
-    const int maxGapPoints = oct2pts(0.06f);   // bridge only genuinely tiny gaps (~0.06 octave)
-    const int taperPoints = oct2pts(0.02f);    // smooth corner width at each region's TRUE outer edge
-    const int minPeakSepPoints = oct2pts(0.08f); // two local maxima closer than this are treated as one hump, not split
-    const float splitRecoverFrac = 0.55f;      // a saddle recovering to <=55% of the smaller flanking peak's depth is a real gap between resonances
-    std::vector<bool> active((size_t) numPts);
-    for (int k = 0; k < numPts; ++k) active[(size_t) k] = std::abs(smAt[(size_t) k]) > gateThresholdDb;
-
-    struct Span { int start, end; }; // inclusive point-index range, gap-bridged
-    std::vector<Span> coarse;
-    for (int k = 0; k < numPts; )
-    {
-        if (! active[(size_t) k]) { ++k; continue; }
-        int start = k, end = k;
-        while (true)
-        {
-            int next = end + 1;
-            while (next < numPts && ! active[(size_t) next] && (next - end) <= maxGapPoints) ++next;
-            if (next < numPts && active[(size_t) next] && (next - end) <= maxGapPoints) end = next;
-            else break;
-        }
-        coarse.push_back({ start, end });
-        k = end + 1;
-    }
-
-    // VALLEY SPLITTING: a coarse span can still contain several genuinely
-    // distinct resonances (e.g. 90/180/320Hz) that never individually drop
-    // below the gate -- find local peaks, and split the span at any saddle
-    // between two well-separated peaks that recovers far enough back toward
-    // 0dB. This is what stops a whole 50-500Hz stretch from becoming one
-    // rectangular block: three real dips now become three regions.
-    std::vector<Span> regions;
-    for (auto& c : coarse)
-    {
-        std::vector<int> peaks;
-        for (int k = c.start; k <= c.end; ++k)
-        {
-            float v = std::abs(smAt[(size_t) k]);
-            if (v <= gateThresholdDb) continue;
-            bool isPeak = (k == c.start || v >= std::abs(smAt[(size_t) (k - 1)])) && (k == c.end || v >= std::abs(smAt[(size_t) (k + 1)]));
-            if (isPeak) peaks.push_back(k);
-        }
-        // Non-max suppression: keep only peaks separated by >= minPeakSepPoints.
-        std::vector<int> kept;
-        for (int p : peaks)
-        {
-            if (kept.empty() || (p - kept.back()) >= minPeakSepPoints) kept.push_back(p);
-            else if (std::abs(smAt[(size_t) p]) > std::abs(smAt[(size_t) kept.back()])) kept.back() = p;
-        }
-        if (kept.size() <= 1) { regions.push_back(c); continue; }
-        std::vector<int> splitPoints;
-        for (size_t i = 0; i + 1 < kept.size(); ++i)
-        {
-            int a = kept[i], b = kept[i + 1];
-            int valleyIdx = a; float valleyMag = std::abs(smAt[(size_t) a]);
-            for (int k = a; k <= b; ++k) { float v = std::abs(smAt[(size_t) k]); if (v < valleyMag) { valleyMag = v; valleyIdx = k; } }
-            float smallerPeak = juce::jmin(std::abs(smAt[(size_t) a]), std::abs(smAt[(size_t) b]));
-            if (valleyMag <= gateThresholdDb || valleyMag <= splitRecoverFrac * smallerPeak) splitPoints.push_back(valleyIdx);
-        }
-        int segStart = c.start;
-        for (int sp : splitPoints) { regions.push_back({ segStart, sp }); segStart = sp + 1; }
-        regions.push_back({ segStart, c.end });
-    }
-
-    // Render each final region from its REAL smoothed profile -- never a
-    // single constant mean/max across the whole width -- with a taper only
-    // at the region's own true outer edges (a split point is already a real
-    // near-baseline value from the data itself, so it needs no forced taper).
+    // SOFT-KNEE continuous envelope -- replaces the old hard active[]/gate +
+    // gap-bridged coarse spans + peak-detect/non-max-suppression valley
+    // splitting + per-region independent taper entirely. A point's own
+    // reduction magnitude alone decides its visual weight, smoothly: no
+    // boolean ever flips on/off at the threshold (the old source of frame-
+    // to-frame flicker when a bin hovered right at gateThresholdDb), and
+    // every point across the whole numPts range gets a real weighted value
+    // -- never a hard 0 for an "inactive" point -- so there is no seam or
+    // hole for a single continuous path to cross. weight(0)=0 exactly (an
+    // untouched bin still reads exactly 0dB display), weight(gateThresholdDb)
+    // = 0.5, weight -> 1 as |mag| grows well past the knee. Genuinely quiet
+    // stretches naturally settle to ~0dB display (weight -> 0) by the data
+    // itself, with no explicit span/region bookkeeping needed to keep them
+    // there or to fade them out.
+    auto weightForMag = [gateThresholdDb](float mag) {
+        float m2 = mag * mag;
+        return m2 / (m2 + gateThresholdDb * gateThresholdDb);
+    };
     std::vector<float> envAt((size_t) numPts, 0.0f);
-    for (auto& r : regions)
+    for (int k = 0; k < numPts; ++k)
     {
-        int len = r.end - r.start;
-        int taper = juce::jmin(taperPoints, juce::jmax(1, len / 2));
-        for (int k = r.start; k <= r.end; ++k)
-        {
-            float w = 1.0f;
-            int distStart = k - r.start, distEnd = r.end - k;
-            if (distStart < taper) { float u = (float) distStart / (float) taper; w = juce::jmin(w, u * u * (3.0f - 2.0f * u)); }
-            if (distEnd < taper) { float u = (float) distEnd / (float) taper; w = juce::jmin(w, u * u * (3.0f - 2.0f * u)); }
-            envAt[(size_t) k] = smAt[(size_t) k] * w;
-        }
+        float mag = smAt[(size_t) k];
+        envAt[(size_t) k] = mag * weightForMag(std::abs(mag));
     }
 
     // Monotonic/bounded cubic through the resampled points: Catmull-Rom
@@ -353,32 +364,40 @@ void SpectrumComponent::paint(juce::Graphics& g)
         g.strokePath(origPath, juce::PathStrokeType(1.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
-    // REDUCTION water surface: drawn ONLY inside the gated `regions` --
-    // never as one continuous path across the whole width. Previously the
-    // cyan stroke ran edge-to-edge at every point, including the ~0dB-
-    // reduction stretches, where it sat exactly on the 0dB gridline as a
-    // permanent bright cyan bar competing with real valleys. Now cyan
-    // exists ONLY where GainMaskEngine is actually reducing something; the
-    // already-present discreet 0dB gridline (drawn earlier, same dark grey
-    // as -3/-6/-9/-12) is the only thing marking 0dB elsewhere.
-    for (auto& r : regions)
+    // REDUCTION water surface: ONE continuous path/fill across the entire
+    // [20Hz,20kHz] width, built from envAt[] (soft-knee weighted, see
+    // above) for every one of the numPts points -- never split into
+    // independent per-group closed paths. A genuinely quiet stretch reads
+    // as a smooth, near-flat approach to 0dB (weight -> 0) rather than a
+    // seam, hole, or an abrupt vertical edge where a region used to start/
+    // stop; nothing is invented across distant real peaks, since envAt[]
+    // between them is still each point's own real (weighted) value.
     {
-        if (r.end <= r.start) continue;
-        std::vector<juce::Point<float>> regPts;
-        regPts.reserve((size_t) (r.end - r.start + 1));
-        for (int k = r.start; k <= r.end; ++k)
-            regPts.push_back({ xAt[(size_t) k], centreY - envAt[(size_t) k] * dbPxPerDb });
-        auto regPath = buildBoundedPath(regPts);
-        juce::Path fillPath(regPath);
-        fillPath.lineTo(regPts.back().x, centreY);
-        fillPath.lineTo(regPts.front().x, centreY);
+        std::vector<juce::Point<float>> allPts;
+        allPts.reserve((size_t) numPts);
+        for (int k = 0; k < numPts; ++k)
+        {
+            // Canonical mapping applied HERE, after the soft-knee weighting
+            // already ran on the real envAt[] values above -- display only,
+            // and the SAME function the gridlines and the Max Reduction
+            // line use, so the curve can never visually appear to cross a
+            // limit it hasn't actually reached. Already clamped to the
+            // plot's own inner bounds internally.
+            float y = mapRealReductionDbToDisplayY(plot, envAt[(size_t) k]);
+            allPts.push_back({ xAt[(size_t) k], y });
+        }
+        auto envPath = buildBoundedPath(allPts);
+        juce::Path fillPath(envPath);
+        float zeroY = mapRealReductionDbToDisplayY(plot, 0.0f);
+        fillPath.lineTo(allPts.back().x, zeroY);
+        fillPath.lineTo(allPts.front().x, zeroY);
         fillPath.closeSubPath();
         juce::ColourGradient grad(juce::Colour(0xff27d8ff).withAlpha(0.30f), 0, centreY,
                                    juce::Colour(0xff27d8ff).withAlpha(0.10f), 0, plot.getBottom(), false);
         g.setGradientFill(grad);
         g.fillPath(fillPath);
         g.setColour(juce::Colour(0xff27d8ff));
-        g.strokePath(regPath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
+        g.strokePath(envPath, juce::PathStrokeType(2.0f, juce::PathStrokeType::curved, juce::PathStrokeType::rounded));
     }
 
     // RESONANCES: architecture prep only -- no data exists yet (that's

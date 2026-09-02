@@ -54,8 +54,8 @@ public:
     GainMaskEngine(GainMaskEngine&& o) noexcept
         : sampleRate(o.sampleRate), fftSize(o.fftSize), hopSize(o.hopSize), bins(o.bins),
           depth(o.depth), selectivity(o.selectivity), actionShapeGamma(o.actionShapeGamma), attackCoeff(o.attackCoeff), releaseCoeff(o.releaseCoeff),
-          lowHz(o.lowHz), highHz(o.highHz), detail(o.detail),
-          maxReductionEnabled(o.maxReductionEnabled), maxReductionCapTargetDb(o.maxReductionCapTargetDb), maxReductionCapSmoothedDb(o.maxReductionCapSmoothedDb), capSmoothCoeff(o.capSmoothCoeff),
+          lowHz(o.lowHz), highHz(o.highHz), detail(o.detail), sharpness(o.sharpness),
+          maxReductionEnabled(o.maxReductionEnabled), maxReductionCapTargetDb(o.maxReductionCapTargetDb), maxReductionCapSmoothedDb(o.maxReductionCapSmoothedDb), capSmoothCoeff(o.capSmoothCoeff), transientAmount(o.transientAmount),
           prom(std::move(o.prom)), aux(std::move(o.aux)), conf(std::move(o.conf)), trans(std::move(o.trans)),
           promOut(std::move(o.promOut)), rawTargetDb(std::move(o.rawTargetDb)), regularizedDb(std::move(o.regularizedDb)), smoothedDb(std::move(o.smoothedDb)),
           prefixScratch(std::move(o.prefixScratch)),
@@ -65,8 +65,8 @@ public:
     {
         sampleRate=o.sampleRate; fftSize=o.fftSize; hopSize=o.hopSize; bins=o.bins;
         depth=o.depth; selectivity=o.selectivity; actionShapeGamma=o.actionShapeGamma; attackCoeff=o.attackCoeff; releaseCoeff=o.releaseCoeff;
-        lowHz=o.lowHz; highHz=o.highHz; detail=o.detail;
-        maxReductionEnabled=o.maxReductionEnabled; maxReductionCapTargetDb=o.maxReductionCapTargetDb; maxReductionCapSmoothedDb=o.maxReductionCapSmoothedDb; capSmoothCoeff=o.capSmoothCoeff;
+        lowHz=o.lowHz; highHz=o.highHz; detail=o.detail; sharpness=o.sharpness;
+        maxReductionEnabled=o.maxReductionEnabled; maxReductionCapTargetDb=o.maxReductionCapTargetDb; maxReductionCapSmoothedDb=o.maxReductionCapSmoothedDb; capSmoothCoeff=o.capSmoothCoeff; transientAmount=o.transientAmount;
         prom=std::move(o.prom); aux=std::move(o.aux); conf=std::move(o.conf); trans=std::move(o.trans);
         promOut=std::move(o.promOut); rawTargetDb=std::move(o.rawTargetDb); regularizedDb=std::move(o.regularizedDb); smoothedDb=std::move(o.smoothedDb);
         prefixScratch=std::move(o.prefixScratch);
@@ -130,6 +130,29 @@ public:
     // width at any sample rate (44.1/48/96/192kHz), unlike a fixed bin count.
     void setDetail(float d) { detail = juce::jlimit(0.0f, 10.0f, d); }
 
+    // SHARPNESS -- was audited and confirmed INERT (prom.computeProminence()
+    // was called with a hardcoded 4.0f, never this parameter, and nothing
+    // else read it either). Reconnected as a direct, deterministic control
+    // over the per-region Gaussian envelope's own width (see process()'s
+    // own sharpnessWidthMult, applied to sigmaOct) -- NOT routed into
+    // detection/prominence: an earlier version of this fix instead varied
+    // prom.computeProminence()'s own sharpness argument (SpectralProminence
+    // EngineV5's narrow/medium/broad blend, which the engine already had
+    // built in for exactly this kind of purpose), which WAS real and
+    // correctly directional, but width-measurement showed it was not
+    // strictly point-to-point monotonic -- PHYSICAL C's own peak-width
+    // detection (ConfidenceEngine, frozen/validated) sits between that
+    // blend and the final measured width, and isn't guaranteed monotonic
+    // in response to a shifting prominence shape. The audit required zero
+    // reversals anywhere across 0..10, so detection is now left completely
+    // untouched by Sharpness (computeProminence's own argument is fixed
+    // 4.0f again, exactly as before this feature existed at all), and only
+    // the already-downstream sigmaOct scale (a closed-form power-of-two
+    // curve, pivoted at Sharpness=4 where the multiplier is exactly 1.0)
+    // carries the effect -- provably monotonic by construction, and
+    // reproducing the official default's behaviour bit-for-bit.
+    void setSharpness(float s) { sharpness = juce::jlimit(0.0f, 10.0f, s); }
+
     // MAX REDUCTION -- a real ceiling on how much any bin can be reduced,
     // independent of Depth/Selectivity/Detail/resonance strength. NOT EQ,
     // NOT makeup gain, NOT another Depth: a hard floor on the reduction
@@ -148,6 +171,23 @@ public:
     // constant (independent of the user's own Attack/Release knobs, which
     // shape DETECTION response time, not this control's own movement).
     void setMaxReduction(bool enabled, float capDbValue) { maxReductionEnabled = enabled; maxReductionCapTargetDb = juce::jlimit(0.5f, 12.0f, capDbValue); }
+
+    // TRANSIENT (0..10, default 5) -- controls ONLY the AUTHORITY of
+    // PHYSICAL D's own transientProtection over action, never PHYSICAL D
+    // itself: TransientProtectionEngine's detection (5ms/60ms time
+    // constants, per-bin flux/rise-ratio evidence) is completely untouched
+    // -- this only rescales how much its OUTPUT suppresses action.
+    // amount = transient/5 (0=no authority, 5=baseline=1.0x exactly
+    // reproducing today's validated behaviour, 10=2.0x -- more of the
+    // ATTACK gets preserved, clamped so effectiveProtection never exceeds
+    // 1). rawTransientProtection itself (what PHYSICAL D actually
+    // measured) is never modified, only its multiplier before the
+    // action = actionWeight * (1 - effectiveProtection) step. Since
+    // effectiveProtection only ever SHRINKS (1-effectiveProtection) below
+    // (1-rawTransientProtection)'s own ceiling as amount grows past 1,
+    // raising Transient can only ever preserve MORE of an attack, never
+    // increase reduction beyond what actionWeight alone already allows.
+    void setTransientAmount(float transientValue) { transientAmount = juce::jlimit(0.0f, 2.0f, transientValue / 5.0f); }
 
     // One call per host hop (same cadence SpectralEngine::frame() already
     // runs at). magDb: the SAME host-rate raw magnitude array
@@ -188,7 +228,7 @@ public:
     // shaping) -- so the actionWeight distribution can be audited directly
     // against real material, never guessed. Diagnostic-only, not used by
     // process() itself beyond being filled for reporting.
-    struct RegionActionDebug { bool active = false; float centerHz = 0, actionWeight = 0, transientProt = 0, action = 0, requestedPeakDb = 0, sensitivityDb = 0; };
+    struct RegionActionDebug { bool active = false; float centerHz = 0, actionWeight = 0, transientProt = 0, effectiveTransientProt = 0, action = 0, requestedPeakDb = 0, sensitivityDb = 0; };
     static constexpr int kMaxDebugRegions = ConfidenceEngine::kMaxRegions;
     const std::array<RegionActionDebug, kMaxDebugRegions>& lastRegionActionDebug() const { return regionDebug; }
 
@@ -209,10 +249,12 @@ private:
     float attackCoeff = 0.0f, releaseCoeff = 0.0f;
     float lowHz = 20.0f, highHz = 20000.0f;
     float detail = 5.0f;
+    float sharpness = 4.0f; // matches the prior hardcoded prom.computeProminence() argument exactly
     bool maxReductionEnabled = false;
     float maxReductionCapTargetDb = 3.0f;   // user-facing target, 0.5..12
     float maxReductionCapSmoothedDb = 3.0f; // ramps toward the target, click-free
     float capSmoothCoeff = 0.0f;            // computed in setParams() from sampleRate/hop
+    float transientAmount = 1.0f;           // transient/5; default 1.0 == today's validated baseline
 
     SpectralProminenceEngineV5 prom;
     LowFrequencyHarmonicAnalyzer aux;

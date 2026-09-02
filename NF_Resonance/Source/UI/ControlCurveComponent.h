@@ -31,7 +31,15 @@ private:
     // LOW/HIGH range handles -- drag the SAME "lowHz"/"highHz" parameters the
     // existing knobs use, so both stay trivially in sync (one shared source
     // of truth in the APVTS; no extra listener needed).
-    bool draggingLow = false, draggingHigh = false;
+    //
+    // DRAG MODE: a single explicit state, decided ONCE in mouseDown via
+    // hitTestDragMode() and never recomputed mid-gesture -- mouseDrag only
+    // ever reads activeDragMode, it never re-hit-tests. mouseMove's cursor
+    // calls the EXACT SAME hitTestDragMode() function, so the cursor can
+    // never promise a gesture mouseDown would resolve differently.
+    enum class DragMode { None, LowHandle, HighHandle, WholeRange };
+    DragMode activeDragMode = DragMode::None;
+    DragMode hitTestDragMode(juce::Point<float> pos) const;
     juce::int64 lowHighEditUntilMs = 0;
     float lowHzOf() const;
     float highHzOf() const;
@@ -47,6 +55,25 @@ private:
     bool draggingMaxRed = false;
     bool maxRedEnabledOf() const;
     float maxRedDbOf() const;
+
+    // RANGE DRAG (DragMode::WholeRange) -- click-drag anywhere strictly
+    // between LOW and HIGH (and not on any higher-priority control:
+    // Sensitivity Curve bands, LOW/HIGH handles, or the Max Reduction line)
+    // moves the whole [LOW,HIGH] block together, preserving its width in
+    // octaves exactly: factor = currentMouseHz/dragStartMouseFrequency,
+    // newLow = dragStartLow*factor, newHigh = dragStartHigh*factor, so
+    // newHigh/newLow == dragStartHigh/dragStartLow identically at every
+    // instant. Active Sensitivity Curve bands whose frequency fell inside
+    // the block at mouseDown ride along by the same factor; their sens/
+    // width/shape/active state are never touched. Updates the EXISTING
+    // lowHz/highHz/band_freq_N parameters directly -- no new "Range"
+    // parameter. All three dragStart* values are captured ONCE in
+    // mouseDown and never recomputed until the next mouseDown.
+    float dragStartLow = 100.0f, dragStartHigh = 16000.0f, dragStartMouseFrequency = 1000.0f;
+    static constexpr int kMaxRangeBands = kMaxBands;
+    std::array<int, kMaxRangeBands> rangeBandSlots{};
+    std::array<float, kMaxRangeBands> rangeBandInitialFreq{};
+    int rangeBandCount = 0;
     // Click-vs-drag distinction on the LOW/HIGH handles: mouseDown only
     // arms dragging<Low/High> and remembers where the press started; the
     // change gesture begins (and, if that side was OFF, reactivates it)

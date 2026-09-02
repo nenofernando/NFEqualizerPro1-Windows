@@ -14,7 +14,7 @@ void SpectralEngine::prepare(double sr,int channels){sampleRate=sr;fft=std::make
  reset();}
 void SpectralEngine::reset(){for(auto& s:c){std::fill(s.history.begin(),s.history.end(),0);std::fill(s.ola.begin(),s.ola.end(),0);
    if(warmupMode==WarmupMode::PreRoll) s.norm=preRollNorm; else std::fill(s.norm.begin(),s.norm.end(),0);
-   s.t=0;s.histPos=0;s.det.reset();s.trans.reset();s.mask.reset();
+   s.t=0;s.histPos=0;s.det.reset();s.mask.reset();
    std::fill(s.scHistory.begin(),s.scHistory.end(),0);std::fill(s.scMagDb.begin(),s.scMagDb.end(),-120.0f);}
    frameCountPerChan.assign(c.size(),0);
    if(debugCapture){ debugPerChan.assign(c.size(),{}); } }
@@ -28,10 +28,10 @@ float SpectralEngine::processOne(Chan& s,float x,int channelIndex,float scX){ lo
  // Sidechain history ring: same histPos as the main ring below (never a
  // separate index), so the two are always exactly phase-aligned -- no
  // extra synchronization logic needed anywhere else.
- s.history[(size_t)s.histPos]=x; s.scHistory[(size_t)s.histPos]=scX; s.histPos=(s.histPos+1)%fftSize; float tf=s.trans.process(x,params.transient); ++s.t;
+ s.history[(size_t)s.histPos]=x; s.scHistory[(size_t)s.histPos]=scX; s.histPos=(s.histPos+1)%fftSize; ++s.t;
  bool frameDue = (warmupMode==WarmupMode::LeftPad) ? (s.t>0 && (s.t%hop)==0) : (s.t>=fftSize && (s.t%hop)==0);
- if(frameDue) frame(s,tf,channelIndex); return y; }
-void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(int k=0;k<fftSize;++k){int idx=(s.histPos+k)%fftSize;s.fftData[(size_t)k]=s.history[(size_t)idx]*window[(size_t)k];} std::fill(s.fftData.begin()+fftSize,s.fftData.end(),0); fft->performRealOnlyForwardTransform(s.fftData.data());
+ if(frameDue) frame(s,channelIndex); return y; }
+void SpectralEngine::frame(Chan& s,int channelIndex){ for(int k=0;k<fftSize;++k){int idx=(s.histPos+k)%fftSize;s.fftData[(size_t)k]=s.history[(size_t)idx]*window[(size_t)k];} std::fill(s.fftData.begin()+fftSize,s.fftData.end(),0); fft->performRealOnlyForwardTransform(s.fftData.data());
  for(int i=0;i<=fftSize/2;++i){float re=s.fftData[(size_t)2*i],im=(i==0||i==fftSize/2)?0.0f:s.fftData[(size_t)2*i+1];s.magDb[(size_t)i]=juce::Decibels::gainToDecibels(std::sqrt(re*re+im*im)/(float)fftSize+1e-12f,-120.0f);}
  // Sonic Alpha V2 gain mask (PHYSICAL C/D-driven) -- REPLACES
  // ResonanceDetector::compute() as what fills s.reduction. Extracts this
@@ -63,7 +63,12 @@ void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(
  const float* detectorHop = useSidechain ? s.scHopScratch.data() : s.hopScratch.data();
  s.mask.setParams(params.depth,params.selectivity,params.attackMs,params.releaseMs,params.lowEnabled?params.lowHz:0.0f,params.highEnabled?params.highHz:1.0e9f);
  s.mask.setDetail(params.detail);
+ s.mask.setSharpness(params.sharpness);
  s.mask.setMaxReduction(params.maxReductionEnabled,params.maxReductionDb);
+ // TRANSIENT: now drives PHYSICAL D's own transientProtection AUTHORITY
+ // directly (see GainMaskEngine::setTransientAmount()) -- V1's
+ // TransientGuard is gone, its output was already provably unused.
+ s.mask.setTransientAmount(params.transient);
  // White Sensitivity Curve -- same band arrays the UI curve already reads/
  // draws (params.bandFreq/.../bandActive), now also modulating local action
  // authority inside GainMaskEngine (see setSensitivityCurve()).
@@ -72,7 +77,6 @@ void SpectralEngine::frame(Chan& s,float transientFactor,int channelIndex){ for(
  // never touched by the sidechain path) -- only the detection INPUT above
  // changes with detectorSource. No sidechain sample ever reaches the output.
  s.mask.process(detectorMagDb,detectorHop,hop,s.reduction);
- (void) transientFactor; // V1's TransientGuard-derived scalar is superseded by PHYSICAL D's own per-band transientProtection inside GainMaskEngine; s.trans itself is left running (unused for gain) rather than removed, see header comment.
  int frameIdx = channelIndex>=0 && channelIndex<(int)frameCountPerChan.size() ? frameCountPerChan[(size_t)channelIndex]++ : -1;
  // Testing-only mask override (never engaged unless the harness explicitly sets it).
  if(maskOverride!=MaskOverride::None && frameIdx>=0 && frameIdx<maskOverrideFrameLimit){
