@@ -41,11 +41,20 @@ Name: "brazilianportuguese"; MessagesFile: "compiler:Languages\BrazilianPortugue
 ; installed recursively as-is into the standard 64-bit Common Files\VST3
 ; location every VST3 host (REAPER included) scans by default.
 Source: "{#MyVST3Source}\*"; DestDir: "{commoncf64}\VST3\NF Resonance.vst3"; Flags: ignoreversion recursesubdirs createallsubdirs
-; Manuals -- copied into {app} (not the plugin's own runtime folder, since
-; a VST3 on Windows has no writable per-user "Manual" lookup path the way
-; the macOS bundle does); also placed in the Start Menu group.
+; Manuals -- copied to TWO places:
+; 1) {app}\Manuals, for the Start Menu shortcuts below.
+; 2) {userappdata}\NF Audio Tools\NF Resonance\Manual, the SAME per-user
+;    folder (PresetManager::presetsRootFolder()'s parent -> "Manual") the
+;    plugin's own in-app hamburger-menu "Manual (English)"/"Manual
+;    (Portugues)" items look in -- juce::File::userApplicationDataDirectory
+;    resolves to %APPDATA% on Windows, exactly like {userappdata} here, so
+;    this is the identical lookup the macOS installer's postinstall script
+;    performs, just via Inno Setup's own [Files] mechanism instead of a
+;    script.
 Source: "{#MyManualsSource}\NF_Resonance_Manual_EN_V1.0.pdf"; DestDir: "{app}\Manuals"; Flags: ignoreversion
 Source: "{#MyManualsSource}\NF_Resonance_Manual_PT_V1.0.pdf"; DestDir: "{app}\Manuals"; Flags: ignoreversion
+Source: "{#MyManualsSource}\NF_Resonance_Manual_EN_V1.0.pdf"; DestDir: "{userappdata}\NF Audio Tools\NF Resonance\Manual"; Flags: ignoreversion
+Source: "{#MyManualsSource}\NF_Resonance_Manual_PT_V1.0.pdf"; DestDir: "{userappdata}\NF Audio Tools\NF Resonance\Manual"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\NF Resonance Manual (EN)"; Filename: "{app}\Manuals\NF_Resonance_Manual_EN_V1.0.pdf"

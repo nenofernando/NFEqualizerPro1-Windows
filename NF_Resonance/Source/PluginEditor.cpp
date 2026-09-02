@@ -193,12 +193,20 @@ void NFResonanceAudioProcessorEditor::resized(){
  curve.setBounds(spectrum.getX() + (int) plot.getX(), spectrum.getY() + (int) plot.getY(), (int) plot.getWidth(), (int) plot.getHeight());
 }
 
-juce::File NFResonanceAudioProcessorEditor::manualFile()
+// Same per-user "Manual" folder both installers (macOS .pkg postinstall,
+// Windows Inno Setup) place the manuals into -- this is the SAME
+// juce::File::userApplicationDataDirectory-based path on every platform
+// (~/Library/Application Support/... on macOS, %APPDATA%\... on Windows),
+// so this one implementation covers both without any #if. Checked for
+// existence before ever being offered as clickable (see showMainMenu()) --
+// a menu item never appears for a manual that isn't actually installed.
+juce::File NFResonanceAudioProcessorEditor::manualFileEN()
 {
-    // Architecture prepared for a real manual, but no fake path -- checked
-    // for existence before ever being offered as clickable (see
-    // showMainMenu()). Once a manual ships with the product, it lands here.
-    return PresetManager::presetsRootFolder().getParentDirectory().getChildFile("Manual").getChildFile("NF Resonance Manual.pdf");
+    return PresetManager::presetsRootFolder().getParentDirectory().getChildFile("Manual").getChildFile("NF_Resonance_Manual_EN_V1.0.pdf");
+}
+juce::File NFResonanceAudioProcessorEditor::manualFilePT()
+{
+    return PresetManager::presetsRootFolder().getParentDirectory().getChildFile("Manual").getChildFile("NF_Resonance_Manual_PT_V1.0.pdf");
 }
 
 void NFResonanceAudioProcessorEditor::showPresetMenu()
@@ -295,14 +303,17 @@ void NFResonanceAudioProcessorEditor::promptSaveAs()
 void NFResonanceAudioProcessorEditor::showMainMenu()
 {
     juce::PopupMenu menu;
-    bool manualAvailable = manualFile().existsAsFile();
-    menu.addItem(1, "Manual", manualAvailable);
+    bool enAvailable = manualFileEN().existsAsFile();
+    bool ptAvailable = manualFilePT().existsAsFile();
+    menu.addItem(5, "Manual (English)", enAvailable);
+    menu.addItem(6, "Manual (Portugues)", ptAvailable);
     menu.addItem(2, "About NF Resonance");
     menu.addItem(3, "Reset to Default");
     menu.addItem(4, "Open Preset Folder");
     menu.showMenuAsync(juce::PopupMenu::Options(), [this](int result)
     {
-        if (result == 1) { manualFile().startAsProcess(); }
+        if (result == 5) { manualFileEN().startAsProcess(); }
+        else if (result == 6) { manualFilePT().startAsProcess(); }
         else if (result == 2)
         {
             juce::AlertWindow::showMessageBoxAsync(juce::AlertWindow::NoIcon, "About NF Resonance",

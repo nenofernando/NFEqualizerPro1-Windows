@@ -82,7 +82,8 @@ private:
     void showPresetMenu();
     void showMainMenu();
     void promptSaveAs();
-    static juce::File manualFile();
+    static juce::File manualFileEN();
+    static juce::File manualFilePT();
     NFResonanceAudioProcessor&p;
     NFLookAndFeel lf;
     SpectrumComponent spectrum;
