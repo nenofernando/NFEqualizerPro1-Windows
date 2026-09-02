@@ -35,7 +35,29 @@ void NFResonanceAudioProcessorEditor::timerCallback(){
  rangeLight.repaint(); // reflects lowEnabled/highEnabled -- same 15Hz poll, no separate Timer
 }
 NFResonanceAudioProcessorEditor::~NFResonanceAudioProcessorEditor(){setLookAndFeel(nullptr);}void NFResonanceAudioProcessorEditor::setup(juce::Slider&s,const char*id,const char*){s.setSliderStyle(juce::Slider::RotaryHorizontalVerticalDrag);s.setTextBoxStyle(juce::Slider::TextBoxBelow,false,68,18);addAndMakeVisible(s);sa.push_back(std::make_unique<juce::AudioProcessorValueTreeState::SliderAttachment>(p.state(),id,s));}
-void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Colour(0xff090d13));g.setColour(juce::Colour(0xffeaf4ff));g.setFont(30);g.drawText("NF",20,12,48,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff00afff));g.drawText("Resonance",68,12,190,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff708090));g.setFont(11);g.drawText("DYNAMIC RESONANCE SUPPRESSOR",22,45,260,18,juce::Justification::centredLeft);
+void NFResonanceAudioProcessorEditor::paint(juce::Graphics&g){g.fillAll(juce::Colour(0xff090d13));g.setColour(juce::Colour(0xffeaf4ff));g.setFont(30);g.drawText("NF",20,12,48,36,juce::Justification::centredLeft);g.setColour(juce::Colour(0xff00afff));g.drawText("Resonance",68,12,190,36,juce::Justification::centredLeft);
+ // Subtitle: same font/weight/colour/vertical position as before, just
+ // ~13.6% larger (11->12.5, inside the requested 10-15% range) and
+ // horizontally re-centred under the FULL "NF Resonance" title's own
+ // rendered width (not just left-edge aligned as it was) -- computed from
+ // each word's actual glyph width at the title's own font size, since
+ // "Resonance"'s drawText box (190px) is wider than its real rendered
+ // text. "NF"/"Resonance" themselves (size, colour, position, gap) are
+ // completely untouched above.
+ {
+     const juce::Font titleFont{juce::FontOptions(30.0f)};
+     const float nfX = 20.0f, resonanceX = 68.0f;
+     const float titleLeft = nfX;
+     const float titleRight = resonanceX + juce::GlyphArrangement::getStringWidth(titleFont, "Resonance");
+     const float titleCenterX = (titleLeft + titleRight) * 0.5f;
+     const float subtitleFontSize = 12.5f;
+     const juce::String subtitleText("DYNAMIC RESONANCE SUPPRESSOR");
+     const juce::Font subtitleFont{juce::FontOptions(subtitleFontSize)};
+     const float subtitleW = juce::GlyphArrangement::getStringWidth(subtitleFont, subtitleText);
+     g.setColour(juce::Colour(0xff708090));
+     g.setFont(subtitleFontSize);
+     g.drawText(subtitleText, (int) std::round(titleCenterX - subtitleW * 0.5f), 45, (int) std::round(subtitleW) + 1, 18, juce::Justification::centred);
+ }
  // 0.1g typography/spacing polish: captions now sit in a real label ROW
  // ABOVE each knob (own dedicated vertical space carved out in resized()),
  // not overlaid on the knob face -- with a 3-tier hierarchy: DEPTH/MIX/OUTPUT
