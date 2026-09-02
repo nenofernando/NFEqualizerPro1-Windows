@@ -6,7 +6,11 @@
 #define MyAppName "NF Resonance"
 #define MyAppVersion "1.0.0"
 #define MyAppPublisher "NF Audio Tools - By Nenno Fernando"
-#define MyVST3Source "..\..\build\NFResonance_artefacts\Release\VST3\NF Resonance.vst3"
+; NFResonance.iss lives at NF_Resonance\installer\windows\ ; the CI workflow
+; configures CMake with -B build at the WORKSPACE ROOT (a sibling of
+; NF_Resonance, not inside it) -- so reaching it needs three levels up
+; (windows -> installer -> NF_Resonance -> workspace root), not two.
+#define MyVST3Source "..\..\..\build\NFResonance_artefacts\Release\VST3\NF Resonance.vst3"
 #define MyManualsSource "..\..\Documentation\Manuals"
 
 [Setup]
