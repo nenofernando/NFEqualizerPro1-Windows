@@ -191,7 +191,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout NFResonanceAudioProcessor::m
     p.push_back(std::make_unique<juce::AudioParameterChoice>("mode","Mode",juce::StringArray{"Stereo","L/R","Mid/Side"},0));
     p.push_back(std::make_unique<juce::AudioParameterBool>("delta","Delta",false));
     p.push_back(std::make_unique<juce::AudioParameterBool>("bypass","Bypass",false));
-    p.push_back(std::make_unique<juce::AudioParameterChoice>("quality","Quality",juce::StringArray{"Eco","Balanced","High"},1));
     // EXTERNAL SIDECHAIN (Etapa 1): which spectral content feeds the
     // detector (PHYSICAL C/D/ConfidenceEngine/GainMaskEngine's own
     // detection stage). INTERNAL (default) = the main signal, exactly
@@ -291,8 +290,8 @@ void NFResonanceAudioProcessor::processBlock(juce::AudioBuffer<float>& b, juce::
             // level even at bypassMix==1 (fully bypassed), which is exactly
             // the bug: bypass must be dry, latency-aligned, and completely
             // deaf to Output/Depth/Sharpness/Selectivity/Attack/Release/Mix/
-            // Quality/bands/LOW-HIGH -- all of which only ever reach
-            // `processed`, never `dry`.
+            // bands/LOW-HIGH -- all of which only ever reach `processed`,
+            // never `dry`.
             float y = dry.getSample(c,i)*bypassMix + processed*out*(1.0f-bypassMix);
             b.setSample(c,i,y);
         }
