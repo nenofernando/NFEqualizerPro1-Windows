@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "DSP/NFEqualizerDSP.h"
 #include "PresetManager.h"
+#include "License/NFLicenseManager.h"
 
 class NFEqualizerAudioProcessor : public juce::AudioProcessor
 {
@@ -40,6 +41,7 @@ public:
 
     juce::AudioProcessorValueTreeState apvts;
     PresetManager presetManager { apvts };
+    NFLicenseManager licenseManager { "NF_PRO_EQ" };
 
     float getInputLevelL() const { return dsp.getInputLevelL(); }
     float getInputLevelR() const { return dsp.getInputLevelR(); }

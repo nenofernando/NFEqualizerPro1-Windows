@@ -65,6 +65,7 @@ target_link_libraries(NFEqualizer PRIVATE
     juce::juce_audio_utils
     juce::juce_dsp
     juce::juce_gui_extra
+    juce::juce_cryptography
 )
 
 if(APPLE)

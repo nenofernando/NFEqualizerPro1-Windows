@@ -2,6 +2,7 @@
 #include <JuceHeader.h>
 #include "PluginProcessor.h"
 #include "UI/NFEqualizerPanel.h"
+#include "License/LicenseActivationComponent.h"
 
 // Thin host window: keeps the panel laid out at a fixed design resolution
 // and scales it as a whole to fill whatever size the host gives us, so
@@ -19,6 +20,7 @@ public:
 
 private:
     NFEqualizerPanel panel;
+    LicenseActivationComponent licenseOverlay;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(
         NFEqualizerAudioProcessorEditor)

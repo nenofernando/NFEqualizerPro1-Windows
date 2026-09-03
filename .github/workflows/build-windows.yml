@@ -42,3 +42,16 @@ jobs:
         with:
           name: NF-Equalizer-Pro-1-Windows-Installer
           path: installer/*.exe
+
+      - name: Publish installer to nf-releases (depósito privado)
+        env:
+          GH_TOKEN: ${{ secrets.NF_RELEASES_TOKEN }}
+        shell: bash
+        run: |
+          gh release view pro-eq --repo creativepfb/nf-releases >/dev/null 2>&1 || \
+            gh release create pro-eq --repo creativepfb/nf-releases \
+              --title "NF Pro Eq" \
+              --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
+          gh release upload pro-eq \
+            "installer/pro-eq-windows-setup.exe" \
+            --repo creativepfb/nf-releases --clobber

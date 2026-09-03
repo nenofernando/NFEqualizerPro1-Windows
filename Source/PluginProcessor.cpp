@@ -161,6 +161,10 @@ void NFEqualizerAudioProcessor::processBlock(
     if (get("bypass") > 0.5f)
     {
         dsp.processBypassed(buffer);
+
+        if (! licenseManager.isActivated())
+            buffer.clear();
+
         return;
     }
 
@@ -176,6 +180,12 @@ void NFEqualizerAudioProcessor::processBlock(
         get("highEnabled") > 0.5f, get("characterEnabled") > 0.5f);
 
     dsp.process(buffer);
+
+    // NF License System: sem licença ativada, o plugin continua rodando de
+    // verdade por dentro (GUI, medidores - dá pra ver ele funcionando), só
+    // o ÁUDIO final fica mudo. Fica depois de tudo de propósito.
+    if (! licenseManager.isActivated())
+        buffer.clear();
 }
 
 void NFEqualizerAudioProcessor::getStateInformation(

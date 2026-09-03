@@ -1,0 +1,84 @@
+name: Build macOS Installer
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+
+jobs:
+  build-macos:
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout plugin source
+        uses: actions/checkout@v4
+
+      - name: Checkout JUCE
+        uses: actions/checkout@v4
+        with:
+          repository: juce-framework/JUCE
+          ref: 9.0.1
+          path: JUCE
+
+      - name: Configure CMake
+        run: cmake -B build -DJUCE_DIR="${{ github.workspace }}/JUCE" -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build VST3 + AU + Standalone
+        run: |
+          cmake --build build --config Release --target NFEqualizer_VST3
+          cmake --build build --config Release --target NFEqualizer_AU
+          cmake --build build --config Release --target NFEqualizer_Standalone
+
+      # Sem certificado Developer ID por enquanto: assinatura ad-hoc só pra
+      # garantir bundles válidos (o macOS ainda vai pedir "abrir mesmo assim"
+      # no Gatekeeper até termos assinatura + notarização de verdade).
+      - name: Ad-hoc codesign bundles
+        run: |
+          codesign --force --deep --sign - "build/NFEqualizer_artefacts/Release/VST3/NF Pro Eq.vst3"
+          codesign --force --deep --sign - "build/NFEqualizer_artefacts/Release/AU/NF Pro Eq.component"
+          codesign --force --deep --sign - "build/NFEqualizer_artefacts/Release/Standalone/NF Pro Eq.app"
+
+      - name: Stage installer payload
+        run: |
+          mkdir -p staging/Library/Audio/Plug-Ins/VST3/NF\ Plugins
+          mkdir -p staging/Library/Audio/Plug-Ins/Components
+          mkdir -p staging/Applications/NF\ Plugins
+
+          cp -R "build/NFEqualizer_artefacts/Release/VST3/NF Pro Eq.vst3" \
+                "staging/Library/Audio/Plug-Ins/VST3/NF Plugins/NF Pro Eq.vst3"
+          cp -R "build/NFEqualizer_artefacts/Release/AU/NF Pro Eq.component" \
+                "staging/Library/Audio/Plug-Ins/Components/NF Pro Eq.component"
+          cp -R "build/NFEqualizer_artefacts/Release/Standalone/NF Pro Eq.app" \
+                "staging/Applications/NF Plugins/NF Pro Eq.app"
+
+      - name: Build .pkg
+        run: |
+          pkgbuild --root staging \
+                   --identifier com.nfaudio.nfequalizer.pkg \
+                   --version 2.0.0 \
+                   --install-location / \
+                   "NF Pro Eq.pkg"
+
+      - name: Wrap .pkg into .dmg
+        run: |
+          mkdir dmg-root
+          mv "NF Pro Eq.pkg" dmg-root/
+          hdiutil create -volname "NF Pro Eq" -srcfolder dmg-root -ov -format UDZO pro-eq-macos.dmg
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: NF-Pro-Eq-macOS-Installer
+          path: pro-eq-macos.dmg
+
+      - name: Publish installer to nf-releases (depósito privado)
+        env:
+          GH_TOKEN: ${{ secrets.NF_RELEASES_TOKEN }}
+        run: |
+          gh release view pro-eq --repo creativepfb/nf-releases >/dev/null 2>&1 || \
+            gh release create pro-eq --repo creativepfb/nf-releases \
+              --title "NF Pro Eq" \
+              --notes "Instaladores publicados automaticamente pelo CI - sempre a versao mais recente."
+          gh release upload pro-eq \
+            "pro-eq-macos.dmg" \
+            --repo creativepfb/nf-releases --clobber
