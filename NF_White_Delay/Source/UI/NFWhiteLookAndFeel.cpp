@@ -5,8 +5,8 @@
 // cinza/prata/preto) com azul neon como acento -- display, glow de
 // estado ligado, e (desde a FASE 7.2, pra bater com a referência
 // visual oficial) também o arco de VALOR dos knobs.
-const juce::Colour NFWhiteLookAndFeel::kBackground        { 0xfff7f8fa };
-const juce::Colour NFWhiteLookAndFeel::kPanelBackground   { 0xffeceef1 };
+const juce::Colour NFWhiteLookAndFeel::kBackground        { 0xffe9eaeb }; // branco gelo -- chassi e escudos usam exatamente este tom
+const juce::Colour NFWhiteLookAndFeel::kPanelBackground   { 0xfff7f8fa }; // mesma cor do chassi (pedido: painéis "escudo" iguais ao chassi)
 const juce::Colour NFWhiteLookAndFeel::kDisplayBackground { 0xff05070f }; // preto/navy bem profundo (FASE 7.4)
 const juce::Colour NFWhiteLookAndFeel::kDisplayBackgroundEdge { 0xff101c33 }; // navy mais presente nas bordas
 const juce::Colour NFWhiteLookAndFeel::kDisplayText       { 0xffeaf6ff };
@@ -77,75 +77,78 @@ void NFWhiteLookAndFeel::drawRotarySlider(juce::Graphics& g, int x, int y, int w
     const float knobRadius = knobDiameter * 0.5f;
     auto knobRect = juce::Rectangle<float>(knobDiameter, knobDiameter).withCentre(centre);
 
-    // Soft elliptical ground shadow (reference: soft drop under the knob).
+    // Soft ground shadow — várias elipses concêntricas com alpha
+    // decrescente (blur "manual"), em vez de um preenchimento único e
+    // chapado que lia como uma mancha cinza dura debaixo do knob.
     {
-        auto shadowEllipse = juce::Rectangle<float>(knobDiameter * 1.05f, knobDiameter * 0.26f)
-                                 .withCentre({ centre.x, centre.y + knobRadius * 0.92f });
-        juce::ColourGradient shadowGrad(juce::Colours::black.withAlpha(0.22f),
-                                         centre.x, shadowEllipse.getY(),
-                                         juce::Colours::transparentBlack,
-                                         centre.x, shadowEllipse.getBottom(), false);
-        g.setGradientFill(shadowGrad);
-        g.fillEllipse(shadowEllipse);
+        const auto shadowCentre = juce::Point<float>(centre.x, centre.y + knobRadius * 0.86f);
+        for (int i = 5; i >= 1; --i)
+        {
+            const float t = (float) i / 5.0f;
+            auto shadowEllipse = juce::Rectangle<float>(knobDiameter * (0.62f + 0.30f * t),
+                                                          knobDiameter * (0.10f + 0.10f * t))
+                                     .withCentre(shadowCentre);
+            g.setColour(juce::Colours::black.withAlpha(0.045f * t));
+            g.fillEllipse(shadowEllipse);
+        }
     }
 
-    constexpr int numTicks = 11;
-    const float tickOuter = radius * 0.995f;
-    g.setColour(kKnobOutline.darker(0.22f).withAlpha(0.85f));
-    for (int i = 0; i < numTicks; ++i)
-    {
-        const float t = (float) i / (float) (numTicks - 1);
-        const float tickAngle = rotaryStartAngle + t * (rotaryEndAngle - rotaryStartAngle);
-        const bool major = (i % 5 == 0);
-        const float tickInner = radius * (major ? 0.900f : 0.935f);
-        g.drawLine({ centre.getPointOnCircumference(tickInner, tickAngle),
-                     centre.getPointOnCircumference(tickOuter, tickAngle) },
-                   major ? 1.55f : 1.00f);
-    }
+    // Anel tubular 3D (referência aprovada): um "cabo" grosso com volume
+    // real -- corpo + realce especular no topo + glow externo azul --
+    // em vez de LEDs segmentados ou tracinhos finos. Flutua fora do
+    // corpo do knob, com folga, igual à referência.
+    // Raio/espessura calibrados pra o glow (a camada mais externa, abaixo)
+    // ficar DENTRO do raio do componente -- esse slider não tem margem
+    // extra reservada, então o que passar do raio é cortado pelo JUCE
+    // (recorte reto na borda quadrada do componente, não circular).
+    const float ringRadius = radius * 0.88f;
+    const float ringThickness = juce::jmax(5.0f, radius * 0.130f);
 
-    // Official knob refs: segmented neon LED arc + dark inactive track.
-    const float trackRadius = knobRadius * 1.045f;
-    const float trackThickness = juce::jmax(2.8f, knobRadius * 0.105f);
-    constexpr int numLedSegments = 28;
-    const float span = rotaryEndAngle - rotaryStartAngle;
-    const float segSpan = span / (float) numLedSegments;
-    const float gap = segSpan * 0.18f;
-    const int litSegments = juce::jlimit(0, numLedSegments,
-        (int) std::ceil(sliderPosProportional * (float) numLedSegments));
-
-    for (int i = 0; i < numLedSegments; ++i)
+    auto drawTube = [&] (float a0, float a1, juce::Colour body, juce::Colour highlight,
+                          juce::Colour shadow, float glowAlpha)
     {
-        const float a0 = rotaryStartAngle + (float) i * segSpan + gap * 0.5f;
-        const float a1 = rotaryStartAngle + (float) (i + 1) * segSpan - gap * 0.5f;
         if (a1 <= a0)
-            continue;
+            return;
 
-        juce::Path seg;
-        seg.addCentredArc(centre.x, centre.y, trackRadius, trackRadius, 0.0f, a0, a1, true);
+        juce::Path arc;
+        arc.addCentredArc(centre.x, centre.y, ringRadius, ringRadius, 0.0f, a0, a1, true);
+        const auto stroke = [&] (float thicknessScale, juce::Colour c)
+        {
+            g.setColour(c);
+            g.strokePath(arc, juce::PathStrokeType(ringThickness * thicknessScale,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+        };
+        const auto strokeGrad = [&] (float thicknessScale, juce::Colour top, juce::Colour bottom)
+        {
+            juce::ColourGradient grad(top, centre.x, centre.y - ringRadius,
+                                       bottom, centre.x, centre.y + ringRadius, false);
+            g.setGradientFill(grad);
+            g.strokePath(arc, juce::PathStrokeType(ringThickness * thicknessScale,
+                                                    juce::PathStrokeType::curved,
+                                                    juce::PathStrokeType::rounded));
+        };
 
-        if (i < litSegments)
-        {
-            g.setColour(kNeonGlow.withAlpha(0.22f));
-            g.strokePath(seg, juce::PathStrokeType(trackThickness + 3.2f,
-                                                    juce::PathStrokeType::curved,
-                                                    juce::PathStrokeType::rounded));
-            g.setColour(kDisplayAccent.withAlpha(0.95f));
-            g.strokePath(seg, juce::PathStrokeType(trackThickness,
-                                                    juce::PathStrokeType::curved,
-                                                    juce::PathStrokeType::rounded));
-            g.setColour(kKnobValueArcCore.withAlpha(0.95f));
-            g.strokePath(seg, juce::PathStrokeType(trackThickness * 0.35f,
-                                                    juce::PathStrokeType::curved,
-                                                    juce::PathStrokeType::rounded));
-        }
-        else
-        {
-            g.setColour(juce::Colour(0xff2a3038).withAlpha(0.55f));
-            g.strokePath(seg, juce::PathStrokeType(trackThickness * 0.72f,
-                                                    juce::PathStrokeType::curved,
-                                                    juce::PathStrokeType::rounded));
-        }
-    }
+        if (glowAlpha > 0.0f)
+            stroke(1.5f, body.withAlpha(glowAlpha));
+        strokeGrad(1.0f, shadow.brighter(0.20f), shadow.darker(0.25f)); // corpo cilíndrico -- gradiente, não chapado
+        stroke(0.66f, body);             // núcleo de cor
+        stroke(0.24f, highlight);        // realce especular no topo do tubo
+    };
+
+    // Trilho inativo -- tubo metálico cinza, com gradiente de luz real
+    // (mais claro no topo, mais escuro embaixo) pra ler como cromo, não
+    // como cinza chapado.
+    drawTube(rotaryStartAngle, rotaryEndAngle,
+             juce::Colour(0xffbbbdc3), juce::Colours::white.withAlpha(0.75f),
+             juce::Colour(0xff6a6c74), 0.0f);
+
+    // Trecho ativo -- tubo azul neon com glow externo (item pedido:
+    // "contorno azul neon, mais 3D e realista").
+    if (sliderPosProportional > 0.004f)
+        drawTube(rotaryStartAngle, angle,
+                 kDisplayAccent, juce::Colours::white.withAlpha(1.0f),
+                 kAccent.darker(0.30f), 0.32f);
 
     const auto* data = useLarge ? BinaryData::knob_large_png : BinaryData::knob_small_png;
     const int dataSize = useLarge ? BinaryData::knob_large_pngSize : BinaryData::knob_small_pngSize;
@@ -400,10 +403,10 @@ juce::Font NFWhiteLookAndFeel::getLabelFont(juce::Label& label)
 
 juce::Font NFWhiteLookAndFeel::getComboBoxFont(juce::ComboBox& box)
 {
-    return juce::FontOptions(juce::jmin(12.5f, (float) box.getHeight() * 0.55f));
+    return juce::FontOptions(juce::jmin(15.0f, (float) box.getHeight() * 0.40f));
 }
 
 juce::Font NFWhiteLookAndFeel::getTextButtonFont(juce::TextButton&, int buttonHeight)
 {
-    return juce::FontOptions(juce::jmin(12.0f, (float) buttonHeight * 0.4f));
+    return juce::FontOptions(juce::jmin(17.0f, (float) buttonHeight * 0.32f), juce::Font::bold);
 }

@@ -91,6 +91,15 @@ void NFWhiteDelayAudioProcessorEditor::NfLogoBadge::paint(juce::Graphics& g)
         g.setOpacity(1.0f);
         g.drawImage(badge, bounds.reduced(0.5f),
                      juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
+
+        // Contorno reforçado -- traço fino escuro + filete claro por
+        // dentro, mesma linguagem de moldura do resto do gabinete (pedido:
+        // "melhorando o contorno" do selo NF).
+        const float corner = bounds.getWidth() * 0.22f;
+        g.setColour(juce::Colour(0xff2a2c31).withAlpha(0.55f));
+        g.drawRoundedRectangle(bounds.reduced(0.6f), corner, 1.1f);
+        g.setColour(juce::Colours::white.withAlpha(0.38f));
+        g.drawRoundedRectangle(bounds.reduced(1.8f), corner - 1.0f, 0.8f);
         return;
     }
 
@@ -108,39 +117,12 @@ namespace
         auto floor = bay.reduced(lip);
         const float floorCorner = juce::jmax(4.0f, corner - lip * 0.65f);
 
-        // Raised lip body (chassis metal).
-        {
-            juce::ColourGradient lipGrad(LNF::kBackground.brighter(0.04f), bay.getCentreX(), bay.getY(),
-                                         LNF::kBackground.darker(0.03f), bay.getCentreX(), bay.getBottom(), false);
-            g.setGradientFill(lipGrad);
-            g.fillRoundedRectangle(bay, corner);
-        }
-
-        // Recessed floor.
-        {
-            juce::ColourGradient floorGrad(LNF::kBackground.darker(0.055f), floor.getCentreX(), floor.getY(),
-                                           LNF::kBackground.darker(0.085f), floor.getCentreX(), floor.getBottom(), false);
-            g.setGradientFill(floorGrad);
-            g.fillRoundedRectangle(floor, floorCorner);
-        }
-
-        // Inner shade (top / sides of the recess).
-        {
-            juce::ColourGradient topShade(juce::Colours::black.withAlpha(0.14f), floor.getCentreX(), floor.getY(),
-                                          juce::Colours::transparentBlack, floor.getCentreX(), floor.getY() + floor.getHeight() * 0.35f, false);
-            g.setGradientFill(topShade);
-            g.fillRoundedRectangle(floor, floorCorner);
-
-            juce::ColourGradient leftShade(juce::Colours::black.withAlpha(0.08f), floor.getX(), floor.getCentreY(),
-                                            juce::Colours::transparentBlack, floor.getX() + lip * 1.4f, floor.getCentreY(), false);
-            g.setGradientFill(leftShade);
-            g.fillRoundedRectangle(floor, floorCorner);
-
-            juce::ColourGradient rightShade(juce::Colours::black.withAlpha(0.08f), floor.getRight(), floor.getCentreY(),
-                                             juce::Colours::transparentBlack, floor.getRight() - lip * 1.4f, floor.getCentreY(), false);
-            g.setGradientFill(rightShade);
-            g.fillRoundedRectangle(floor, floorCorner);
-        }
+        // Raised lip body + recessed floor -- pedido: mesma cor do chassi,
+        // chapada, sem gradiente/sombra; só o traço da moldura (abaixo)
+        // marca o encaixe.
+        g.setColour(LNF::kBackground);
+        g.fillRoundedRectangle(bay, corner);
+        g.fillRoundedRectangle(floor, floorCorner);
 
         // Lip outer edge (Etapa 2 -- traço fino e escuro, mesma família
         // visual do chassi/display/painéis, no lugar do bisel grosso).
@@ -170,24 +152,11 @@ void NFWhiteDelayAudioProcessorEditor::SectionPanel::paint(juce::Graphics& g)
     const bool isButtonWell = title.isEmpty();
     const float corner = isButtonWell ? 9.0f : 10.0f;
 
-    // Insert plate seated in the chassis bay — clear metal border.
-    const auto face = isButtonWell ? LNF::kBackground.darker(0.015f)
-                                   : LNF::kPanelBackground.brighter(0.02f);
-
-    {
-        juce::ColourGradient fill(face.brighter(0.04f), bounds.getCentreX(), bounds.getY(),
-                                  face.darker(0.03f), bounds.getCentreX(), bounds.getBottom(), false);
-        g.setGradientFill(fill);
-        g.fillRoundedRectangle(bounds, corner);
-    }
-
-    {
-        auto top = bounds.reduced(1.0f).withHeight(juce::jmax(8.0f, bounds.getHeight() * 0.22f));
-        juce::ColourGradient shade(juce::Colours::black.withAlpha(0.05f), top.getCentreX(), top.getY(),
-                                    juce::Colours::transparentBlack, top.getCentreX(), top.getBottom(), false);
-        g.setGradientFill(shade);
-        g.fillRoundedRectangle(bounds.reduced(1.0f), corner - 1.0f);
-    }
+    // Insert plate seated in the chassis bay — pedido: "escudo" com a
+    // MESMA cor do chassi, chapada, sem gradiente -- só a moldura abaixo
+    // marca onde a peça se encaixa.
+    g.setColour(LNF::kBackground);
+    g.fillRoundedRectangle(bounds, corner);
 
     // Etapa 2 -- moldura fina e elegante (mesma família visual do chassi/
     // display), no lugar do bisel cromado grosso de 4 camadas.
@@ -624,10 +593,17 @@ void NFWhiteDelayAudioProcessorEditor::MenuIconButton::paintButton(juce::Graphic
 void NFWhiteDelayAudioProcessorEditor::BypassButton::paintButton(juce::Graphics& g, bool isMouseOverButton, bool isButtonDown)
 {
     // Official assets: bypass_on (neon+glyph) when processing; silver shell when bypassed.
-    auto bounds = getLocalBounds().toFloat();
+    // Margem interna pro glow caber dentro dos limites do componente (ver
+    // nota em PowerButton::paint -- mesmo motivo, mesma técnica).
+    constexpr float glowMargin = 12.0f;
+    auto bounds = getLocalBounds().toFloat().reduced(glowMargin);
     const bool bypassed = getToggleState();
-    const auto* data = bypassed ? BinaryData::bypass_off_png : BinaryData::bypass_on_png;
-    const int dataSize = bypassed ? BinaryData::bypass_off_pngSize : BinaryData::bypass_on_pngSize;
+    // bypass_off.png tem "PING PONG" gravado por engano (asset errado) --
+    // usa o shell prateado em branco (button_off.png, mesmo da família
+    // PING PONG/LO-FI/ANALOG/TAPE) e desenha o rótulo "BYPASS" por cima,
+    // sem duplicar/sobrepor texto.
+    const auto* data = bypassed ? BinaryData::button_off_png : BinaryData::bypass_on_png;
+    const int dataSize = bypassed ? BinaryData::button_off_pngSize : BinaryData::bypass_on_pngSize;
     const auto asset = juce::ImageCache::getFromMemory(data, dataSize);
     if (! asset.isValid())
         return;
@@ -647,10 +623,10 @@ void NFWhiteDelayAudioProcessorEditor::BypassButton::paintButton(juce::Graphics&
 
     if (! bypassed)
     {
-        for (int i = 3; i >= 1; --i)
+        for (int i = 5; i >= 1; --i)
         {
-            const float expand = (float) i * 1.6f;
-            g.setColour(LNF::kNeonGlow.withAlpha(0.10f / (float) i));
+            const float expand = (float) i * 2.0f;
+            g.setColour(LNF::kNeonGlow.withAlpha(0.22f / (float) i));
             g.fillRoundedRectangle(draw.expanded(expand), corner + expand * 0.4f);
         }
     }
@@ -669,7 +645,13 @@ void NFWhiteDelayAudioProcessorEditor::BypassButton::paintButton(juce::Graphics&
 
 void NFWhiteDelayAudioProcessorEditor::PowerButton::paint(juce::Graphics& g)
 {
-    auto bounds = getLocalBounds().toFloat();
+    // Componente maior que o ícone visível (margem = glowMargin) pra o
+    // glow caber DENTRO dos próprios limites do componente -- evita tanto
+    // o corte quadrado (JUCE recorta pintura na borda do componente) quanto
+    // os artefatos de usar setPaintingIsUnclipped (pintar fora dos limites
+    // pode deixar pixels de vizinhos sem invalidar corretamente).
+    constexpr float glowMargin = 13.0f;
+    auto bounds = getLocalBounds().toFloat().reduced(glowMargin);
     const auto asset = juce::ImageCache::getFromMemory(BinaryData::power_on_png, BinaryData::power_on_pngSize);
 
     auto draw = pressed ? bounds.reduced(0.8f).translated(0.0f, 0.5f) : bounds;
@@ -685,10 +667,10 @@ void NFWhiteDelayAudioProcessorEditor::PowerButton::paint(juce::Graphics& g)
 
     if (lit)
     {
-        for (int i = 3; i >= 1; --i)
+        for (int i = 5; i >= 1; --i)
         {
-            const float expand = (float) i * 1.8f;
-            g.setColour(LNF::kNeonGlow.withAlpha(0.16f / (float) i));
+            const float expand = (float) i * 2.2f;
+            g.setColour(LNF::kNeonGlow.withAlpha(0.26f / (float) i));
             g.fillEllipse(draw.expanded(expand));
         }
     }
@@ -739,19 +721,19 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
 
     // Header hierarchy (reference): Audio Tools / WHITE DELAY / Professional Delay.
     audioToolsLabel.setText("Audio Tools", juce::dontSendNotification);
-    audioToolsLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+    audioToolsLabel.setFont(juce::FontOptions(15.5f, juce::Font::bold));
     audioToolsLabel.setColour(juce::Label::textColourId, juce::Colour(0xff3a3c44));
     audioToolsLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(audioToolsLabel);
 
     whiteDelayLabel.setText("WHITE DELAY", juce::dontSendNotification);
-    whiteDelayLabel.setFont(juce::FontOptions(32.0f, juce::Font::bold));
+    whiteDelayLabel.setFont(juce::FontOptions(37.0f, juce::Font::bold));
     whiteDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff1a1b20));
     whiteDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(whiteDelayLabel);
 
     professionalDelayLabel.setText("Professional Delay", juce::dontSendNotification);
-    professionalDelayLabel.setFont(juce::FontOptions(12.0f));
+    professionalDelayLabel.setFont(juce::FontOptions(13.5f));
     professionalDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff5a5c64));
     professionalDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(professionalDelayLabel);
@@ -783,7 +765,7 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     content.addAndMakeVisible(displayPanel);
 
     displayLine1.setJustificationType(juce::Justification::centred);
-    displayLine1.setFont(juce::FontOptions(80.0f, juce::Font::bold));
+    displayLine1.setFont(juce::FontOptions(88.0f, juce::Font::bold));
     displayLine1.setColour(juce::Label::textColourId, LNF::kDisplayText);
     displayPanel.addAndMakeVisible(displayLine1);
 
@@ -1004,18 +986,26 @@ void NFWhiteDelayAudioProcessorEditor::setupSegmented(SegmentedControl& c, const
 
 void NFWhiteDelayAudioProcessorEditor::positionRotary(RotaryControl& c, juce::Rectangle<int> area, int maxKnobSize)
 {
-    // Name directly under the knob; value chip under the name (hero + lower panels).
-    // Vertically centre the whole stack so hero columns don't leave a dead band above.
+    // O bloco (knob + nome + chip) usa sempre a altura "pretendida"
+    // (maxKnobSize + footer), não a altura real do knob depois de
+    // limitado pela largura da coluna -- assim, colunas com a mesma
+    // intenção de tamanho (ex.: as 3 do módulo, ou as 4 do hero row)
+    // ficam com nome/chip exatamente no mesmo eixo horizontal mesmo
+    // que a largura varie um pouco entre colunas (divisão inteira de
+    // pixels). O knob em si fica centralizado dentro desse bloco.
     constexpr int titleH = 18;
     constexpr int valueH = 22;
     constexpr int footerH = titleH + valueH;
-    const int maxKnob = juce::jmax(48, juce::jmin(area.getWidth() - 4, area.getHeight() - footerH));
+    const int intendedStackH = maxKnobSize + footerH;
+    auto stack = area.withSizeKeepingCentre(area.getWidth(), juce::jmin(area.getHeight(), intendedStackH));
+
+    auto footer = stack.removeFromBottom(footerH);
+    c.titleLabel.setBounds(footer.removeFromTop(titleH));
+    c.valueLabel.setBounds(footer.withSizeKeepingCentre(72, 18));
+
+    const int maxKnob = juce::jmax(48, juce::jmin(area.getWidth() - 4, stack.getHeight()));
     const int knobSize = juce::jmin(maxKnobSize, maxKnob);
-    const int stackH = knobSize + footerH;
-    auto stack = area.withSizeKeepingCentre(area.getWidth(), juce::jmin(area.getHeight(), stackH));
-    c.slider.setBounds(stack.removeFromTop(knobSize));
-    c.titleLabel.setBounds(stack.removeFromTop(titleH));
-    c.valueLabel.setBounds(stack.withSizeKeepingCentre(72, 18));
+    c.slider.setBounds(stack.withSizeKeepingCentre(knobSize, knobSize));
 }
 
 void NFWhiteDelayAudioProcessorEditor::positionToggle(ToggleControl& c, juce::Rectangle<int> area)
@@ -1025,8 +1015,8 @@ void NFWhiteDelayAudioProcessorEditor::positionToggle(ToggleControl& c, juce::Re
 
 void NFWhiteDelayAudioProcessorEditor::positionChoice(ChoiceControl& c, juce::Rectangle<int> area)
 {
-    constexpr int titleHeight = 14;
-    constexpr int boxHeight = 30;
+    constexpr int titleHeight = 16;
+    constexpr int boxHeight = 60;
     auto block = area.withSizeKeepingCentre(area.getWidth(), titleHeight + boxHeight);
     c.titleLabel.setBounds(block.removeFromTop(titleHeight));
     c.box.setBounds(block);
@@ -1061,54 +1051,54 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     constexpr int neonInsetX = 64;
 
     // ---- Header — brand + chrome vertically centred; neon stays bottom divider ----
-    auto headerBand = bounds.removeFromTop(118);
+    auto headerBand = bounds.removeFromTop(128);
     auto header = headerBand.reduced(chassisInsetX, chassisInsetY);
 
     // Right chrome — slightly larger, vertically centred in header.
-    auto bypassArea = header.removeFromRight(120);
-    bypassButton.setBounds(bypassArea.withSizeKeepingCentre(114, 36));
+    auto bypassArea = header.removeFromRight(128);
+    bypassButton.setBounds(bypassArea.withSizeKeepingCentre(146, 64)); // 122x40 visível + margem pro glow
 
     header.removeFromRight(12);
-    auto hamburgerArea = header.removeFromRight(42);
-    hamburgerButton.setBounds(hamburgerArea.withSizeKeepingCentre(36, 36));
+    auto hamburgerArea = header.removeFromRight(46);
+    hamburgerButton.setBounds(hamburgerArea.withSizeKeepingCentre(40, 40));
 
     header.removeFromRight(8);
-    auto saveArea = header.removeFromRight(42);
-    saveButton.setBounds(saveArea.withSizeKeepingCentre(36, 36));
+    auto saveArea = header.removeFromRight(46);
+    saveButton.setBounds(saveArea.withSizeKeepingCentre(40, 40));
 
     header.removeFromRight(12);
-    auto powerArea = header.removeFromRight(42);
-    powerButton.setBounds(powerArea.withSizeKeepingCentre(38, 38));
+    auto powerArea = header.removeFromRight(46);
+    powerButton.setBounds(powerArea.withSizeKeepingCentre(70, 70)); // 44 visível + margem pro glow
 
     // Brand — NF + text stack as one optically centred block in the header.
     // Etapa 1: tipografia maior (WHITE DELAY em destaque real), bloco
     // ligeiramente mais alto pra acomodar sem apertar as três linhas.
     auto brand = header.removeFromLeft(430);
-    constexpr int logoSize = 56;
-    constexpr int textStackH = 68;
-    constexpr int brandBlockH = 70;
-    constexpr int brandGap = 14;
+    constexpr int logoSize = 62;
+    constexpr int textStackH = 80;
+    constexpr int brandBlockH = 84;
+    constexpr int brandGap = 16;
     constexpr int brandContentW = logoSize + brandGap + 300;
     auto brandInner = brand.withSizeKeepingCentre(juce::jmin(brand.getWidth(), brandContentW), brandBlockH);
     auto logoCol = brandInner.removeFromLeft(logoSize);
     nfLogoLabel.setBounds(logoCol.withSizeKeepingCentre(logoSize, logoSize));
     brandInner.removeFromLeft(brandGap);
     auto textCol = brandInner.withSizeKeepingCentre(brandInner.getWidth(), textStackH);
-    audioToolsLabel.setBounds(textCol.removeFromTop(17));
+    audioToolsLabel.setBounds(textCol.removeFromTop(18));
     textCol.removeFromTop(1);
-    whiteDelayLabel.setBounds(textCol.removeFromTop(33));
+    whiteDelayLabel.setBounds(textCol.removeFromTop(40));
     textCol.removeFromTop(1);
-    professionalDelayLabel.setBounds(textCol.removeFromTop(15));
+    professionalDelayLabel.setBounds(textCol.removeFromTop(17));
 
     // Neon under header (unchanged as lower divider).
     neonBarLogical = { headerBand.getX() + neonInsetX, headerBand.getBottom() - 7,
                        headerBand.getWidth() - neonInsetX * 2, 6 };
-    powerLogical = powerArea.withSizeKeepingCentre(38, 38);
+    powerLogical = powerArea.withSizeKeepingCentre(70, 70);
 
     // ---- Avançado (rodapé) — raised inside chassis, clear of bottom lip ----
     content.chassisBays.clearQuick();
     constexpr int chassisBottomPad = 58; // lifts modules above the rounded bevel
-    constexpr int bottomModuleH = 276; // Etapa 2: +24 to fit the bigger module knobs
+    constexpr int bottomModuleH = 228; // Etapa 2: painel só do tamanho do conteúdo (título + knobs), sem sobra vazia embaixo
     auto bottomStrip = bounds.removeFromBottom(chassisBottomPad + bottomModuleH);
     bottomStrip.removeFromBottom(chassisBottomPad);
     auto bottomRow = bottomStrip.reduced(chassisInsetX, 0);
@@ -1169,15 +1159,19 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     }
 
     // ---- Controles rápidos (linha logo abaixo do centro principal) ----
-    auto quickRow = bounds.removeFromBottom(64).reduced(chassisInsetX, 6);
+    // Botões maiores e todos na MESMA altura (SYNC, DIVISION/MODIFIER,
+    // PING PONG/LO-FI, DIGITAL/ANALOG/TAPE) -- igual à referência: pills
+    // grandes com relevo 3D e contorno neon visível, não pastilhas finas.
+    auto quickRow = bounds.removeFromBottom(114).reduced(chassisInsetX, 4);
 
-    constexpr int syncW = 132, comboW = 118, pingLofiGroupW = 218, modeGroupW = 226, gapW = 14;
+    constexpr int syncW = 187, comboW = 160, pingLofiGroupW = 291, modeGroupW = 300, gapW = 14;
     const int quickTotalWidth = syncW + comboW + comboW + pingLofiGroupW + modeGroupW + gapW * 4;
     auto quickBlock = quickRow.withSizeKeepingCentre(quickTotalWidth, quickRow.getHeight());
 
-    // Etapa 1 -- SYNC ganha destaque físico (pill mais largo e mais alto
-    // que os vizinhos), igual à referência aprovada.
-    positionToggle(syncControl, quickBlock.removeFromLeft(syncW).expanded(0, 5));
+    // Mesmo recuo vertical (8px) pra SYNC e pros grupos (bay + botão
+    // interno), assim todos os pills ficam com a MESMA altura e alinhados
+    // no mesmo eixo horizontal (pedido: "alinhar os botões debaixo").
+    positionToggle(syncControl, quickBlock.removeFromLeft(syncW).reduced(0, 8));
     quickBlock.removeFromLeft(gapW);
     positionChoice(divisionControl, quickBlock.removeFromLeft(comboW));
     quickBlock.removeFromLeft(gapW);
@@ -1186,20 +1180,20 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
 
     auto pingLofiBay = quickBlock.removeFromLeft(pingLofiGroupW);
     content.chassisBays.add(pingLofiBay.toFloat());
-    auto pingLofiArea = pingLofiBay.reduced(7);
+    auto pingLofiArea = pingLofiBay.reduced(4);
     pingPongLoFiGroup.setBounds(pingLofiArea);
-    auto pingLofiInner = pingLofiArea.reduced(6, 6);
-    const int halfW = (pingLofiInner.getWidth() - 6) / 2;
+    auto pingLofiInner = pingLofiArea.reduced(4, 4);
+    const int halfW = (pingLofiInner.getWidth() - 8) / 2;
     positionToggle(pingPongControl, pingLofiInner.removeFromLeft(halfW));
-    pingLofiInner.removeFromLeft(6);
+    pingLofiInner.removeFromLeft(8);
     positionToggle(loFiControl, pingLofiInner);
 
     quickBlock.removeFromLeft(gapW);
     auto modeBay = quickBlock.removeFromLeft(modeGroupW);
     content.chassisBays.add(modeBay.toFloat());
-    auto modeArea = modeBay.reduced(7);
+    auto modeArea = modeBay.reduced(4);
     modeGroup.setBounds(modeArea);
-    positionSegmented(modeControl, modeArea.reduced(6, 6));
+    positionSegmented(modeControl, modeArea.reduced(4, 4));
 
     // ---- Centro principal: TIME | DISPLAY | FEEDBACK | DRY/WET | OUTPUT ----
     // Redesign visual (Design_Reference/01_REFERENCIA_VISUAL_APROVADA.png):
@@ -1209,7 +1203,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     auto mainRow = bounds.reduced(chassisInsetX, 4);
 
     constexpr int timeColumnW = 210;
-    constexpr int heroKnobW = 168;
+    constexpr int heroKnobW = 148; // encolhido pra dar mais largura ao visor (pedido: "visor maior")
     constexpr int heroGap = 12;
     auto timeColumn = mainRow.removeFromLeft(timeColumnW);
     mainRow.removeFromLeft(heroGap);
@@ -1230,8 +1224,8 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
         // Display valorizado (Etapa 1) -- ocupa muito mais da faixa central,
         // fechando o vazio vertical entre o header e a linha de controles
         // rápidos, igual à referência aprovada.
-        constexpr int displayH = 232;
-        const int displayW = juce::jmin(displayColumn.getWidth(), 470);
+        constexpr int displayH = 262;
+        const int displayW = juce::jmin(displayColumn.getWidth(), 460);
         auto displayArea = juce::Rectangle<int>(displayW, displayH)
                                .withCentre(displayColumn.getCentre());
         displayPanel.setBounds(displayArea);
@@ -1260,71 +1254,11 @@ void NFWhiteDelayAudioProcessorEditor::paint(juce::Graphics& g)
     auto bounds = getLocalBounds().toFloat();
     const auto base = LNF::kBackground; // exact brand colour; depth via luminosity only
 
-    // Official silver chassis plate as the panel body (bezel drawn after).
-    {
-        const auto plate = juce::ImageCache::getFromMemory(BinaryData::chassis_png, BinaryData::chassis_pngSize);
-        if (plate.isValid())
-        {
-            g.setOpacity(1.0f);
-            g.drawImage(plate, bounds, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
-        }
-        else
-        {
-            g.setColour(base);
-            g.fillRect(bounds);
-        }
-    }
-
-    // 1) Very light luminosity grade on top of the plate (same hue family).
-    juce::ColourGradient chassisGradient(base.brighter(0.015f).withAlpha(0.18f), bounds.getCentreX(), bounds.getY(),
-                                          base.darker(0.020f).withAlpha(0.22f), bounds.getCentreX(), bounds.getBottom(), false);
-    g.setGradientFill(chassisGradient);
+    // Pedido explícito: plugin todo branco, sem diferença de cor entre
+    // chassi/escudos -- chapa lisa de cor única, profundidade só pelas
+    // bordas/contornos (frame abaixo), não por gradiente/vinheta.
+    g.setColour(base);
     g.fillRect(bounds);
-
-    // 2) Soft centre lift — discreet illumination, not a hot spot.
-    {
-        const float rx = bounds.getWidth() * 0.55f;
-        const float ry = bounds.getHeight() * 0.48f;
-        juce::ColourGradient centreLift(base.brighter(0.04f).withAlpha(0.14f),
-                                         bounds.getCentreX(), bounds.getCentreY() * 0.92f,
-                                         juce::Colours::transparentWhite,
-                                         bounds.getCentreX() + rx, bounds.getCentreY(), true);
-        g.setGradientFill(centreLift);
-        g.fillEllipse(juce::Rectangle<float>(rx * 2.0f, ry * 2.0f).withCentre(bounds.getCentre().translated(0.0f, -bounds.getHeight() * 0.04f)));
-    }
-
-    // 3) Edge / corner vignette — very soft darkening only.
-    {
-        juce::ColourGradient vignette(juce::Colours::transparentBlack, bounds.getCentreX(), bounds.getCentreY(),
-                                       juce::Colours::black.withAlpha(0.055f), bounds.getX(), bounds.getY(), true);
-        g.setGradientFill(vignette);
-        g.fillRect(bounds);
-    }
-
-    // 4) Soft internal shadows near natural dividers (header / quick / bottom).
-    {
-        auto dividerShade = [&g, &bounds](float yNorm, float thickness)
-        {
-            const float y = bounds.getY() + bounds.getHeight() * yNorm;
-            juce::ColourGradient shade(juce::Colours::black.withAlpha(0.030f), bounds.getCentreX(), y,
-                                        juce::Colours::transparentBlack, bounds.getCentreX(), y + thickness, false);
-            g.setGradientFill(shade);
-            g.fillRect(juce::Rectangle<float>(bounds.getX() + 18.0f, y, bounds.getWidth() - 36.0f, thickness));
-        };
-        dividerShade(0.137f, 9.0f); // under header (~118/860)
-        dividerShade(0.575f, 7.0f);
-        dividerShade(0.715f, 8.0f);
-    }
-
-    // 5) Very subtle hero-band lift — depth only, no layout change.
-    {
-        auto heroBand = juce::Rectangle<float>(bounds.getWidth() * 0.78f, bounds.getHeight() * 0.34f)
-                            .withCentre({ bounds.getCentreX(), bounds.getY() + bounds.getHeight() * 0.36f });
-        juce::ColourGradient heroLift(juce::Colours::white.withAlpha(0.022f), heroBand.getCentreX(), heroBand.getY(),
-                                       juce::Colours::transparentWhite, heroBand.getCentreX(), heroBand.getBottom(), false);
-        g.setGradientFill(heroLift);
-        g.fillRoundedRectangle(heroBand, 18.0f);
-    }
 
     // Chassis frame — Etapa 1 do redesign visual (Design_Reference/
     // 01_REFERENCIA_VISUAL_APROVADA.png): moldura fina e elegante com
@@ -1336,12 +1270,11 @@ void NFWhiteDelayAudioProcessorEditor::paint(juce::Graphics& g)
     constexpr float chassisCorner = 18.0f;
     auto chassisRect = bounds.reduced(inset);
 
-    // Sombra suave por baixo do gabinete -- profundidade contra o host.
-    {
-        juce::Path framePath;
-        framePath.addRoundedRectangle(chassisRect, chassisCorner);
-        juce::DropShadow(juce::Colours::black.withAlpha(0.18f), 12, { 0, 4 }).drawForPath(g, framePath);
-    }
+    // (Removida a sombra que cobria a chapa inteira de um escurecimento
+    // uniforme ~12% -- framePath preenche quase todo o componente, então
+    // o "drop shadow" virava uma tinta plana, deixando o chassi mais
+    // escuro que os escudos/painéis pintados por cima sem essa camada.
+    // Definição de profundidade agora só pelo traço da moldura abaixo.)
 
     // Traço externo escuro, fino e nítido (a "moldura metálica" da
     // referência -- carbono/grafite, não cromo espesso).
