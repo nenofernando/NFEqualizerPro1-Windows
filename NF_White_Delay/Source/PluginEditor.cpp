@@ -1422,6 +1422,25 @@ void NFWhiteDelayAudioProcessorEditor::updateDisplay()
     displayPanel.repaint();
 }
 
+// Onde cada instalador deposita o manual PDF -- ver installer/mac/
+// build_installer.sh (pacote docs) e installer/windows-installer.nsi
+// (pasta Manual ao lado do VST3).
+juce::File NFWhiteDelayAudioProcessorEditor::getManualFile()
+{
+   #if JUCE_MAC
+    return juce::File("/Users/Shared/NF Audio Tools/NF White Delay/Manual")
+        .getChildFile("NF_White_Delay_Manual_EN.pdf");
+   #elif JUCE_WINDOWS
+    return juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
+        .getChildFile("NF Audio Tools")
+        .getChildFile("NF White Delay")
+        .getChildFile("Manual")
+        .getChildFile("NF White Delay Manual (English).pdf");
+   #else
+    return {};
+   #endif
+}
+
 void NFWhiteDelayAudioProcessorEditor::showHamburgerMenu()
 {
     juce::PopupMenu menu;
@@ -1430,6 +1449,7 @@ void NFWhiteDelayAudioProcessorEditor::showHamburgerMenu()
     // instante -- ver auditoria de crash da FASE 6.5).
     menu.addItem(1, "About");
     menu.addItem(2, "Reset UI Size");
+    menu.addItem(3, "Manual", getManualFile().existsAsFile());
 
     juce::Component::SafePointer<NFWhiteDelayAudioProcessorEditor> safeThis(this);
 
@@ -1452,6 +1472,10 @@ void NFWhiteDelayAudioProcessorEditor::showHamburgerMenu()
             {
                 safeThis->setSize(NFWhiteDelayAudioProcessorEditor::openWidth,
                                    NFWhiteDelayAudioProcessorEditor::openHeight);
+            }
+            else if (result == 3)
+            {
+                getManualFile().startAsProcess();
             }
         });
 }
