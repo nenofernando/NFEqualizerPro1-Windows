@@ -16,11 +16,12 @@ VST3_PATH="$ARTEFACTS_DIR/VST3/$PLUGIN_NAME.vst3"
 AU_PATH="$ARTEFACTS_DIR/AU/$PLUGIN_NAME.component"
 AAX_PATH="$ARTEFACTS_DIR/AAX/$PLUGIN_NAME.aaxplugin"
 MANUAL_EN_PATH="$MANUAL_DIR/NF_White_Delay_Manual_EN.pdf"
+MANUAL_PT_PATH="$MANUAL_DIR/NF_White_Delay_Manual_PT.pdf"
 OUT_DIR="$ROOT_DIR/$PLUGIN_NAME - Download Package"
 FINAL_PKG_NAME="NF White Delay Installer.pkg"
 DMG_NAME="$PLUGIN_NAME - Mac Installer.dmg"
 
-for path in "$VST3_PATH" "$AU_PATH" "$AAX_PATH" "$MANUAL_EN_PATH"; do
+for path in "$VST3_PATH" "$AU_PATH" "$AAX_PATH" "$MANUAL_EN_PATH" "$MANUAL_PT_PATH"; do
     if [ ! -e "$path" ]; then
         echo "error: not found: $path" >&2
         echo "Build all plugin formats first with: cmake --build \"$ROOT_DIR/build-release\" --config Release" >&2
@@ -41,6 +42,7 @@ cp -R "$VST3_PATH" "$VST3_ROOT/"
 cp -R "$AU_PATH" "$AU_ROOT/"
 cp -R "$AAX_PATH" "$AAX_ROOT/"
 cp "$MANUAL_EN_PATH" "$DOCS_ROOT/"
+cp "$MANUAL_PT_PATH" "$DOCS_ROOT/"
 
 PKG_DIR="$WORK_DIR/pkgs"
 mkdir -p "$PKG_DIR"

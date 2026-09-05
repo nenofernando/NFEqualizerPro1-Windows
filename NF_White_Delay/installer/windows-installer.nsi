@@ -10,6 +10,7 @@
 !define VST3_BUNDLE_NAME "NF White Delay.vst3"
 !define VST3_SRC "..\build\NFWhiteDelay_artefacts\Release\VST3\NF White Delay.vst3"
 !define MANUAL_EN_SRC "..\manual\NF_White_Delay_Manual_EN.pdf"
+!define MANUAL_PT_SRC "..\manual\NF_White_Delay_Manual_PT.pdf"
 
 Name "${PRODUCT_NAME} ${PRODUCT_VERSION}"
 OutFile "${PRODUCT_NAME} Installer.exe"
@@ -26,7 +27,7 @@ VIAddVersionKey "FileVersion" "${PRODUCT_VERSION}"
 VIAddVersionKey "LegalCopyright" "${PRODUCT_COPYRIGHT}"
 
 !define MUI_WELCOMEPAGE_TITLE "Welcome to the ${PRODUCT_NAME} ${PRODUCT_VERSION} Setup"
-!define MUI_WELCOMEPAGE_TEXT "This will install ${PRODUCT_NAME} version ${PRODUCT_VERSION} by ${PRODUCT_PUBLISHER}.$\r$\n$\r$\nFormat: VST3 v${PRODUCT_VERSION}$\r$\nInstall location: $COMMONFILES64\VST3$\r$\n$\r$\nA PDF manual (English) is installed alongside the plug-in.$\r$\n$\r$\nClick Next to continue."
+!define MUI_WELCOMEPAGE_TEXT "This will install ${PRODUCT_NAME} version ${PRODUCT_VERSION} by ${PRODUCT_PUBLISHER}.$\r$\n$\r$\nFormat: VST3 v${PRODUCT_VERSION}$\r$\nInstall location: $COMMONFILES64\VST3$\r$\n$\r$\nA PDF manual (English + Portugues) is installed alongside the plug-in.$\r$\n$\r$\nClick Next to continue."
 !insertmacro MUI_PAGE_WELCOME
 !insertmacro MUI_PAGE_DIRECTORY
 !insertmacro MUI_PAGE_INSTFILES
@@ -54,9 +55,11 @@ Section "VST3 Plug-in"
 
   SetOutPath "$PROGRAMFILES64\NF Audio Tools\NF White Delay\Manual"
   File "/oname=NF White Delay Manual (English).pdf" "${MANUAL_EN_SRC}"
+  File "/oname=NF White Delay Manual (Portugues).pdf" "${MANUAL_PT_SRC}"
 
   CreateDirectory "$SMPROGRAMS\NF Audio Tools\NF White Delay"
   CreateShortCut "$SMPROGRAMS\NF Audio Tools\NF White Delay\Manual (English).lnk" "$PROGRAMFILES64\NF Audio Tools\NF White Delay\Manual\NF White Delay Manual (English).pdf"
+  CreateShortCut "$SMPROGRAMS\NF Audio Tools\NF White Delay\Manual (Portugues).lnk" "$PROGRAMFILES64\NF Audio Tools\NF White Delay\Manual\NF White Delay Manual (Portugues).pdf"
 
   WriteUninstaller "$INSTDIR\Uninstall ${PRODUCT_NAME}.exe"
 SectionEnd

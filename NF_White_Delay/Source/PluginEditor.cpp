@@ -1422,20 +1422,22 @@ void NFWhiteDelayAudioProcessorEditor::updateDisplay()
     displayPanel.repaint();
 }
 
-// Onde cada instalador deposita o manual PDF -- ver installer/mac/
+// Onde cada instalador deposita o manual PDF bilíngue -- ver installer/mac/
 // build_installer.sh (pacote docs) e installer/windows-installer.nsi
 // (pasta Manual ao lado do VST3).
-juce::File NFWhiteDelayAudioProcessorEditor::getManualFile()
+juce::File NFWhiteDelayAudioProcessorEditor::getManualFile(bool english)
 {
    #if JUCE_MAC
-    return juce::File("/Users/Shared/NF Audio Tools/NF White Delay/Manual")
-        .getChildFile("NF_White_Delay_Manual_EN.pdf");
+    juce::File dir("/Users/Shared/NF Audio Tools/NF White Delay/Manual");
+    return dir.getChildFile(english ? "NF_White_Delay_Manual_EN.pdf"
+                                     : "NF_White_Delay_Manual_PT.pdf");
    #elif JUCE_WINDOWS
-    return juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
+    juce::File dir = juce::File::getSpecialLocation(juce::File::globalApplicationsDirectory)
         .getChildFile("NF Audio Tools")
         .getChildFile("NF White Delay")
-        .getChildFile("Manual")
-        .getChildFile("NF White Delay Manual (English).pdf");
+        .getChildFile("Manual");
+    return dir.getChildFile(english ? "NF White Delay Manual (English).pdf"
+                                     : "NF White Delay Manual (Portugues).pdf");
    #else
     return {};
    #endif
@@ -1449,7 +1451,8 @@ void NFWhiteDelayAudioProcessorEditor::showHamburgerMenu()
     // instante -- ver auditoria de crash da FASE 6.5).
     menu.addItem(1, "About");
     menu.addItem(2, "Reset UI Size");
-    menu.addItem(3, "Manual", getManualFile().existsAsFile());
+    menu.addItem(3, "Manual (English)", getManualFile(true).existsAsFile());
+    menu.addItem(4, "Manual (Portugues)", getManualFile(false).existsAsFile());
 
     juce::Component::SafePointer<NFWhiteDelayAudioProcessorEditor> safeThis(this);
 
@@ -1475,7 +1478,11 @@ void NFWhiteDelayAudioProcessorEditor::showHamburgerMenu()
             }
             else if (result == 3)
             {
-                getManualFile().startAsProcess();
+                getManualFile(true).startAsProcess();
+            }
+            else if (result == 4)
+            {
+                getManualFile(false).startAsProcess();
             }
         });
 }

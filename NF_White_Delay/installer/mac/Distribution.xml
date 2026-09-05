@@ -29,7 +29,7 @@
         <pkg-ref id="com.nfaudiotools.nfwhitedelay.aax"/>
     </choice>
     <pkg-ref id="com.nfaudiotools.nfwhitedelay.aax" version="1.0.0" onConclusion="none">NFWhiteDelay-AAX.pkg</pkg-ref>
-    <choice id="com.nfaudiotools.nfwhitedelay.docs" title="Manual (English)" description="Installs the PDF manual into /Users/Shared/NF Audio Tools/NF White Delay/Manual." selected="true" enabled="false">
+    <choice id="com.nfaudiotools.nfwhitedelay.docs" title="Manual (English + Portugues)" description="Installs the PDF manual, in English and Portugues, into /Users/Shared/NF Audio Tools/NF White Delay/Manual." selected="true" enabled="false">
         <pkg-ref id="com.nfaudiotools.nfwhitedelay.docs"/>
     </choice>
     <pkg-ref id="com.nfaudiotools.nfwhitedelay.docs" version="1.0.0" onConclusion="none">NFWhiteDelay-Docs.pkg</pkg-ref>

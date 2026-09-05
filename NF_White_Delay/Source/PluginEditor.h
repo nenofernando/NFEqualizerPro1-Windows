@@ -49,7 +49,7 @@ private:
     void updateTimeControlForSync(); // SYNC on ⇒ TIME dimmed (delay follows division)
     void showHamburgerMenu();
     void showPresetPlaceholder();
-    static juce::File getManualFile();
+    static juce::File getManualFile(bool english);
     void layoutContent(); // layout fixo (defaultWidth x defaultHeight), calculado uma vez
 
     using APVTS = juce::AudioProcessorValueTreeState;
