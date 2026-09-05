@@ -46,6 +46,7 @@ public:
 private:
     void timerCallback() override;
     void updateDisplay();
+    void updateTimeControlForSync(); // SYNC on ⇒ TIME dimmed (delay follows division)
     void showHamburgerMenu();
     void showPresetPlaceholder();
     void layoutContent(); // layout fixo (defaultWidth x defaultHeight), calculado uma vez
@@ -280,9 +281,10 @@ private:
     static constexpr int defaultWidth = 1280;
     static constexpr int defaultHeight = 860; // taller — bay lips + bottom modules clear bevel
 
-    // Tamanho de ABERTURA/reset — mesma proporção do canvas de referência.
-    static constexpr int openWidth = 1178;
-    static constexpr int openHeight = 791; // 1178 * 860/1280
+    // Tamanho de ABERTURA/reset — mesma proporção do canvas de referência
+    // (scale uniforme em resized(); layout interno não muda).
+    static constexpr int openWidth = 1000;
+    static constexpr int openHeight = 672; // 1000 * 860/1280
 
     static constexpr int minWidth = 900;
     static constexpr int minHeight = 600;

@@ -1,4 +1,5 @@
 #include "PluginEditor.h"
+#include "DSP/HostSync.h"
 #include <BinaryData.h>
 
 using ParamIDs = NFWhiteDelayAudioProcessor::ParamIDs;
@@ -142,17 +143,19 @@ namespace
         }
 
         // Lip outer edge + top highlight (caught light on the molded rim).
-        g.setColour(juce::Colour(0xff8e9098).withAlpha(0.70f));
-        g.drawRoundedRectangle(bay.reduced(0.4f), corner, 1.15f);
-        g.setColour(juce::Colours::white.withAlpha(0.55f));
+        g.setColour(juce::Colour(0xff7a7c84).withAlpha(0.88f));
+        g.drawRoundedRectangle(bay.reduced(0.35f), corner, 1.55f);
+        g.setColour(juce::Colours::white.withAlpha(0.68f));
         g.drawLine(bay.getX() + corner * 0.55f, bay.getY() + 1.0f,
-                   bay.getRight() - corner * 0.55f, bay.getY() + 1.0f, 1.15f);
+                   bay.getRight() - corner * 0.55f, bay.getY() + 1.0f, 1.35f);
+        g.setColour(juce::Colour(0xff5a5c64).withAlpha(0.35f));
+        g.drawRoundedRectangle(bay.reduced(1.5f), juce::jmax(2.0f, corner - 1.0f), 0.9f);
 
         // Inner lip edge (where the module seats).
-        g.setColour(juce::Colours::black.withAlpha(0.16f));
-        g.drawRoundedRectangle(floor.expanded(0.3f), floorCorner + 0.3f, 1.0f);
-        g.setColour(juce::Colours::white.withAlpha(0.22f));
-        g.drawRoundedRectangle(floor.reduced(0.8f), juce::jmax(2.0f, floorCorner - 0.8f), 0.7f);
+        g.setColour(juce::Colours::black.withAlpha(0.22f));
+        g.drawRoundedRectangle(floor.expanded(0.3f), floorCorner + 0.3f, 1.15f);
+        g.setColour(juce::Colours::white.withAlpha(0.30f));
+        g.drawRoundedRectangle(floor.reduced(0.8f), juce::jmax(2.0f, floorCorner - 0.8f), 0.85f);
     }
 }
 
@@ -187,16 +190,16 @@ void NFWhiteDelayAudioProcessorEditor::SectionPanel::paint(juce::Graphics& g)
         g.fillRoundedRectangle(bounds.reduced(1.0f), corner - 1.0f);
     }
 
-    // Outer metal border around the module plate.
-    g.setColour(juce::Colour(0xff8a8c94).withAlpha(0.75f));
-    g.drawRoundedRectangle(bounds.reduced(0.4f), corner, 1.35f);
-    g.setColour(juce::Colours::white.withAlpha(0.55f));
-    g.drawRoundedRectangle(bounds.reduced(1.6f), juce::jmax(0.0f, corner - 1.2f), 0.9f);
-    g.setColour(juce::Colours::black.withAlpha(0.10f));
-    g.drawRoundedRectangle(bounds.reduced(2.6f), juce::jmax(0.0f, corner - 2.0f), 0.8f);
-    g.setColour(juce::Colours::white.withAlpha(0.40f));
+    // Outer metal border around the module / button-well plate.
+    g.setColour(juce::Colour(0xff6e7078).withAlpha(0.90f));
+    g.drawRoundedRectangle(bounds.reduced(0.35f), corner, 1.65f);
+    g.setColour(juce::Colours::white.withAlpha(0.70f));
+    g.drawRoundedRectangle(bounds.reduced(1.5f), juce::jmax(0.0f, corner - 1.1f), 1.1f);
+    g.setColour(juce::Colours::black.withAlpha(0.16f));
+    g.drawRoundedRectangle(bounds.reduced(2.7f), juce::jmax(0.0f, corner - 2.0f), 0.95f);
+    g.setColour(juce::Colours::white.withAlpha(0.48f));
     g.drawLine(bounds.getX() + corner * 0.5f, bounds.getY() + 1.1f,
-               bounds.getRight() - corner * 0.5f, bounds.getY() + 1.1f, 1.0f);
+               bounds.getRight() - corner * 0.5f, bounds.getY() + 1.1f, 1.15f);
 
     if (title.isNotEmpty())
     {
@@ -244,25 +247,25 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::renderStaticLayerToCache()
     g.addTransform(juce::AffineTransform::scale(scaleFactor));
 
     auto bounds = juce::Rectangle<float>(0.0f, 0.0f, (float) w, (float) h);
-    constexpr float corner = 14.0f;
+    constexpr float corner = 16.0f;
 
     // Silver chrome bezel (reference crop) — thick metal rim around the glass.
     {
-        juce::ColourGradient bezel(juce::Colour(0xfff0f1f4), bounds.getCentreX(), bounds.getY(),
-                                   juce::Colour(0xff9a9ca4), bounds.getCentreX(), bounds.getBottom(), false);
+        juce::ColourGradient bezel(juce::Colour(0xfff4f5f8), bounds.getCentreX(), bounds.getY(),
+                                   juce::Colour(0xff8e9098), bounds.getCentreX(), bounds.getBottom(), false);
         g.setGradientFill(bezel);
         g.fillRoundedRectangle(bounds, corner);
     }
-    g.setColour(juce::Colour(0xffc8cad0));
-    g.drawRoundedRectangle(bounds.reduced(0.6f), corner - 0.4f, 1.4f);
-    g.setColour(juce::Colours::white.withAlpha(0.70f));
-    g.drawRoundedRectangle(bounds.reduced(1.8f), corner - 1.4f, 1.0f);
-    g.setColour(juce::Colours::black.withAlpha(0.18f));
-    g.drawRoundedRectangle(bounds.reduced(3.2f), corner - 2.4f, 1.1f);
+    g.setColour(juce::Colour(0xffd0d2d8));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), corner - 0.3f, 1.6f);
+    g.setColour(juce::Colours::white.withAlpha(0.82f));
+    g.drawRoundedRectangle(bounds.reduced(1.6f), corner - 1.2f, 1.25f);
+    g.setColour(juce::Colours::black.withAlpha(0.22f));
+    g.drawRoundedRectangle(bounds.reduced(3.0f), corner - 2.2f, 1.2f);
 
-    // Glass inset behind the chrome lip.
-    auto glass = bounds.reduced(5.5f);
-    const float glassCorner = corner - 4.0f;
+    // Glass inset behind a thicker chrome lip (matches left reference).
+    auto glass = bounds.reduced(9.0f);
+    const float glassCorner = corner - 6.0f;
     juce::ColourGradient bgGradient(LNF::kDisplayBackground, glass.getCentreX(), glass.getCentreY(),
                                      LNF::kDisplayBackgroundEdge, glass.getX(), glass.getY(), true);
     g.setGradientFill(bgGradient);
@@ -324,12 +327,14 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::renderStaticLayerToCache()
     }
 
     // Re-assert silver chrome bezel on top (matches left reference crop).
-    g.setColour(juce::Colour(0xffb8bac0).withAlpha(0.95f));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), corner, 2.4f);
-    g.setColour(juce::Colours::white.withAlpha(0.75f));
-    g.drawRoundedRectangle(bounds.reduced(2.0f), corner - 1.4f, 1.2f);
-    g.setColour(juce::Colour(0xff6e7078).withAlpha(0.45f));
-    g.drawRoundedRectangle(bounds.reduced(3.8f), corner - 2.6f, 1.0f);
+    g.setColour(juce::Colour(0xffb4b6bc).withAlpha(0.98f));
+    g.drawRoundedRectangle(bounds.reduced(0.4f), corner, 2.8f);
+    g.setColour(juce::Colours::white.withAlpha(0.85f));
+    g.drawRoundedRectangle(bounds.reduced(1.8f), corner - 1.2f, 1.35f);
+    g.setColour(juce::Colour(0xff5c5e66).withAlpha(0.55f));
+    g.drawRoundedRectangle(bounds.reduced(3.6f), corner - 2.4f, 1.15f);
+    g.setColour(juce::Colour(0xffa8aab0).withAlpha(0.70f));
+    g.drawRoundedRectangle(bounds.reduced(7.2f), corner - 5.0f, 1.0f);
 
     cachedStaticW = w;
     cachedStaticH = h;
@@ -346,9 +351,9 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::paint(juce::Graphics& g)
     g.drawImage(cachedStaticLayer, 0, 0, getWidth(), getHeight(), 0, 0, cachedStaticLayer.getWidth(), cachedStaticLayer.getHeight());
 
     auto bounds = getLocalBounds().toFloat();
-    constexpr float corner = 12.0f;
-    auto glass = bounds.reduced(3.0f);
-    const float glassCorner = corner - 3.0f;
+    constexpr float corner = 16.0f;
+    auto glass = bounds.reduced(9.0f);
+    const float glassCorner = corner - 6.0f;
 
     // Tudo daqui pra baixo É dinâmico (muda com animPhase/activity a
     // cada frame) -- glow/halo respirando, vazamento de luz, waveform,
@@ -743,19 +748,19 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
 
     // Header hierarchy (reference): Audio Tools / WHITE DELAY / Professional Delay.
     audioToolsLabel.setText("Audio Tools", juce::dontSendNotification);
-    audioToolsLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
+    audioToolsLabel.setFont(juce::FontOptions(13.5f, juce::Font::bold));
     audioToolsLabel.setColour(juce::Label::textColourId, juce::Colour(0xff3a3c44));
     audioToolsLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(audioToolsLabel);
 
     whiteDelayLabel.setText("WHITE DELAY", juce::dontSendNotification);
-    whiteDelayLabel.setFont(juce::FontOptions(28.0f, juce::Font::bold));
+    whiteDelayLabel.setFont(juce::FontOptions(26.0f, juce::Font::bold));
     whiteDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff1a1b20));
     whiteDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(whiteDelayLabel);
 
     professionalDelayLabel.setText("Professional Delay", juce::dontSendNotification);
-    professionalDelayLabel.setFont(juce::FontOptions(13.0f));
+    professionalDelayLabel.setFont(juce::FontOptions(12.0f));
     professionalDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff5a5c64));
     professionalDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(professionalDelayLabel);
@@ -787,17 +792,17 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     content.addAndMakeVisible(displayPanel);
 
     displayLine1.setJustificationType(juce::Justification::centred);
-    displayLine1.setFont(juce::FontOptions(56.0f, juce::Font::bold));
+    displayLine1.setFont(juce::FontOptions(46.0f, juce::Font::bold));
     displayLine1.setColour(juce::Label::textColourId, LNF::kDisplayText);
     displayPanel.addAndMakeVisible(displayLine1);
 
     displayLine2.setJustificationType(juce::Justification::centred);
-    displayLine2.setFont(juce::FontOptions(16.5f, juce::Font::bold));
+    displayLine2.setFont(juce::FontOptions(15.0f, juce::Font::bold));
     displayLine2.setColour(juce::Label::textColourId, LNF::kDisplayAccent.brighter(0.05f));
     displayPanel.addAndMakeVisible(displayLine2);
 
     displayLine3.setJustificationType(juce::Justification::centred);
-    displayLine3.setFont(juce::FontOptions(12.5f));
+    displayLine3.setFont(juce::FontOptions(12.0f));
     displayLine3.setColour(juce::Label::textColourId, LNF::kDisplayAccent.withAlpha(0.90f));
     displayPanel.addAndMakeVisible(displayLine3);
 
@@ -878,13 +883,13 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     if (auto* constrainer = getConstrainer())
         constrainer->setFixedAspectRatio((double) defaultWidth / (double) defaultHeight);
 
-    // Abre um pouco menor que o canvas de referência (pedido explícito
-    // da FASE 7.3) -- mesma proporção 24:13, então isso só aplica um
-    // scale levemente < 1.0 em resized(), sem tocar em nenhuma posição
-    // interna calculada por layoutContent().
+    // Abre menor que o canvas de referência — scale uniforme em
+    // resized() (proporção defaultWidth:defaultHeight), sem tocar
+    // posições internas de layoutContent().
     setSize(openWidth, openHeight);
 
     updateDisplay();
+    updateTimeControlForSync();
     // 30Hz (antes 10Hz) -- necessário pra animação sutil do display
     // (FASE 7.3, item 5) ficar fluida; o resto do trabalho do timer
     // (updateDisplay/controlRefreshers) é leitura simples de floats
@@ -1008,12 +1013,18 @@ void NFWhiteDelayAudioProcessorEditor::setupSegmented(SegmentedControl& c, const
 
 void NFWhiteDelayAudioProcessorEditor::positionRotary(RotaryControl& c, juce::Rectangle<int> area)
 {
-    auto titleArea = area.removeFromTop(18);
-    c.titleLabel.setBounds(titleArea);
-    auto valueArea = area.removeFromBottom(22);
-    c.slider.setBounds(area);
-    // Fixed chip footprint for every rotary (hero + lower panels).
-    c.valueLabel.setBounds(valueArea.withSizeKeepingCentre(72, 18));
+    // Name directly under the knob; value chip under the name (hero + lower panels).
+    // Vertically centre the whole stack so hero columns don't leave a dead band above.
+    constexpr int titleH = 18;
+    constexpr int valueH = 22;
+    constexpr int footerH = titleH + valueH;
+    const int maxKnob = juce::jmax(48, juce::jmin(area.getWidth() - 4, area.getHeight() - footerH));
+    const int knobSize = juce::jmin(118, maxKnob);
+    const int stackH = knobSize + footerH;
+    auto stack = area.withSizeKeepingCentre(area.getWidth(), juce::jmin(area.getHeight(), stackH));
+    c.slider.setBounds(stack.removeFromTop(knobSize));
+    c.titleLabel.setBounds(stack.removeFromTop(titleH));
+    c.valueLabel.setBounds(stack.withSizeKeepingCentre(72, 18));
 }
 
 void NFWhiteDelayAudioProcessorEditor::positionToggle(ToggleControl& c, juce::Rectangle<int> area)
@@ -1078,21 +1089,23 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     auto powerArea = header.removeFromRight(42);
     powerButton.setBounds(powerArea.withSizeKeepingCentre(38, 38));
 
-    // Brand — discreetly larger NF + titles, centred in header height.
-    auto brand = header.removeFromLeft(430);
-    constexpr int logoSize = 56;
-    constexpr int textStackH = 64;
-    constexpr int brandBlockH = 68;
-    auto brandInner = brand.withSizeKeepingCentre(brand.getWidth(), brandBlockH);
-    auto logoCol = brandInner.removeFromLeft(logoSize + 2);
+    // Brand — NF + text stack as one optically centred block in the header.
+    auto brand = header.removeFromLeft(420);
+    constexpr int logoSize = 54;
+    constexpr int textStackH = 58;
+    constexpr int brandBlockH = 60;
+    constexpr int brandGap = 12;
+    constexpr int brandContentW = logoSize + brandGap + 280;
+    auto brandInner = brand.withSizeKeepingCentre(juce::jmin(brand.getWidth(), brandContentW), brandBlockH);
+    auto logoCol = brandInner.removeFromLeft(logoSize);
     nfLogoLabel.setBounds(logoCol.withSizeKeepingCentre(logoSize, logoSize));
-    brandInner.removeFromLeft(14);
+    brandInner.removeFromLeft(brandGap);
     auto textCol = brandInner.withSizeKeepingCentre(brandInner.getWidth(), textStackH);
-    audioToolsLabel.setBounds(textCol.removeFromTop(15));
-    textCol.removeFromTop(2);
-    whiteDelayLabel.setBounds(textCol.removeFromTop(30));
-    textCol.removeFromTop(2);
-    professionalDelayLabel.setBounds(textCol.removeFromTop(15));
+    audioToolsLabel.setBounds(textCol.removeFromTop(14));
+    textCol.removeFromTop(1);
+    whiteDelayLabel.setBounds(textCol.removeFromTop(26));
+    textCol.removeFromTop(1);
+    professionalDelayLabel.setBounds(textCol.removeFromTop(14));
 
     // Neon under header (unchanged as lower divider).
     neonBarLogical = { headerBand.getX() + neonInsetX, headerBand.getBottom() - 7,
@@ -1101,8 +1114,8 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
 
     // ---- Avançado (rodapé) — raised inside chassis, clear of bottom lip ----
     content.chassisBays.clearQuick();
-    constexpr int chassisBottomPad = 42; // lifts modules above the rounded bevel
-    constexpr int bottomModuleH = 285;
+    constexpr int chassisBottomPad = 58; // lifts modules above the rounded bevel
+    constexpr int bottomModuleH = 252;
     auto bottomStrip = bounds.removeFromBottom(chassisBottomPad + bottomModuleH);
     bottomStrip.removeFromBottom(chassisBottomPad);
     auto bottomRow = bottomStrip.reduced(chassisInsetX, 0);
@@ -1111,7 +1124,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     const int bottomInnerW = bottomRow.getWidth() - bottomGap * 2;
     const int modW = (bottomInnerW * 380) / (380 + 360 + 320);
     const int filtW = (bottomInnerW * 360) / (380 + 360 + 320);
-    constexpr int bayLip = 8;
+    constexpr int bayLip = 7;
 
     auto modulationBay = bottomRow.removeFromLeft(modW);
     bottomRow.removeFromLeft(bottomGap);
@@ -1135,7 +1148,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     filtersColumn.removeFromTop(28);
     characterColumn.removeFromTop(28);
 
-    constexpr int bottomKnobAreaHeight = 168;
+    constexpr int bottomKnobAreaHeight = 152;
     auto modulationKnobs = modulationColumn.removeFromTop(bottomKnobAreaHeight);
     auto filtersKnobs = filtersColumn.removeFromTop(bottomKnobAreaHeight);
     auto characterKnobs = characterColumn.removeFromTop(bottomKnobAreaHeight);
@@ -1160,9 +1173,9 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     }
 
     // ---- Controles rápidos (linha logo abaixo do centro principal) ----
-    auto quickRow = bounds.removeFromBottom(68).reduced(chassisInsetX, 8);
+    auto quickRow = bounds.removeFromBottom(64).reduced(chassisInsetX, 6);
 
-    constexpr int syncW = 100, comboW = 118, pingLofiGroupW = 214, modeGroupW = 222, gapW = 16;
+    constexpr int syncW = 100, comboW = 118, pingLofiGroupW = 218, modeGroupW = 226, gapW = 14;
     const int quickTotalWidth = syncW + comboW + comboW + pingLofiGroupW + modeGroupW + gapW * 4;
     auto quickBlock = quickRow.withSizeKeepingCentre(quickTotalWidth, quickRow.getHeight());
 
@@ -1175,9 +1188,9 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
 
     auto pingLofiBay = quickBlock.removeFromLeft(pingLofiGroupW);
     content.chassisBays.add(pingLofiBay.toFloat());
-    auto pingLofiArea = pingLofiBay.reduced(6);
+    auto pingLofiArea = pingLofiBay.reduced(7);
     pingPongLoFiGroup.setBounds(pingLofiArea);
-    auto pingLofiInner = pingLofiArea.reduced(8, 8);
+    auto pingLofiInner = pingLofiArea.reduced(6, 6);
     const int halfW = (pingLofiInner.getWidth() - 6) / 2;
     positionToggle(pingPongControl, pingLofiInner.removeFromLeft(halfW));
     pingLofiInner.removeFromLeft(6);
@@ -1186,12 +1199,12 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     quickBlock.removeFromLeft(gapW);
     auto modeBay = quickBlock.removeFromLeft(modeGroupW);
     content.chassisBays.add(modeBay.toFloat());
-    auto modeArea = modeBay.reduced(6);
+    auto modeArea = modeBay.reduced(7);
     modeGroup.setBounds(modeArea);
-    positionSegmented(modeControl, modeArea.reduced(8, 8));
+    positionSegmented(modeControl, modeArea.reduced(6, 6));
 
     // ---- Centro principal: TIME | DISPLAY | FEEDBACK | DRY/WET | OUTPUT ----
-    auto mainRow = bounds.reduced(chassisInsetX, 6);
+    auto mainRow = bounds.reduced(chassisInsetX, 4);
 
     constexpr int heroKnobW = 168;
     constexpr int heroGap = 12;
@@ -1211,18 +1224,20 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     positionRotary(outputControl, outputColumn);
 
     {
-        // Compact display matching reference aspect (not stretched tall).
-        constexpr int displayH = 208;
-        const int displayW = juce::jmin(displayColumn.getWidth(), 420);
+        // Compact display matching reference crop (not stretched tall).
+        constexpr int displayH = 170;
+        const int displayW = juce::jmin(displayColumn.getWidth(), 392);
         auto displayArea = juce::Rectangle<int>(displayW, displayH)
-                               .withCentre(displayColumn.getCentre());
+                               .withCentre(displayColumn.getCentre())
+                               .translated(0, -6); // sit slightly higher with the hero knobs
         displayPanel.setBounds(displayArea);
 
-        auto displayLocal = displayPanel.getLocalBounds().reduced(16, 14);
-        auto statusBand = displayLocal.removeFromBottom(36);
-        displayLocal.removeFromBottom(4);
+        // Inset clears the thicker chrome bezel before text/status.
+        auto displayLocal = displayPanel.getLocalBounds().reduced(18, 16);
+        auto statusBand = displayLocal.removeFromBottom(30);
+        displayLocal.removeFromBottom(2);
 
-        displayLine1.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.42f)));
+        displayLine1.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.44f)));
         displayLine2.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.30f)));
         displayLine3.setBounds(displayLocal);
 
@@ -1230,7 +1245,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
         for (int i = 0; i < 4; ++i)
         {
             auto col = statusBand.removeFromLeft(colW);
-            displayStatusTitle[i].setBounds(col.removeFromTop(12));
+            displayStatusTitle[i].setBounds(col.removeFromTop(11));
             displayStatusValue[i].setBounds(col);
         }
     }
@@ -1374,6 +1389,31 @@ void NFWhiteDelayAudioProcessorEditor::timerCallback()
     updateDisplay();
     for (auto& refresh : controlRefreshers)
         refresh();
+    // After generic refreshers: SYNC owns delay time — dim TIME + show effective ms.
+    updateTimeControlForSync();
+}
+
+void NFWhiteDelayAudioProcessorEditor::updateTimeControlForSync()
+{
+    auto& apvts = audioProcessor.apvts;
+    const bool syncOn = apvts.getRawParameterValue(ParamIDs::syncEnabled)->load() > 0.5f;
+
+    timeControl.slider.setEnabled(! syncOn);
+    timeControl.slider.setAlpha(syncOn ? 0.42f : 1.0f);
+    timeControl.titleLabel.setAlpha(syncOn ? 0.50f : 1.0f);
+    timeControl.valueLabel.setAlpha(syncOn ? 0.80f : 1.0f);
+
+    if (! syncOn)
+        return;
+
+    // Readout only — does not write delayTimeMs (preserved for when SYNC turns off).
+    const double bpm = audioProcessor.lastKnownHostBpm.load(std::memory_order_relaxed);
+    const int divisionIndex = juce::jlimit(0, 7, (int) apvts.getRawParameterValue(ParamIDs::syncDivision)->load());
+    const int modifierIndex = juce::jlimit(0, 2, (int) apvts.getRawParameterValue(ParamIDs::syncModifier)->load());
+    const double ms = NF::syncDivisionMs(bpm,
+                                         static_cast<NF::SyncDivision>(divisionIndex),
+                                         static_cast<NF::SyncModifier>(modifierIndex));
+    timeControl.valueLabel.setText(formatMs(ms), juce::dontSendNotification);
 }
 
 void NFWhiteDelayAudioProcessorEditor::updateDisplay()
