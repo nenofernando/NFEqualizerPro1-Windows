@@ -142,14 +142,13 @@ namespace
             g.fillRoundedRectangle(floor, floorCorner);
         }
 
-        // Lip outer edge + top highlight (caught light on the molded rim).
-        g.setColour(juce::Colour(0xff7a7c84).withAlpha(0.88f));
-        g.drawRoundedRectangle(bay.reduced(0.35f), corner, 1.55f);
-        g.setColour(juce::Colours::white.withAlpha(0.68f));
+        // Lip outer edge (Etapa 2 -- traço fino e escuro, mesma família
+        // visual do chassi/display/painéis, no lugar do bisel grosso).
+        g.setColour(juce::Colour(0xff2a2c31).withAlpha(0.65f));
+        g.drawRoundedRectangle(bay.reduced(0.35f), corner, 1.2f);
+        g.setColour(juce::Colours::white.withAlpha(0.45f));
         g.drawLine(bay.getX() + corner * 0.55f, bay.getY() + 1.0f,
-                   bay.getRight() - corner * 0.55f, bay.getY() + 1.0f, 1.35f);
-        g.setColour(juce::Colour(0xff5a5c64).withAlpha(0.35f));
-        g.drawRoundedRectangle(bay.reduced(1.5f), juce::jmax(2.0f, corner - 1.0f), 0.9f);
+                   bay.getRight() - corner * 0.55f, bay.getY() + 1.0f, 1.0f);
 
         // Inner lip edge (where the module seats).
         g.setColour(juce::Colours::black.withAlpha(0.22f));
@@ -190,16 +189,12 @@ void NFWhiteDelayAudioProcessorEditor::SectionPanel::paint(juce::Graphics& g)
         g.fillRoundedRectangle(bounds.reduced(1.0f), corner - 1.0f);
     }
 
-    // Outer metal border around the module / button-well plate.
-    g.setColour(juce::Colour(0xff6e7078).withAlpha(0.90f));
-    g.drawRoundedRectangle(bounds.reduced(0.35f), corner, 1.65f);
-    g.setColour(juce::Colours::white.withAlpha(0.70f));
-    g.drawRoundedRectangle(bounds.reduced(1.5f), juce::jmax(0.0f, corner - 1.1f), 1.1f);
-    g.setColour(juce::Colours::black.withAlpha(0.16f));
-    g.drawRoundedRectangle(bounds.reduced(2.7f), juce::jmax(0.0f, corner - 2.0f), 0.95f);
-    g.setColour(juce::Colours::white.withAlpha(0.48f));
-    g.drawLine(bounds.getX() + corner * 0.5f, bounds.getY() + 1.1f,
-               bounds.getRight() - corner * 0.5f, bounds.getY() + 1.1f, 1.15f);
+    // Etapa 2 -- moldura fina e elegante (mesma família visual do chassi/
+    // display), no lugar do bisel cromado grosso de 4 camadas.
+    g.setColour(juce::Colour(0xff2a2c31).withAlpha(0.80f));
+    g.drawRoundedRectangle(bounds.reduced(0.35f), corner, 1.3f);
+    g.setColour(juce::Colours::white.withAlpha(0.55f));
+    g.drawRoundedRectangle(bounds.reduced(1.7f), juce::jmax(0.0f, corner - 1.2f), 0.9f);
 
     if (title.isNotEmpty())
     {
@@ -247,25 +242,24 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::renderStaticLayerToCache()
     g.addTransform(juce::AffineTransform::scale(scaleFactor));
 
     auto bounds = juce::Rectangle<float>(0.0f, 0.0f, (float) w, (float) h);
-    constexpr float corner = 16.0f;
+    constexpr float corner = 15.0f;
 
-    // Silver chrome bezel (reference crop) — thick metal rim around the glass.
+    // Etapa 1 -- moldura fina e elegante (bate com o novo frame do chassi),
+    // no lugar do bisel cromado grosso anterior.
     {
-        juce::ColourGradient bezel(juce::Colour(0xfff4f5f8), bounds.getCentreX(), bounds.getY(),
-                                   juce::Colour(0xff8e9098), bounds.getCentreX(), bounds.getBottom(), false);
+        juce::ColourGradient bezel(juce::Colour(0xfff0f1f4), bounds.getCentreX(), bounds.getY(),
+                                   juce::Colour(0xff8a8c94), bounds.getCentreX(), bounds.getBottom(), false);
         g.setGradientFill(bezel);
         g.fillRoundedRectangle(bounds, corner);
     }
-    g.setColour(juce::Colour(0xffd0d2d8));
-    g.drawRoundedRectangle(bounds.reduced(0.5f), corner - 0.3f, 1.6f);
-    g.setColour(juce::Colours::white.withAlpha(0.82f));
-    g.drawRoundedRectangle(bounds.reduced(1.6f), corner - 1.2f, 1.25f);
-    g.setColour(juce::Colours::black.withAlpha(0.22f));
-    g.drawRoundedRectangle(bounds.reduced(3.0f), corner - 2.2f, 1.2f);
+    g.setColour(juce::Colour(0xff2a2c31).withAlpha(0.85f));
+    g.drawRoundedRectangle(bounds.reduced(0.5f), corner - 0.3f, 1.4f);
+    g.setColour(juce::Colours::white.withAlpha(0.55f));
+    g.drawRoundedRectangle(bounds.reduced(1.8f), corner - 1.4f, 1.0f);
 
-    // Glass inset behind a thicker chrome lip (matches left reference).
-    auto glass = bounds.reduced(9.0f);
-    const float glassCorner = corner - 6.0f;
+    // Glass inset behind a slim chrome lip.
+    auto glass = bounds.reduced(6.5f);
+    const float glassCorner = corner - 4.0f;
     juce::ColourGradient bgGradient(LNF::kDisplayBackground, glass.getCentreX(), glass.getCentreY(),
                                      LNF::kDisplayBackgroundEdge, glass.getX(), glass.getY(), true);
     g.setGradientFill(bgGradient);
@@ -326,15 +320,12 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::renderStaticLayerToCache()
             g.drawImage (frame, glass, juce::RectanglePlacement::centred | juce::RectanglePlacement::stretchToFit);
     }
 
-    // Re-assert silver chrome bezel on top (matches left reference crop).
-    g.setColour(juce::Colour(0xffb4b6bc).withAlpha(0.98f));
-    g.drawRoundedRectangle(bounds.reduced(0.4f), corner, 2.8f);
-    g.setColour(juce::Colours::white.withAlpha(0.85f));
-    g.drawRoundedRectangle(bounds.reduced(1.8f), corner - 1.2f, 1.35f);
-    g.setColour(juce::Colour(0xff5c5e66).withAlpha(0.55f));
-    g.drawRoundedRectangle(bounds.reduced(3.6f), corner - 2.4f, 1.15f);
-    g.setColour(juce::Colour(0xffa8aab0).withAlpha(0.70f));
-    g.drawRoundedRectangle(bounds.reduced(7.2f), corner - 5.0f, 1.0f);
+    // Re-assert a moldura fina por cima (Etapa 1 -- traço único e nítido,
+    // no lugar do bisel cromado grosso de 4 camadas).
+    g.setColour(juce::Colour(0xff2a2c31).withAlpha(0.90f));
+    g.drawRoundedRectangle(bounds.reduced(0.4f), corner, 2.0f);
+    g.setColour(juce::Colours::white.withAlpha(0.5f));
+    g.drawRoundedRectangle(bounds.reduced(2.0f), corner - 1.4f, 1.0f);
 
     cachedStaticW = w;
     cachedStaticH = h;
@@ -351,9 +342,9 @@ void NFWhiteDelayAudioProcessorEditor::DisplayPanel::paint(juce::Graphics& g)
     g.drawImage(cachedStaticLayer, 0, 0, getWidth(), getHeight(), 0, 0, cachedStaticLayer.getWidth(), cachedStaticLayer.getHeight());
 
     auto bounds = getLocalBounds().toFloat();
-    constexpr float corner = 16.0f;
-    auto glass = bounds.reduced(9.0f);
-    const float glassCorner = corner - 6.0f;
+    constexpr float corner = 15.0f;
+    auto glass = bounds.reduced(6.5f);
+    const float glassCorner = corner - 4.0f;
 
     // Tudo daqui pra baixo É dinâmico (muda com animPhase/activity a
     // cada frame) -- glow/halo respirando, vazamento de luz, waveform,
@@ -748,13 +739,13 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
 
     // Header hierarchy (reference): Audio Tools / WHITE DELAY / Professional Delay.
     audioToolsLabel.setText("Audio Tools", juce::dontSendNotification);
-    audioToolsLabel.setFont(juce::FontOptions(13.5f, juce::Font::bold));
+    audioToolsLabel.setFont(juce::FontOptions(14.0f, juce::Font::bold));
     audioToolsLabel.setColour(juce::Label::textColourId, juce::Colour(0xff3a3c44));
     audioToolsLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(audioToolsLabel);
 
     whiteDelayLabel.setText("WHITE DELAY", juce::dontSendNotification);
-    whiteDelayLabel.setFont(juce::FontOptions(26.0f, juce::Font::bold));
+    whiteDelayLabel.setFont(juce::FontOptions(32.0f, juce::Font::bold));
     whiteDelayLabel.setColour(juce::Label::textColourId, juce::Colour(0xff1a1b20));
     whiteDelayLabel.setJustificationType(juce::Justification::centredLeft);
     content.addAndMakeVisible(whiteDelayLabel);
@@ -792,17 +783,17 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     content.addAndMakeVisible(displayPanel);
 
     displayLine1.setJustificationType(juce::Justification::centred);
-    displayLine1.setFont(juce::FontOptions(46.0f, juce::Font::bold));
+    displayLine1.setFont(juce::FontOptions(80.0f, juce::Font::bold));
     displayLine1.setColour(juce::Label::textColourId, LNF::kDisplayText);
     displayPanel.addAndMakeVisible(displayLine1);
 
     displayLine2.setJustificationType(juce::Justification::centred);
-    displayLine2.setFont(juce::FontOptions(15.0f, juce::Font::bold));
+    displayLine2.setFont(juce::FontOptions(18.0f, juce::Font::bold));
     displayLine2.setColour(juce::Label::textColourId, LNF::kDisplayAccent.brighter(0.05f));
     displayPanel.addAndMakeVisible(displayLine2);
 
     displayLine3.setJustificationType(juce::Justification::centred);
-    displayLine3.setFont(juce::FontOptions(12.0f));
+    displayLine3.setFont(juce::FontOptions(14.0f));
     displayLine3.setColour(juce::Label::textColourId, LNF::kDisplayAccent.withAlpha(0.90f));
     displayPanel.addAndMakeVisible(displayLine3);
 
@@ -811,12 +802,12 @@ NFWhiteDelayAudioProcessorEditor::NFWhiteDelayAudioProcessorEditor(NFWhiteDelayA
     {
         displayStatusTitle[i].setText(statusTitles[i], juce::dontSendNotification);
         displayStatusTitle[i].setJustificationType(juce::Justification::centred);
-        displayStatusTitle[i].setFont(juce::FontOptions(9.0f));
+        displayStatusTitle[i].setFont(juce::FontOptions(10.0f));
         displayStatusTitle[i].setColour(juce::Label::textColourId, LNF::kDisplayText.withAlpha(0.52f));
         displayPanel.addAndMakeVisible(displayStatusTitle[i]);
 
         displayStatusValue[i].setJustificationType(juce::Justification::centred);
-        displayStatusValue[i].setFont(juce::FontOptions(12.0f, juce::Font::bold));
+        displayStatusValue[i].setFont(juce::FontOptions(13.0f, juce::Font::bold));
         displayStatusValue[i].setColour(juce::Label::textColourId, LNF::kDisplayAccent.brighter(0.04f));
         displayPanel.addAndMakeVisible(displayStatusValue[i]);
     }
@@ -1011,7 +1002,7 @@ void NFWhiteDelayAudioProcessorEditor::setupSegmented(SegmentedControl& c, const
     refresh();
 }
 
-void NFWhiteDelayAudioProcessorEditor::positionRotary(RotaryControl& c, juce::Rectangle<int> area)
+void NFWhiteDelayAudioProcessorEditor::positionRotary(RotaryControl& c, juce::Rectangle<int> area, int maxKnobSize)
 {
     // Name directly under the knob; value chip under the name (hero + lower panels).
     // Vertically centre the whole stack so hero columns don't leave a dead band above.
@@ -1019,7 +1010,7 @@ void NFWhiteDelayAudioProcessorEditor::positionRotary(RotaryControl& c, juce::Re
     constexpr int valueH = 22;
     constexpr int footerH = titleH + valueH;
     const int maxKnob = juce::jmax(48, juce::jmin(area.getWidth() - 4, area.getHeight() - footerH));
-    const int knobSize = juce::jmin(118, maxKnob);
+    const int knobSize = juce::jmin(maxKnobSize, maxKnob);
     const int stackH = knobSize + footerH;
     auto stack = area.withSizeKeepingCentre(area.getWidth(), juce::jmin(area.getHeight(), stackH));
     c.slider.setBounds(stack.removeFromTop(knobSize));
@@ -1066,7 +1057,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     // Keep logo / chrome / modules / neon inside the rounded chassis lips.
     // Neon X inset matches content inset so ends align with brand & chrome.
     constexpr int chassisInsetX = 64;
-    constexpr int chassisInsetY = 14;
+    constexpr int chassisInsetY = 20;
     constexpr int neonInsetX = 64;
 
     // ---- Header — brand + chrome vertically centred; neon stays bottom divider ----
@@ -1090,22 +1081,24 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     powerButton.setBounds(powerArea.withSizeKeepingCentre(38, 38));
 
     // Brand — NF + text stack as one optically centred block in the header.
-    auto brand = header.removeFromLeft(420);
-    constexpr int logoSize = 54;
-    constexpr int textStackH = 58;
-    constexpr int brandBlockH = 60;
-    constexpr int brandGap = 12;
-    constexpr int brandContentW = logoSize + brandGap + 280;
+    // Etapa 1: tipografia maior (WHITE DELAY em destaque real), bloco
+    // ligeiramente mais alto pra acomodar sem apertar as três linhas.
+    auto brand = header.removeFromLeft(430);
+    constexpr int logoSize = 56;
+    constexpr int textStackH = 68;
+    constexpr int brandBlockH = 70;
+    constexpr int brandGap = 14;
+    constexpr int brandContentW = logoSize + brandGap + 300;
     auto brandInner = brand.withSizeKeepingCentre(juce::jmin(brand.getWidth(), brandContentW), brandBlockH);
     auto logoCol = brandInner.removeFromLeft(logoSize);
     nfLogoLabel.setBounds(logoCol.withSizeKeepingCentre(logoSize, logoSize));
     brandInner.removeFromLeft(brandGap);
     auto textCol = brandInner.withSizeKeepingCentre(brandInner.getWidth(), textStackH);
-    audioToolsLabel.setBounds(textCol.removeFromTop(14));
+    audioToolsLabel.setBounds(textCol.removeFromTop(17));
     textCol.removeFromTop(1);
-    whiteDelayLabel.setBounds(textCol.removeFromTop(26));
+    whiteDelayLabel.setBounds(textCol.removeFromTop(33));
     textCol.removeFromTop(1);
-    professionalDelayLabel.setBounds(textCol.removeFromTop(14));
+    professionalDelayLabel.setBounds(textCol.removeFromTop(15));
 
     // Neon under header (unchanged as lower divider).
     neonBarLogical = { headerBand.getX() + neonInsetX, headerBand.getBottom() - 7,
@@ -1115,7 +1108,7 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     // ---- Avançado (rodapé) — raised inside chassis, clear of bottom lip ----
     content.chassisBays.clearQuick();
     constexpr int chassisBottomPad = 58; // lifts modules above the rounded bevel
-    constexpr int bottomModuleH = 252;
+    constexpr int bottomModuleH = 276; // Etapa 2: +24 to fit the bigger module knobs
     auto bottomStrip = bounds.removeFromBottom(chassisBottomPad + bottomModuleH);
     bottomStrip.removeFromBottom(chassisBottomPad);
     auto bottomRow = bottomStrip.reduced(chassisInsetX, 0);
@@ -1148,38 +1141,43 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     filtersColumn.removeFromTop(28);
     characterColumn.removeFromTop(28);
 
-    constexpr int bottomKnobAreaHeight = 152;
+    // Etapa 2: knobs dos módulos inferiores replicam a mesma proporção
+    // maior do TIME/FEEDBACK/DRY-WET/OUTPUT (mesmo material, só maiores).
+    constexpr int bottomKnobAreaHeight = 176;
+    constexpr int moduleKnobMax = 140;
     auto modulationKnobs = modulationColumn.removeFromTop(bottomKnobAreaHeight);
     auto filtersKnobs = filtersColumn.removeFromTop(bottomKnobAreaHeight);
     auto characterKnobs = characterColumn.removeFromTop(bottomKnobAreaHeight);
 
     {
         const int colWidth = modulationKnobs.getWidth() / 4;
-        positionRotary(rateControl, modulationKnobs.removeFromLeft(colWidth).reduced(8, 0));
-        positionRotary(depthControl, modulationKnobs.removeFromLeft(colWidth).reduced(8, 0));
+        positionRotary(rateControl, modulationKnobs.removeFromLeft(colWidth).reduced(8, 0), moduleKnobMax);
+        positionRotary(depthControl, modulationKnobs.removeFromLeft(colWidth).reduced(8, 0), moduleKnobMax);
         positionChoice(shapeControl, modulationKnobs.removeFromLeft(colWidth).reduced(8, 0));
-        positionRotary(spreadControl, modulationKnobs.reduced(8, 0));
+        positionRotary(spreadControl, modulationKnobs.reduced(8, 0), moduleKnobMax);
     }
     {
         const int colWidth = filtersKnobs.getWidth() / 3;
-        positionRotary(highPassControl, filtersKnobs.removeFromLeft(colWidth).reduced(10, 0));
-        positionRotary(lowPassControl, filtersKnobs.removeFromLeft(colWidth).reduced(10, 0));
-        positionRotary(resonanceControl, filtersKnobs.reduced(10, 0));
+        positionRotary(highPassControl, filtersKnobs.removeFromLeft(colWidth).reduced(10, 0), moduleKnobMax);
+        positionRotary(lowPassControl, filtersKnobs.removeFromLeft(colWidth).reduced(10, 0), moduleKnobMax);
+        positionRotary(resonanceControl, filtersKnobs.reduced(10, 0), moduleKnobMax);
     }
     {
         const int colWidth = characterKnobs.getWidth() / 2;
-        positionRotary(characterControl, characterKnobs.removeFromLeft(colWidth).reduced(14, 0));
-        positionRotary(duckingControl, characterKnobs.reduced(14, 0));
+        positionRotary(characterControl, characterKnobs.removeFromLeft(colWidth).reduced(14, 0), moduleKnobMax);
+        positionRotary(duckingControl, characterKnobs.reduced(14, 0), moduleKnobMax);
     }
 
     // ---- Controles rápidos (linha logo abaixo do centro principal) ----
     auto quickRow = bounds.removeFromBottom(64).reduced(chassisInsetX, 6);
 
-    constexpr int syncW = 100, comboW = 118, pingLofiGroupW = 218, modeGroupW = 226, gapW = 14;
+    constexpr int syncW = 132, comboW = 118, pingLofiGroupW = 218, modeGroupW = 226, gapW = 14;
     const int quickTotalWidth = syncW + comboW + comboW + pingLofiGroupW + modeGroupW + gapW * 4;
     auto quickBlock = quickRow.withSizeKeepingCentre(quickTotalWidth, quickRow.getHeight());
 
-    positionToggle(syncControl, quickBlock.removeFromLeft(syncW));
+    // Etapa 1 -- SYNC ganha destaque físico (pill mais largo e mais alto
+    // que os vizinhos), igual à referência aprovada.
+    positionToggle(syncControl, quickBlock.removeFromLeft(syncW).expanded(0, 5));
     quickBlock.removeFromLeft(gapW);
     positionChoice(divisionControl, quickBlock.removeFromLeft(comboW));
     quickBlock.removeFromLeft(gapW);
@@ -1204,11 +1202,16 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     positionSegmented(modeControl, modeArea.reduced(6, 6));
 
     // ---- Centro principal: TIME | DISPLAY | FEEDBACK | DRY/WET | OUTPUT ----
+    // Redesign visual (Design_Reference/01_REFERENCIA_VISUAL_APROVADA.png):
+    // TIME é o "hero" (coluna e knob maiores); FEEDBACK/DRY-WET/OUTPUT
+    // replicam a mesma proporção maior (Etapa 2), um degrau abaixo do TIME,
+    // igual à referência -- mesmo material/skin dos knobs, só o tamanho.
     auto mainRow = bounds.reduced(chassisInsetX, 4);
 
+    constexpr int timeColumnW = 210;
     constexpr int heroKnobW = 168;
     constexpr int heroGap = 12;
-    auto timeColumn = mainRow.removeFromLeft(heroKnobW);
+    auto timeColumn = mainRow.removeFromLeft(timeColumnW);
     mainRow.removeFromLeft(heroGap);
     auto outputColumn = mainRow.removeFromRight(heroKnobW);
     mainRow.removeFromRight(heroGap);
@@ -1218,34 +1221,35 @@ void NFWhiteDelayAudioProcessorEditor::layoutContent()
     mainRow.removeFromRight(heroGap);
     auto displayColumn = mainRow;
 
-    positionRotary(timeControl, timeColumn);
-    positionRotary(feedbackControl, feedbackColumn);
-    positionRotary(dryWetControl, dryWetColumn);
-    positionRotary(outputControl, outputColumn);
+    positionRotary(timeControl, timeColumn, 196);
+    positionRotary(feedbackControl, feedbackColumn, 150);
+    positionRotary(dryWetControl, dryWetColumn, 150);
+    positionRotary(outputControl, outputColumn, 150);
 
     {
-        // Compact display matching reference crop (not stretched tall).
-        constexpr int displayH = 170;
-        const int displayW = juce::jmin(displayColumn.getWidth(), 392);
+        // Display valorizado (Etapa 1) -- ocupa muito mais da faixa central,
+        // fechando o vazio vertical entre o header e a linha de controles
+        // rápidos, igual à referência aprovada.
+        constexpr int displayH = 232;
+        const int displayW = juce::jmin(displayColumn.getWidth(), 470);
         auto displayArea = juce::Rectangle<int>(displayW, displayH)
-                               .withCentre(displayColumn.getCentre())
-                               .translated(0, -6); // sit slightly higher with the hero knobs
+                               .withCentre(displayColumn.getCentre());
         displayPanel.setBounds(displayArea);
 
-        // Inset clears the thicker chrome bezel before text/status.
-        auto displayLocal = displayPanel.getLocalBounds().reduced(18, 16);
-        auto statusBand = displayLocal.removeFromBottom(30);
-        displayLocal.removeFromBottom(2);
+        // Inset clears the thinner chrome bezel before text/status.
+        auto displayLocal = displayPanel.getLocalBounds().reduced(20, 18);
+        auto statusBand = displayLocal.removeFromBottom(34);
+        displayLocal.removeFromBottom(3);
 
-        displayLine1.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.44f)));
-        displayLine2.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.30f)));
+        displayLine1.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.46f)));
+        displayLine2.setBounds(displayLocal.removeFromTop((int) (displayLocal.getHeight() * 0.28f)));
         displayLine3.setBounds(displayLocal);
 
         const int colW = statusBand.getWidth() / 4;
         for (int i = 0; i < 4; ++i)
         {
             auto col = statusBand.removeFromLeft(colW);
-            displayStatusTitle[i].setBounds(col.removeFromTop(11));
+            displayStatusTitle[i].setBounds(col.removeFromTop(12));
             displayStatusValue[i].setBounds(col);
         }
     }
@@ -1322,38 +1326,33 @@ void NFWhiteDelayAudioProcessorEditor::paint(juce::Graphics& g)
         g.fillRoundedRectangle(heroBand, 18.0f);
     }
 
-    // Chassis frame — reference corner crop: soft chrome bevel + depth.
+    // Chassis frame — Etapa 1 do redesign visual (Design_Reference/
+    // 01_REFERENCIA_VISUAL_APROVADA.png): moldura fina e elegante com
+    // profundidade real, no lugar do bisel cromado grosso anterior (que
+    // lia como plástico). Um traço externo escuro e nítido + um filete
+    // interno claro, cantos mais arredondados -- linguagem de gabinete
+    // premium, não de brinquedo.
     constexpr float inset = 3.0f;
-    constexpr float chassisCorner = 16.0f;
+    constexpr float chassisCorner = 18.0f;
     auto chassisRect = bounds.reduced(inset);
 
-    // Outer soft shadow / rim darkening into the rounded corners.
+    // Sombra suave por baixo do gabinete -- profundidade contra o host.
     {
         juce::Path framePath;
         framePath.addRoundedRectangle(chassisRect, chassisCorner);
-        juce::DropShadow(juce::Colours::black.withAlpha(0.10f), 6, { 0, 1 }).drawForPath(g, framePath);
+        juce::DropShadow(juce::Colours::black.withAlpha(0.18f), 12, { 0, 4 }).drawForPath(g, framePath);
     }
 
-    // Thick chrome-ish outer stroke (multi-layer).
-    g.setColour(juce::Colour(0xff9a9ca4).withAlpha(0.55f));
-    g.drawRoundedRectangle(chassisRect.expanded(0.8f), chassisCorner + 0.5f, 2.2f);
-    g.setColour(juce::Colour(0xffc8cad1).withAlpha(0.90f));
-    g.drawRoundedRectangle(chassisRect, chassisCorner, 1.35f);
-    g.setColour(juce::Colours::white.withAlpha(0.62f));
-    g.drawRoundedRectangle(chassisRect.reduced(1.6f), chassisCorner - 1.2f, 1.0f);
-    g.setColour(juce::Colours::black.withAlpha(0.06f));
-    g.drawRoundedRectangle(chassisRect.reduced(3.0f), chassisCorner - 2.2f, 0.9f);
-
-    // Top lip highlight / bottom lip shade (physical plate edge).
-    g.setColour(juce::Colours::white.withAlpha(0.50f));
-    g.drawLine(bounds.getX() + inset + 8.0f, bounds.getY() + inset,
-               bounds.getRight() - inset - 8.0f, bounds.getY() + inset, 1.1f);
-    g.setColour(juce::Colours::black.withAlpha(0.10f));
-    g.drawLine(bounds.getX() + inset + 8.0f, bounds.getBottom() - inset,
-               bounds.getRight() - inset - 8.0f, bounds.getBottom() - inset, 1.1f);
-
-    g.setColour(juce::Colour(0xffb0b2ba).withAlpha(0.55f));
-    g.drawRect(bounds, 1.0f);
+    // Traço externo escuro, fino e nítido (a "moldura metálica" da
+    // referência -- carbono/grafite, não cromo espesso).
+    g.setColour(juce::Colour(0xff26282d).withAlpha(0.95f));
+    g.drawRoundedRectangle(chassisRect, chassisCorner, 2.4f);
+    // Filete interno claro -- aresta pegando luz, bem discreta.
+    g.setColour(juce::Colours::white.withAlpha(0.55f));
+    g.drawRoundedRectangle(chassisRect.reduced(2.6f), chassisCorner - 1.8f, 1.0f);
+    // Segunda linha, quase invisível -- profundidade sem ficar espessa.
+    g.setColour(juce::Colours::black.withAlpha(0.05f));
+    g.drawRoundedRectangle(chassisRect.reduced(4.4f), chassisCorner - 3.2f, 0.8f);
 }
 
 void NFWhiteDelayAudioProcessorEditor::resized()

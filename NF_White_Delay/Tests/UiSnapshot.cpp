@@ -14,11 +14,16 @@ int main (int, char**)
         return 1;
     }
 
+    // Alta resolução: abre no canvas nativo (1280x860, scale 1.0 -- sem
+    // downscale do "open size" menor) e renderiza em 2x supersampling.
+    editor->setSize (1280, 860);
     const int w = editor->getWidth();
     const int h = editor->getHeight();
-    juce::Image img (juce::Image::ARGB, w, h, true);
+    constexpr int superSample = 2;
+    juce::Image img (juce::Image::ARGB, w * superSample, h * superSample, true);
     {
         juce::Graphics g (img);
+        g.addTransform (juce::AffineTransform::scale ((float) superSample));
         editor->paintEntireComponent (g, true);
     }
 

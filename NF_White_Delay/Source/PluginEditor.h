@@ -197,7 +197,7 @@ private:
                       const juce::StringArray& choices);
     void setupSegmented(SegmentedControl&, const juce::String& paramID, const juce::StringArray& choices);
 
-    static void positionRotary(RotaryControl&, juce::Rectangle<int> area);
+    static void positionRotary(RotaryControl&, juce::Rectangle<int> area, int maxKnobSize = 118);
     static void positionToggle(ToggleControl&, juce::Rectangle<int> area);
     static void positionChoice(ChoiceControl&, juce::Rectangle<int> area);
     static void positionSegmented(SegmentedControl&, juce::Rectangle<int> area);
