@@ -101,69 +101,6 @@ void NFWhiteDelayAudioProcessorEditor::NfLogoBadge::paint(juce::Graphics& g)
 
 namespace
 {
-    // Aço escovado branco — grão anisotrópico horizontal + glint diagonal.
-    // Gerada uma única vez (lazy static) num tamanho canônico e depois
-    // esticada sobre cada superfície metálica (mesmo esquema do chassis_png).
-    const juce::Image& brushedSteelTexture()
-    {
-        static const juce::Image texture = []
-        {
-            constexpr int tw = 1024, th = 688;
-            juce::Image img(juce::Image::ARGB, tw, th, true);
-            juce::Random rng(0x4E465753); // seed fixo -- grão estável entre aberturas
-
-            {
-                juce::Image::BitmapData bmp(img, juce::Image::BitmapData::writeOnly);
-                for (int y = 0; y < th; ++y)
-                {
-                    // Escovado corre na horizontal: cada linha ganha um leve
-                    // desvio de brilho compartilhado por toda a largura.
-                    const float rowNoise = (rng.nextFloat() - 0.5f) * 2.0f;
-                    const bool lighter = rowNoise > 0.0f;
-                    const float rowStrength = std::abs(rowNoise);
-
-                    for (int x = 0; x < tw; ++x)
-                    {
-                        // Micro-jitter por pixel pra quebrar a faixa lisa e
-                        // parecer grão de metal de verdade, não bandas CSS.
-                        const float pxJitter = rng.nextFloat();
-                        const float alpha = juce::jlimit(0.0f, 1.0f, rowStrength * (0.35f + pxJitter * 0.65f)) * 0.09f;
-                        auto c = (lighter ? juce::Colours::white : juce::Colours::black).withAlpha(alpha);
-                        bmp.setPixelColour(x, y, c);
-                    }
-                }
-            }
-
-            // Glint diagonal — reflexo suave cruzando a chapa (leitura
-            // anisotrópica clássica de metal escovado sob luz de estúdio).
-            juce::Graphics g(img);
-            juce::ColourGradient glint(juce::Colours::transparentWhite, tw * 0.05f, 0.0f,
-                                        juce::Colours::transparentWhite, tw * 0.60f, (float) th, false);
-            glint.addColour(0.42, juce::Colours::white.withAlpha(0.05f));
-            glint.addColour(0.50, juce::Colours::white.withAlpha(0.14f));
-            glint.addColour(0.58, juce::Colours::white.withAlpha(0.05f));
-            g.setGradientFill(glint);
-            g.fillRect(0, 0, tw, th);
-
-            return img;
-        }();
-        return texture;
-    }
-
-    // Aplica o grão de aço escovado sobre uma superfície metálica já
-    // pintada, recortado à sua forma (arredondada) e em baixa opacidade.
-    void paintBrushedOverlay(juce::Graphics& g, juce::Rectangle<float> area, float corner, float opacity)
-    {
-        juce::Path clip;
-        clip.addRoundedRectangle(area, corner);
-        g.saveState();
-        g.reduceClipRegion(clip);
-        g.setOpacity(opacity);
-        g.drawImage(brushedSteelTexture(), area, juce::RectanglePlacement::stretchToFit);
-        g.setOpacity(1.0f);
-        g.restoreState();
-    }
-
     // Machined chassis bay — thick rounded lip + recessed floor (fit modules into).
     void paintChassisBayFrame(juce::Graphics& g, juce::Rectangle<float> bay, float corner)
     {
@@ -178,7 +115,6 @@ namespace
             g.setGradientFill(lipGrad);
             g.fillRoundedRectangle(bay, corner);
         }
-        paintBrushedOverlay(g, bay, corner, 0.55f);
 
         // Recessed floor.
         {
@@ -245,7 +181,6 @@ void NFWhiteDelayAudioProcessorEditor::SectionPanel::paint(juce::Graphics& g)
         g.setGradientFill(fill);
         g.fillRoundedRectangle(bounds, corner);
     }
-    paintBrushedOverlay(g, bounds, corner, isButtonWell ? 0.45f : 0.6f);
 
     {
         auto top = bounds.reduced(1.0f).withHeight(juce::jmax(8.0f, bounds.getHeight() * 0.22f));
@@ -1341,11 +1276,6 @@ void NFWhiteDelayAudioProcessorEditor::paint(juce::Graphics& g)
                                           base.darker(0.020f).withAlpha(0.22f), bounds.getCentreX(), bounds.getBottom(), false);
     g.setGradientFill(chassisGradient);
     g.fillRect(bounds);
-
-    // 1b) Aço escovado branco — grão + glint sobre a chapa inteira do
-    // chassi (item pedido: acabamento mais profissional, "brushed steel").
-    g.setOpacity(1.0f);
-    g.drawImage(brushedSteelTexture(), bounds, juce::RectanglePlacement::stretchToFit);
 
     // 2) Soft centre lift — discreet illumination, not a hot spot.
     {
